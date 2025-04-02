@@ -1,0 +1,28 @@
+line       token                type            value     
+------------------------------------------------------
+1          int                  INT            
+1          a                    IDENT           a         
+1          =                    ASSIGN         
+1          3                    INT_CONST       3         
+1          ;                    SEMICOLON      
+2          int                  INT            
+2          b                    IDENT           b         
+2          =                    ASSIGN         
+2          5                    INT_CONST       5         
+2          ;                    SEMICOLON      
+4          int                  INT            
+4          main                 IDENT           main      
+4          (                    LPAREN         
+4          )                    RPAREN         
+4          {                    LBRACE         
+5          int                  INT            
+5          a                    IDENT           a         
+5          =                    ASSIGN         
+5          5                    INT_CONST       5         
+5          ;                    SEMICOLON      
+6          return               RETURN         
+6          a                    IDENT           a         
+6          +                    PLUS           
+6          b                    IDENT           b         
+6          ;                    SEMICOLON      
+7          }                    RBRACE         
