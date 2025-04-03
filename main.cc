@@ -11,7 +11,7 @@ extern YYSTYPE yylval;
 extern int yylex();
 extern void dumpTokens(FILE* output, int token, int line_number, char *yytext, YYSTYPE yylval);
 
-int line = 0;
+int line = 1;
 
 // option table 
 #define nr_options 5 

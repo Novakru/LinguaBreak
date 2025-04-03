@@ -61,6 +61,8 @@ IDENTIFIER       		 [_a-zA-Z][_a-zA-Z0-9]*
 
 "//".* {}
 
+"*/" { yylval.error_msg = "Unexpected end of comment"; return ERROR; }
+
 "<="     { return LEQ;        }
 ">="     { return GEQ;        }
 "=="     { return EQ;         }
