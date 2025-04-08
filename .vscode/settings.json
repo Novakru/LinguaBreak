@@ -64,5 +64,6 @@
 		"stack": "cpp",
 		"variant": "cpp",
 		"bitset": "cpp"
-	}
+	},
+	"C_Cpp.errorSquiggles": "disabled"
 }

@@ -7,10 +7,12 @@
 // #include "visitor.h" I think visitor patten is no use
 #include <iostream>
 #include <vector>
+#include <variant>
 
 class ASTNode {
 public:
     int line; 
+
     virtual ~ASTNode() = default;
 	virtual void codeIR() = 0;
     virtual void TypeCheck() = 0; 
@@ -24,30 +26,40 @@ public:
     virtual void TypeCheck() {}
     virtual void printAST(std::ostream &s, int pad) {}
 };
-typedef _ExprBase *ExprBase;
+typedef _ExprBase *ExprBasePtr;
 
 // Exp → AddExp
 class Exp : public _ExprBase {
 public:
-	ExprBase addExp;
-	Exp(ExprBase addExp) : addExp(addExp) {};
+	ExprBasePtr addExp;
+	Exp(ExprBasePtr addExp) : addExp(addExp) {};
 	
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
-typedef _ExprBase* ExprBase;
 
 // AddExp → MulExp | AddExp ('+' | '−') MulExp 
-class AddExp : public _ExprBase {
+class Add2MulExp : public _ExprBase {
 public:
-	ExprBase addExp, mulExp;
-	OpType op;
+	ExprBasePtr mulExp;
 
 	// select Production 1.
-    AddExp(ExprBase mulExp) : addExp(NULL), op(OpType::Void), mulExp(mulExp) {}
+    Add2MulExp(ExprBasePtr mulExp) : mulExp(mulExp) {}
+	
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+
+class BinaryAddExp : public _ExprBase {
+public:
+	ExprBasePtr addExp, mulExp;
+	OpType op;
+
 	// select Production 2.
-    AddExp(ExprBase addExp, OpType op, ExprBase mulExp) : addExp(addExp), op(op), mulExp(mulExp) {}
+    BinaryAddExp(ExprBasePtr addExp, OpType op, ExprBasePtr mulExp) : addExp(addExp), op(op), mulExp(mulExp) {}
 	
     void codeIR();
     void TypeCheck();
@@ -55,47 +67,68 @@ public:
 };
 
 // MulExp → UnaryExp | MulExp ('*' | '/' | '%') UnaryExp 
-class MulExp : public _ExprBase {
+class Mul2UnaryExp : public _ExprBase {
 public:
-	ExprBase mulExp, unaryExp;
-	OpType op;
+    ExprBasePtr unaryExp;
 
-	// select Production 1.
-    MulExp(ExprBase unaryExp) : mulExp(NULL), op(OpType::Void), unaryExp(unaryExp) {}
-	// select Production 2.
-    MulExp(ExprBase mulExp, OpType op, ExprBase unaryExp) : mulExp(mulExp), op(op), unaryExp(unaryExp) {}
-	
+    // select Production 1.
+    Mul2UnaryExp(ExprBasePtr unaryExp) : unaryExp(unaryExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+class BinaryMulExp : public _ExprBase {
+public:
+    ExprBasePtr mulExp, unaryExp;
+    OpType op;
+
+    // select Production 2.
+    BinaryMulExp(ExprBasePtr mulExp, OpType op, ExprBasePtr unaryExp) : mulExp(mulExp), op(op), unaryExp(unaryExp) {}
+
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
 
 // RelExp → AddExp | RelExp ('<' | '>' | '<=' | '>=') AddExp
-class RelExp : public _ExprBase {
+class Rel2AddExp : public _ExprBase {
 public:
-	ExprBase relExp, addExp;
-	OpType op;
+    ExprBasePtr addExp;
 
-	// select Production 1.
-    RelExp(ExprBase addExp) : relExp(NULL), op(OpType::Void), addExp(addExp) {}
-	// select Production 2.
-    RelExp(ExprBase relExp, OpType op, ExprBase addExp) : relExp(relExp), op(op), addExp(addExp) {}
+    // select Production 1.
+    Rel2AddExp(ExprBasePtr addExp) : addExp(addExp) {}
 
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
 
+class BinaryRelExp : public _ExprBase {
+public:
+    ExprBasePtr relExp, addExp;
+    OpType op;
+
+    // select Production 2.
+    BinaryRelExp(ExprBasePtr relExp, OpType op, ExprBasePtr addExp) : relExp(relExp), op(op), addExp(addExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+
 // LAndExp → EqExp | LAndExp '&&' EqExp
 class LAndExp : public _ExprBase {
 public:
-	ExprBase lAndExp, eqExp;
+	ExprBasePtr lAndExp, eqExp;
 	OpType op;
 
 	// select Production 1.
-    LAndExp(ExprBase eqExp) : lAndExp(NULL), op(OpType::Void), eqExp(eqExp) {}
+    LAndExp(ExprBasePtr eqExp) : lAndExp(NULL), op(OpType::Void), eqExp(eqExp) {}
 	// select Production 2.
-    LAndExp(ExprBase lAndExp, OpType op, ExprBase eqExp) : lAndExp(lAndExp), op(op), eqExp(eqExp) {}
+    LAndExp(ExprBasePtr lAndExp, OpType op, ExprBasePtr eqExp) : lAndExp(lAndExp), op(op), eqExp(eqExp) {}
 
     void codeIR();
     void TypeCheck();
@@ -103,26 +136,37 @@ public:
 };
 
 // LOrExp → LAndExp | LOrExp '||' LAndExp
-class LOrExp : public _ExprBase {
+class LAnd2EqExp : public _ExprBase {
 public:
-	ExprBase lOrExp, lAndExp;
-	OpType op;
+    ExprBasePtr eqExp;
 
-	// select Production 1.
-    LOrExp(ExprBase lAndExp) : lOrExp(NULL), op(OpType::Void), lAndExp(lAndExp) {}
-	// select Production 2.
-    LOrExp(ExprBase lOrExp, OpType op, ExprBase lAndExp) : lOrExp(lOrExp), op(op), lAndExp(lAndExp) {}
+    // select Production 1.
+    LAnd2EqExp(ExprBasePtr eqExp) : eqExp(eqExp) {}
 
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
 
+class BinaryLAndExp : public _ExprBase {
+public:
+    ExprBasePtr lAndExp, eqExp;
+    OpType op;
+
+    // select Production 2.
+    BinaryLAndExp(ExprBasePtr lAndExp, OpType op, ExprBasePtr eqExp) : lAndExp(lAndExp), op(op), eqExp(eqExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+
 // ConstExp → AddExp
 class ConstExp : public _ExprBase {
 public:
-	ExprBase addExp;
-    ConstExp(ExprBase addExp) : addExp(addExp) {}
+	ExprBasePtr addExp;
+    ConstExp(ExprBasePtr addExp) : addExp(addExp) {}
 
     void codeIR();
     void TypeCheck();
@@ -133,9 +177,9 @@ public:
 class Lval : public _ExprBase {
 public:
     Symbol name;
-    std::vector<ExprBase> *dims;  // may be empty
+    std::vector<ExprBasePtr> *dims;  // may be empty
 
-    Lval(Symbol n, std::vector<ExprBase> *d) : name(n), dims(d) {}
+    Lval(Symbol n, std::vector<ExprBasePtr> *d) : name(n), dims(d) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -144,8 +188,8 @@ public:
 // FuncRParams → Exp { ',' Exp }
 class FuncRParams : public _ExprBase {
 public:
-    std::vector<ExprBase> *rParams{};
-    FuncRParams(std::vector<ExprBase> *p) : rParams(p) {}
+    std::vector<ExprBasePtr> *rParams{};
+    FuncRParams(std::vector<ExprBasePtr> *p) : rParams(p) {}
 
     void codeIR();
     void TypeCheck();
@@ -156,9 +200,9 @@ public:
 class FuncCall : public _ExprBase {
 public:
     Symbol name;
-    ExprBase funcRParams;
+    ExprBasePtr funcRParams;
     
-	FuncCall(Symbol n, ExprBase f) : name(n), funcRParams(f) {}
+	FuncCall(Symbol n, ExprBasePtr f) : name(n), funcRParams(f) {}
 
     void codeIR();
     void TypeCheck();
@@ -169,29 +213,27 @@ public:
 // UnaryOp  → '+' | '−' | '!' 
 class UnaryExp : public _ExprBase {
 public:
-	ExprBase unaryExp;
+	ExprBasePtr unaryExp;
 	OpType unaryOp;
 
-    UnaryExp(OpType unaryOp, ExprBase unaryExp) : unaryExp(unaryExp), unaryOp(unaryOp) {}
+    UnaryExp(OpType unaryOp, ExprBasePtr unaryExp) : unaryExp(unaryExp), unaryOp(unaryOp) {}
 
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
 
-class IntConst : public _ExprBase {
+// Number → IntConst | floatConst 
+// Literal → IntConst | floatConst | StrConst
+class Literal : public _ExprBase {
 public:
-    int val;
-    IntConst(int v) : val(v) {}
-    void codeIR();
-    void TypeCheck();
-    void printAST(std::ostream &s, int pad);
-};
+    BuiltinType type;
+    std::variant<int, float, std::string> val;
 
-class FloatConst : public _ExprBase {
-public:
-    float val;
-    FloatConst(float v) : val(v) {}
+    Literal(int value) : type(BuiltinType::Int), val(value) {}
+    Literal(float value) : type(BuiltinType::Float), val(value) {}
+    Literal(const std::string& value) : type(BuiltinType::String), val(value) {}
+
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -200,8 +242,8 @@ public:
 // PrimaryExp → '(' Exp ')' | LVal | Number
 class PrimaryExp : public _ExprBase {
 public:
-	ExprBase exp;
-    PrimaryExp(ExprBase exp) : exp(exp) {}
+	ExprBasePtr exp;
+    PrimaryExp(ExprBasePtr exp) : exp(exp) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -216,10 +258,10 @@ typedef _Stmt *Stmt;
 // Stmt → LVal '=' Exp ';' 
 class AssignStmt : public _Stmt {
 public:
-    ExprBase lval;
-    ExprBase exp;
+    ExprBasePtr lval;
+    ExprBasePtr exp;
 
-    AssignStmt(ExprBase l, ExprBase e) : lval(l), exp(e) {}
+    AssignStmt(ExprBasePtr l, ExprBasePtr e) : lval(l), exp(e) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -228,10 +270,10 @@ public:
 // Stmt → [Exp] ';' 
 class ExprStmt : public _Stmt {
 public:
-    ExprBase exp;  // may be empty
+    ExprBasePtr exp;  // may be empty
 
 	bool getExp() { return exp; }
-    ExprStmt(ExprBase e) : exp(e) {}
+    ExprStmt(ExprBasePtr e) : exp(e) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -250,12 +292,12 @@ public:
 // Stmt → 'if' '( Cond ')' Stmt  ['else' Stmt] 
 class IfStmt : public _Stmt {
 public:
-    ExprBase Cond;
+    ExprBasePtr Cond;
     Stmt ifStmt;
     Stmt elseStmt;   // may be empty
 
 	Stmt getElseStmt() { return elseStmt; }
-    IfStmt(ExprBase c, Stmt i, Stmt t) : Cond(c), ifStmt(i), elseStmt(t) {}
+    IfStmt(ExprBasePtr c, Stmt i, Stmt t) : Cond(c), ifStmt(i), elseStmt(t) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -264,10 +306,10 @@ public:
 // Stmt → 'while' '(' Cond ')' Stmt
 class WhileStmt : public _Stmt {
 public:
-    ExprBase Cond;
+    ExprBasePtr Cond;
     Stmt loopBody;
 
-    WhileStmt(ExprBase c, Stmt b) : Cond(c), loopBody(b) {}
+    WhileStmt(ExprBasePtr c, Stmt b) : Cond(c), loopBody(b) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -292,10 +334,10 @@ public:
 // Stmt → 'return' [Exp] 
 class RetStmt : public _Stmt {
 public:
-    ExprBase retExp; // may be empty
-    RetStmt(ExprBase r) : retExp(r) {}
+    ExprBasePtr retExp; // may be empty
+    RetStmt(ExprBasePtr r) : retExp(r) {}
 
-	ExprBase getExp() { return retExp; }
+	ExprBasePtr getExp() { return retExp; }
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -306,7 +348,7 @@ typedef _DeclBase *DeclBase;
 
 class _InitValBase : public ASTNode {
 public:
-	virtual ExprBase getExp() = 0;
+	virtual ExprBasePtr getExp() = 0;
 };
 typedef _InitValBase *InitValBase;
 
@@ -319,78 +361,80 @@ public:
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
-	ExprBase getExp() {return nullptr;}
+	ExprBasePtr getExp() {return nullptr;}
 };
 
-// class ConstExp : public _InitValBase {
-// public:
-//     ExprBase exp;
-//     ConstExp(ExprBase e) : exp(e) {}
-//     void codeIR();
-//     void TypeCheck();
-//     void printAST(std::ostream &s, int pad);
-// 	ExprBase getExp() {return exp;}
-// };
+class ConstInitVal2Exp : public _InitValBase {
+public:
+    ExprBasePtr exp;
+
+    ConstInitVal2Exp(ExprBasePtr e) : exp(e) {}
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+	ExprBasePtr getExp() {return exp;}
+};
 
 // InitVal → Exp | '{' [ InitVal { ',' InitVal } ] '}' 
 class InitValList : public _InitValBase {
 public:
     std::vector<InitValBase> *initval;
+
     InitValList(std::vector<InitValBase> *i) : initval(i) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
-	ExprBase getExp() {return nullptr;}
+	ExprBasePtr getExp() {return nullptr;}
 };
 
-// class Exp : public _InitValBase { // Multiple Inheritance
-// public:
-//     ExprBase exp;
-//     Exp(ExprBase e) : exp(e) {}
-//     void codeIR();
-//     void TypeCheck();
-//     void printAST(std::ostream &s, int pad);
-// 	ExprBase getExp() {return exp;}
-// };
-
-
-class __Def : public ASTNode {
+class InitVal2Exp : public _InitValBase { // Multiple Inheritance
 public:
-    int scope = -1;    // 在语义分析阶段填入正确的作用域
-};
-typedef __Def *Def;
+    ExprBasePtr exp;
 
-class VarDef_no_init : public __Def {
+    InitVal2Exp(ExprBasePtr e) : exp(e) {}
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+	ExprBasePtr getExp() {return exp;}
+};
+
+class _Def : public ASTNode {
+public:
+    int scope = -1;   
+};
+typedef _Def *Def;
+
+class VarDef_no_init : public _Def {
 public:
     Symbol name;
-    std::vector<ExprBase> *dims;
+    std::vector<ExprBasePtr> *dims;
     // 如果dims为nullptr, 表示该变量不含数组下标, 你也可以通过其他方式判断，但需要修改SysY_parser.y已有的代码
-    VarDef_no_init(Symbol n, std::vector<ExprBase> *d) : name(n), dims(d) {}
+    VarDef_no_init(Symbol n, std::vector<ExprBasePtr> *d) : name(n), dims(d) {}
 
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
 
-class VarDef : public __Def {
+class VarDef : public _Def {
 public:
     Symbol name;
-    std::vector<ExprBase> *dims;
+    std::vector<ExprBasePtr> *dims;
     InitValBase init;
-    VarDef(Symbol n, std::vector<ExprBase> *d, InitValBase i) : name(n), dims(d), init(i) {}
+    VarDef(Symbol n, std::vector<ExprBasePtr> *d, InitValBase i) : name(n), dims(d), init(i) {}
 
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
 
-class ConstDef : public __Def {
+class ConstDef : public _Def {
 public:
     Symbol name;
-    std::vector<ExprBase> *dims;
-    // 如果dims为nullptr, 表示该变量不含数组下标, 你也可以通过其他方式判断，但需要修改SysY_parser.y已有的代码
+    std::vector<ExprBasePtr> *dims;
+
     InitValBase init;
-    ConstDef(Symbol n, std::vector<ExprBase> *d, InitValBase i) : name(n), dims(d), init(i) {}
+    ConstDef(Symbol n, std::vector<ExprBasePtr> *d, InitValBase i) : name(n), dims(d), init(i) {}
 
     void codeIR();
     void TypeCheck();
@@ -405,10 +449,10 @@ public:
 // var definition
 class VarDecl : public _DeclBase {
 public:
-    Type::ty type_decl;
+    Type type_decl;
     std::vector<Def> *var_def_list{};
     // construction
-    VarDecl(Type::ty t, std::vector<Def> *v) : type_decl(t), var_def_list(v) {}
+    VarDecl(Type t, std::vector<Def> *v) : type_decl(t), var_def_list(v) {}
 
     void codeIR();
     void TypeCheck();
@@ -418,10 +462,10 @@ public:
 // const var definition
 class ConstDecl : public _DeclBase {
 public:
-    Type::ty type_decl;
+    Type type_decl;
     std::vector<Def> *var_def_list{};
     // construction
-    ConstDecl(Type::ty t, std::vector<Def> *v) : type_decl(t), var_def_list(v) {}
+    ConstDecl(Type t, std::vector<Def> *v) : type_decl(t), var_def_list(v) {}
 
     void codeIR();
     void TypeCheck();
@@ -467,24 +511,24 @@ public:
 // FuncParam -> Type IDENT [] {[Exp]}
 class __FuncFParam : public ASTNode {
 public:
-    Type::ty type_decl;
-    std::vector<ExprBase> *dims;
+    Type type_decl;
+    std::vector<ExprBasePtr> *dims;
     // 如果dims为nullptr, 表示该变量不含数组下标, 你也可以通过其他方式判断，但需要修改SysY_parser.y已有的代码
     Symbol name;
     int scope = -1;    // 在语义分析阶段填入正确的作用域
 
-    __FuncFParam(Type::ty t, Symbol n, std::vector<ExprBase> *d) {
+    __FuncFParam(Type t, Symbol n, std::vector<ExprBasePtr> *d) {
         type_decl = t;
         name = n;
         dims = d;
     }
 	// 函数声明时省略形参 int foo(int [][3]); 
-    __FuncFParam(Type::ty t, std::vector<ExprBase> *d) {
+    __FuncFParam(Type t, std::vector<ExprBasePtr> *d) {
         type_decl = t;
         dims = d;
     }
 	// int foo(int, int);
-    __FuncFParam(Type::ty t) : type_decl(t) {}
+    __FuncFParam(Type t) : type_decl(t) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -494,11 +538,11 @@ typedef __FuncFParam *FuncFParam;
 // return_type name '(' [formals] ')' block
 class __FuncDef : public ASTNode {
 public:
-    Type::ty return_type;
+    Type return_type;
     Symbol name;
     std::vector<FuncFParam> *formals;
     Block block;
-    __FuncDef(Type::ty t, Symbol functionName, std::vector<FuncFParam> *f, Block b) {
+    __FuncDef(Type t, Symbol functionName, std::vector<FuncFParam> *f, Block b) {
         formals = f;
         name = functionName;
         return_type = t;
