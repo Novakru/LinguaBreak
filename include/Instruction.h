@@ -857,6 +857,7 @@ public:
     std::string GetFunctionName() { return name; }
     void SetFunctionName(std::string new_name) { name = new_name; }
     std::vector<std::pair<enum LLVMType, Operand>> GetParameterList() { return args; }
+	void SetParameterList(std::vector<std::pair<enum LLVMType, Operand>> new_args) { args = new_args; }
     void push_back_Parameter(std::pair<enum LLVMType, Operand> newPara) { args.push_back(newPara); }
     void push_back_Parameter(enum LLVMType type, Operand val) { args.push_back(std::make_pair(type, val)); }
     virtual void PrintIR(std::ostream &s);

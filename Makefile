@@ -13,6 +13,7 @@ SRCDIR += ./back_end/inst_process
 SRCDIR += ./back_end/register_allocation/linear_scan
 SRCDIR += ./back_end/register_allocation
 SRCDIR += ./back_end/optimize
+
 # 显式列出所有源文件（确保包含实现文件）
 SRCS := $(wildcard *.cc)
 SRCS += $(wildcard llvm/generate/*.cc)
@@ -27,14 +28,23 @@ SRCS += $(wildcard back_end/inst_process/phi_processing/*.cc)
 SRCS += $(wildcard back_end/register_allocation/linear_scan/*.cc)
 SRCS += $(wildcard back_end/register_allocation/*.cc)
 SRCS += $(wildcard back_end/optimize/*.cc)
-# 添加-Wall -Wextra警告选项
-# CFLAGS += -Wall -Wextra
+
+NAME = compiler
+BINARY = $(NAME)  # 直接生成在根目录
 
 OBJDIR ?= ./obj
 
 CC = clang++
 LD = clang++
 INCLUDES = $(addprefix -I, $(SRCDIR))
+# 内存检测 + 未定义行为检测
+# CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES) -fsanitize=address,undefined -fno-omit-frame-pointer 
+# LDFLAGS += -fsanitize=address,undefined
+
+# 未定义行为检测
+# CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES) -fsanitize=undefined -fno-omit-frame-pointer
+# LDFLAGS += -fsanitize=undefined 
+
 CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES)
 
 SRCS := $(foreach dir,$(SRCDIR),$(wildcard $(dir)/*.cc))
@@ -54,7 +64,7 @@ $(OBJDIR)/%.o : %.cc
 
 $(BINARY): $(OBJS)
 	@echo + LD $@
-	@$(LD) $(OBJS) -o $@ -O2  -std=c++17
+	@$(LD) $(LDFLAGS) $(OBJS) -o $@ -O2 -std=c++17
 
 lexer: front_end/sysy_lexer.l
 	@echo "[FLEX] Generating lexer..."
@@ -78,5 +88,7 @@ clean-all: clean-obj
 
 format:
 	@echo "Formatting source files..."
-	clang-format -style=file -i $(SRCS)
-	clang-format -style=file -i $(foreach dir,$(SRCDIR),$(wildcard $(dir)/*.h))
+	@clang-format -style=file -i $(SRCS)
+	@clang-format -style=file -i $(foreach dir,$(SRCDIR),$(wildcard $(dir)/*.h))
+
+.PHONY: all clean-obj clean-all lexer parser format

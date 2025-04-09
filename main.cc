@@ -10,8 +10,10 @@
 #include "llvm/semant/semant.h"
 #include "include/ir.h"
 
-#include "llvm/optimize/transform/simplify_cfg.h"
+#include "llvm/optimize/analysis/loopAnalysis.h"
 #include "llvm/optimize/analysis/dominator_tree.h"
+
+#include "llvm/optimize/transform/simplify_cfg.h"
 #include "llvm/optimize/transform/mem2reg.h"
 #include "llvm/optimize/transform/adce.h"
 #include "llvm/optimize/transform/peephole.h"
@@ -26,7 +28,7 @@
 #include"back_end/register_allocation/linear_scan/linear_scan.h"
 #include"back_end/inst_process/inst_print/inst_print.h"
 
-#include"back_end/optimize/machine_peehole.h"
+#include"back_end/optimize/machine_peephole.h"
 
 
 extern FILE *yyin;
@@ -204,7 +206,10 @@ int main(int argc, char** argv) {
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
         SCCPPass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFG();
-        //SimplifyCFGPass(&llvmIR).EOBB();  // TODO
+		PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is need
+		SimplifyCFGPass(&llvmIR).EOBB();  
+		// LoopAnalysisPass(&llvmIR).Execute();
+       
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
 
     
@@ -228,7 +233,7 @@ int main(int argc, char** argv) {
             m_unit->LowerStack();
         }
         //optimizer
-        // Machine_Peehole(m_unit).Execute();
+        MachinePeephole(m_unit).Execute();
 
         RiscV64Printer(out, m_unit).emit();
         fclose(input);

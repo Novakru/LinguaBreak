@@ -292,6 +292,11 @@ public:
         //return -1;
         return mem_occupied.size()*4;
     }
+
+    //tmp//自定义优先级尝试
+    // bool hasConflict(int reg, LiveInterval interval);
+    // bool isValidReg(int reg, LiveInterval interval);
+    // bool isRegAvailable(int reg, LiveInterval interval);
 };
 class RiscV64RegisterAllocTools : public PhysicalRegistersAllocTools {
 protected:

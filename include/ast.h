@@ -673,7 +673,7 @@ public:
         dims = d;
     }
 	// int foo(int, int);
-    __FuncFParam(Type* t) : type_decl(t) {}
+    __FuncFParam(Type* t) : type_decl(t), dims(nullptr) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);

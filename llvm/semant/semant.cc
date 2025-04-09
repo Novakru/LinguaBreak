@@ -775,7 +775,7 @@ void __FuncFParam::TypeCheck()
 void __FuncDef::TypeCheck() 
 {
     //std::cout<<"__FuncDef::TypeCheck() is called!"<<std::endl;
-    semant_table.symbol_table.beginScope();//进入新的作用域
+    // semant_table.symbol_table.beginScope();//进入新的作用域
 
     semant_table.FunctionTable[name->getName()] = this;
 
@@ -785,6 +785,8 @@ void __FuncDef::TypeCheck()
     }
 
 	func_rettype = (BuiltinType::BuiltinKind)return_type->getType();
+
+	semant_table.symbol_table.beginScope();//进入新的作用域
     // block TypeCheck
     if (block != nullptr) {
         auto item_vector = *(block->item_list);

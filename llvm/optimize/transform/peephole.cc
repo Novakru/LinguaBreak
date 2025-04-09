@@ -5,14 +5,12 @@ void SrcEqResultInstEliminate(CFG *C);
 void ImmResultReplace(CFG *C);
 
 void PeepholePass::Execute() {
+	DeadArgElim();
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
-        InstSimplify(cfg);
+        // add all implemented pass
+		SrcEqResultInstEliminate(cfg);
+		ImmResultReplace(cfg);
     }
-}
-
-void PeepholePass::InstSimplify(CFG *C){
-    SrcEqResultInstEliminate(C);
-    ImmResultReplace(C);
 }
 
 void PeepholePass::SrcEqResultInstEliminateExecute(){
@@ -250,4 +248,71 @@ I->ReplaceRegByMap(), I->GetNonResultOperands(), I->SetNonResultOperands() is Us
 */
 void SrcEqResultInstEliminate(CFG *C) {
 	TODO("SrcEqResultInstEliminate");
+}
+
+
+void PeepholePass::DeadArgElim() {
+	// find function with dead args
+	// deadArg_funcs.name() -> deadArg_funcs.left_arg_id
+	std::unordered_map<std::string, std::vector<int>> deadArg_funcs;
+	for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+		// formals_regNo -> formal_id = arg_id
+		std::unordered_map<int, int> formals_reg_map;
+		std::unordered_set<int> argReg_occured;
+		for(int i = 0; i < defI->formals.size(); i++) {
+			int curr_regNo = ((RegOperand*)defI->formals_reg[i])->GetRegNo();
+			formals_reg_map[curr_regNo] = i;
+		}
+		for(auto [bbid, bb] : *(cfg->block_map)) {
+			for(auto inst : bb->Instruction_list) {
+				for(int useRegno : inst->GetUseRegno()) {
+					if(formals_reg_map.empty()) break;
+					if(formals_reg_map.count(useRegno)) {
+						argReg_occured.insert(useRegno);
+						formals_reg_map.erase(useRegno);
+					}
+				}
+			}
+		}
+
+		if(!formals_reg_map.empty()) { // not all args have been used.
+			std::string func_name = defI->GetFunctionName();
+			// std::cerr << "fucntion: " + func_name + "not all args have been used.\n";
+			deadArg_funcs[func_name] = std::vector<int> {};
+			std::vector<BasicInstruction::LLVMType> new_formals;
+    		std::vector<Operand> new_formals_reg;
+
+			for(int i = 0; i < defI->formals.size(); i++) {
+				int curr_regNo = ((RegOperand*)defI->formals_reg[i])->GetRegNo();
+				if(argReg_occured.count(curr_regNo)) {
+					new_formals.push_back(defI->formals[i]);
+					new_formals_reg.push_back(defI->formals_reg[i]);
+					deadArg_funcs[func_name].push_back(i);
+				}
+			}
+
+			defI->formals = new_formals;
+			defI->formals_reg = new_formals_reg;
+		}
+    }
+
+	// change all deadArg_funcs call
+	for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+		for(auto [bbid, bb] : *(cfg->block_map)) {
+			for(auto inst : bb->Instruction_list) {
+				if (auto call_inst = dynamic_cast<CallInstruction*>(inst)) {
+					std::string call_func_name = call_inst->GetFunctionName();
+					if(deadArg_funcs.count(call_func_name)) {
+						typedef std::vector<std::pair<BasicInstruction::LLVMType, Operand>> argList;
+						argList new_args;
+						argList args = call_inst->GetParameterList();
+						for(int left_arg_id : deadArg_funcs[call_func_name]) {
+							new_args.push_back(args[left_arg_id]);
+						}
+						call_inst->SetParameterList(new_args);
+					}
+				}
+			}
+		}
+	}
 }

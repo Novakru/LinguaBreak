@@ -6,12 +6,13 @@
 
 class PeepholePass : public IRPass {
 private:
-    void InstSimplify(CFG *C);
+
 public:
     PeepholePass(LLVMIR *IR) : IRPass(IR) {}
-    void Execute();
+	void Execute();
     void SrcEqResultInstEliminateExecute();
     void ImmResultReplaceExecute();
+	void DeadArgElim();
 };
 
 #endif
