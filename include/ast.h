@@ -11,23 +11,45 @@
 class ASTNode {
 public:
     int line; 
+    NodeAttribute attribute; 
     virtual ~ASTNode() = default;
+    void SetLineNumber(int line_number){line=line_number;}
 	virtual void codeIR() = 0;
     virtual void TypeCheck() = 0; 
     virtual void printAST(std::ostream &s, int pad) = 0;
 };
 
+
+
+class __Block;
+typedef __Block *Block;
+
+class __Stmt : public ASTNode {};
+typedef __Stmt *Stmt;
+
+class __Def : public ASTNode {
+    public:
+        int scope = -1;    // 在语义分析阶段填入正确的作用域
+};
+typedef __Def *Def;
+    
+class __DeclBase : public ASTNode {
+        public:
+};
+typedef __DeclBase *DeclBase;
+
+/*****************  Expression  ***********************/
 /* basic class of expression */
-class _ExprBase : public ASTNode {
+class __ExprBase : public ASTNode {
 public:
 	virtual void codeIR() {}
     virtual void TypeCheck() {}
     virtual void printAST(std::ostream &s, int pad) {}
 };
-typedef _ExprBase *ExprBase;
+typedef __ExprBase *ExprBase;
 
 // Exp → AddExp
-class Exp : public _ExprBase {
+class Exp : public __ExprBase {
 public:
 	ExprBase addExp;
 	Exp(ExprBase addExp) : addExp(addExp) {};
@@ -36,10 +58,20 @@ public:
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
-typedef _ExprBase* ExprBase;
+typedef __ExprBase* ExprBase;
+// ConstExp → AddExp
+class ConstExp : public __ExprBase {
+    public:
+        ExprBase addExp;
+        ConstExp(ExprBase addExp) : addExp(addExp) {}
+    
+        void codeIR();
+        void TypeCheck();
+        void printAST(std::ostream &s, int pad);
+};
 
 // AddExp → MulExp | AddExp ('+' | '−') MulExp 
-class AddExp : public _ExprBase {
+class AddExp : public __ExprBase {
 public:
 	ExprBase addExp, mulExp;
 	OpType op;
@@ -55,7 +87,7 @@ public:
 };
 
 // MulExp → UnaryExp | MulExp ('*' | '/' | '%') UnaryExp 
-class MulExp : public _ExprBase {
+class MulExp : public __ExprBase {
 public:
 	ExprBase mulExp, unaryExp;
 	OpType op;
@@ -71,7 +103,7 @@ public:
 };
 
 // RelExp → AddExp | RelExp ('<' | '>' | '<=' | '>=') AddExp
-class RelExp : public _ExprBase {
+class RelExp : public __ExprBase {
 public:
 	ExprBase relExp, addExp;
 	OpType op;
@@ -85,9 +117,24 @@ public:
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
+// EqExp → RelExp | EqExp ('==' | '!=') RelExp
+class EqExp: public __ExprBase {
+public:
+    ExprBase eqExp, relExp;
+    OpType op;
+
+    // select Production 1.
+    EqExp(ExprBase relExp) : eqExp(NULL), op(OpType::Void), relExp(relExp) {}
+    // select Production 2.
+    EqExp(ExprBase eqExp, OpType op, ExprBase relExp) : eqExp(eqExp), op(op), relExp(relExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
 
 // LAndExp → EqExp | LAndExp '&&' EqExp
-class LAndExp : public _ExprBase {
+class LAndExp : public __ExprBase {
 public:
 	ExprBase lAndExp, eqExp;
 	OpType op;
@@ -103,7 +150,7 @@ public:
 };
 
 // LOrExp → LAndExp | LOrExp '||' LAndExp
-class LOrExp : public _ExprBase {
+class LOrExp : public __ExprBase {
 public:
 	ExprBase lOrExp, lAndExp;
 	OpType op;
@@ -118,31 +165,22 @@ public:
     void printAST(std::ostream &s, int pad);
 };
 
-// ConstExp → AddExp
-class ConstExp : public _ExprBase {
-public:
-	ExprBase addExp;
-    ConstExp(ExprBase addExp) : addExp(addExp) {}
-
-    void codeIR();
-    void TypeCheck();
-    void printAST(std::ostream &s, int pad);
-};
+/*****************  Lval  ***********************/
 
 // LVal → Ident {'[' Exp ']'}
-class Lval : public _ExprBase {
+class Lval : public __ExprBase {
 public:
-    Symbol name;
+    Symbol* name;
     std::vector<ExprBase> *dims;  // may be empty
 
-    Lval(Symbol n, std::vector<ExprBase> *d) : name(n), dims(d) {}
+    Lval(Symbol* n, std::vector<ExprBase> *d) : name(n), dims(d) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
 
 // FuncRParams → Exp { ',' Exp }
-class FuncRParams : public _ExprBase {
+class FuncRParams : public __ExprBase {
 public:
     std::vector<ExprBase> *rParams{};
     FuncRParams(std::vector<ExprBase> *p) : rParams(p) {}
@@ -153,12 +191,12 @@ public:
 };
 
 // UnaryExp → Ident '(' [FuncRParams] ')'
-class FuncCall : public _ExprBase {
+class FuncCall : public __ExprBase {
 public:
-    Symbol name;
+    Symbol* name;
     ExprBase funcRParams;
     
-	FuncCall(Symbol n, ExprBase f) : name(n), funcRParams(f) {}
+	FuncCall(Symbol* n, ExprBase f) : name(n), funcRParams(f) {}
 
     void codeIR();
     void TypeCheck();
@@ -167,7 +205,7 @@ public:
 
 // UnaryExp →  UnaryOp UnaryExp 
 // UnaryOp  → '+' | '−' | '!' 
-class UnaryExp : public _ExprBase {
+class UnaryExp : public __ExprBase {
 public:
 	ExprBase unaryExp;
 	OpType unaryOp;
@@ -179,7 +217,8 @@ public:
     void printAST(std::ostream &s, int pad);
 };
 
-class IntConst : public _ExprBase {
+/******************** Int/Float Const **********************/
+class IntConst : public __ExprBase {
 public:
     int val;
     IntConst(int v) : val(v) {}
@@ -188,7 +227,7 @@ public:
     void printAST(std::ostream &s, int pad);
 };
 
-class FloatConst : public _ExprBase {
+class FloatConst : public __ExprBase {
 public:
     float val;
     FloatConst(float v) : val(v) {}
@@ -198,7 +237,7 @@ public:
 };
 
 // PrimaryExp → '(' Exp ')' | LVal | Number
-class PrimaryExp : public _ExprBase {
+class PrimaryExp : public __ExprBase {
 public:
 	ExprBase exp;
     PrimaryExp(ExprBase exp) : exp(exp) {}
@@ -207,14 +246,10 @@ public:
     void printAST(std::ostream &s, int pad);
 };
 
-class _Block;
-typedef _Block *Block;
-
-class _Stmt : public ASTNode {};
-typedef _Stmt *Stmt;
+/************************* Stmt **************************/
 
 // Stmt → LVal '=' Exp ';' 
-class AssignStmt : public _Stmt {
+class AssignStmt : public __Stmt {
 public:
     ExprBase lval;
     ExprBase exp;
@@ -226,7 +261,7 @@ public:
 };
 
 // Stmt → [Exp] ';' 
-class ExprStmt : public _Stmt {
+class ExprStmt : public __Stmt {
 public:
     ExprBase exp;  // may be empty
 
@@ -238,7 +273,7 @@ public:
 };
 
 // Stmt → Block
-class BlockStmt : public _Stmt {
+class BlockStmt : public __Stmt {
 public:
     Block b;
     BlockStmt(Block b) : b(b) {}
@@ -248,7 +283,7 @@ public:
 };
 
 // Stmt → 'if' '( Cond ')' Stmt  ['else' Stmt] 
-class IfStmt : public _Stmt {
+class IfStmt : public __Stmt {
 public:
     ExprBase Cond;
     Stmt ifStmt;
@@ -262,7 +297,7 @@ public:
 };
 
 // Stmt → 'while' '(' Cond ')' Stmt
-class WhileStmt : public _Stmt {
+class WhileStmt : public __Stmt {
 public:
     ExprBase Cond;
     Stmt loopBody;
@@ -274,23 +309,27 @@ public:
 };
 
 // Stmt → 'continue' ';'
-class ContinueStmt : public _Stmt {
+class ContinueStmt : public __Stmt {
 public:
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
+
+    ContinueStmt() {}
 };
 
 // Stmt → 'break' ';'
-class BreakStmt : public _Stmt {
+class BreakStmt : public __Stmt {
 public:
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
+
+    BreakStmt() {}
 };
 
 // Stmt → 'return' [Exp] 
-class RetStmt : public _Stmt {
+class RetStmt : public __Stmt {
 public:
     ExprBase retExp; // may be empty
     RetStmt(ExprBase r) : retExp(r) {}
@@ -301,18 +340,17 @@ public:
     void printAST(std::ostream &s, int pad);
 };
 
-class _DeclBase;
-typedef _DeclBase *DeclBase;
 
-class _InitValBase : public ASTNode {
-public:
-	virtual ExprBase getExp() = 0;
+/************************ InitVal *************************/
+class __InitValBase : public ASTNode {
+    public:
+    virtual ExprBase getExp() = 0;
 };
-typedef _InitValBase *InitValBase;
+typedef __InitValBase *InitValBase;
 
 // ConstInitVal → ConstExp  
 //				 | '{' [ ConstInitVal { ',' ConstInitVal } ] '}' 
-class ConstInitValList : public _InitValBase {
+class ConstInitValList : public __InitValBase {
 public:
     std::vector<InitValBase> *initval;
     ConstInitValList(std::vector<InitValBase> *i) : initval(i) {}
@@ -322,50 +360,45 @@ public:
 	ExprBase getExp() {return nullptr;}
 };
 
-// class ConstExp : public _InitValBase {
-// public:
-//     ExprBase exp;
-//     ConstExp(ExprBase e) : exp(e) {}
-//     void codeIR();
-//     void TypeCheck();
-//     void printAST(std::ostream &s, int pad);
-// 	ExprBase getExp() {return exp;}
-// };
+class ConstInitVal : public __InitValBase {
+public:
+    ExprBase exp;
+    ConstInitVal(ExprBase e) : exp(e) {}
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+	ExprBase getExp() {return exp;}
+};
 
-// InitVal → Exp | '{' [ InitVal { ',' InitVal } ] '}' 
-class InitValList : public _InitValBase {
+// VarInitVal → Exp | '{' [ InitVal { ',' InitVal } ] '}' 
+class VarInitValList : public __InitValBase {
 public:
     std::vector<InitValBase> *initval;
-    InitValList(std::vector<InitValBase> *i) : initval(i) {}
+    VarInitValList(std::vector<InitValBase> *i) : initval(i) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 	ExprBase getExp() {return nullptr;}
 };
 
-// class Exp : public _InitValBase { // Multiple Inheritance
-// public:
-//     ExprBase exp;
-//     Exp(ExprBase e) : exp(e) {}
-//     void codeIR();
-//     void TypeCheck();
-//     void printAST(std::ostream &s, int pad);
-// 	ExprBase getExp() {return exp;}
-// };
-
-
-class __Def : public ASTNode {
+class VarInitVal: public __InitValBase { // Multiple Inheritance
 public:
-    int scope = -1;    // 在语义分析阶段填入正确的作用域
+    ExprBase exp;
+    VarInitVal(ExprBase e) : exp(e) {}
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+	ExprBase getExp() {return exp;}
 };
-typedef __Def *Def;
+
+/************************ Def  *************************/
 
 class VarDef_no_init : public __Def {
 public:
-    Symbol name;
+    Symbol* name;
     std::vector<ExprBase> *dims;
-    // 如果dims为nullptr, 表示该变量不含数组下标, 你也可以通过其他方式判断，但需要修改SysY_parser.y已有的代码
-    VarDef_no_init(Symbol n, std::vector<ExprBase> *d) : name(n), dims(d) {}
+    // 如果dims为nullptr, 表示该变量不含数组下标
+    VarDef_no_init(Symbol* n, std::vector<ExprBase> *d) : name(n), dims(d) {}
 
     void codeIR();
     void TypeCheck();
@@ -374,10 +407,10 @@ public:
 
 class VarDef : public __Def {
 public:
-    Symbol name;
+    Symbol* name;
     std::vector<ExprBase> *dims;
     InitValBase init;
-    VarDef(Symbol n, std::vector<ExprBase> *d, InitValBase i) : name(n), dims(d), init(i) {}
+    VarDef(Symbol* n, std::vector<ExprBase> *d, InitValBase i) : name(n), dims(d), init(i) {}
 
     void codeIR();
     void TypeCheck();
@@ -386,29 +419,26 @@ public:
 
 class ConstDef : public __Def {
 public:
-    Symbol name;
+    Symbol* name;
     std::vector<ExprBase> *dims;
-    // 如果dims为nullptr, 表示该变量不含数组下标, 你也可以通过其他方式判断，但需要修改SysY_parser.y已有的代码
+    // 如果dims为nullptr, 表示该变量不含数组下标
     InitValBase init;
-    ConstDef(Symbol n, std::vector<ExprBase> *d, InitValBase i) : name(n), dims(d), init(i) {}
+    ConstDef(Symbol* n, std::vector<ExprBase> *d, InitValBase i) : name(n), dims(d), init(i) {}
 
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
 
-// decl basic_class
-class _DeclBase : public ASTNode {
-public:
-};
+/************************ Decl *************************/
 
 // var definition
-class VarDecl : public _DeclBase {
+class VarDecl : public __DeclBase {
 public:
-    Type::ty type_decl;
+    Type* type_decl;
     std::vector<Def> *var_def_list{};
     // construction
-    VarDecl(Type::ty t, std::vector<Def> *v) : type_decl(t), var_def_list(v) {}
+    VarDecl(Type* t, std::vector<Def> *v) : type_decl(t), var_def_list(v) {}
 
     void codeIR();
     void TypeCheck();
@@ -416,24 +446,25 @@ public:
 };
 
 // const var definition
-class ConstDecl : public _DeclBase {
+class ConstDecl : public __DeclBase {
 public:
-    Type::ty type_decl;
+    Type* type_decl;
     std::vector<Def> *var_def_list{};
     // construction
-    ConstDecl(Type::ty t, std::vector<Def> *v) : type_decl(t), var_def_list(v) {}
+    ConstDecl(Type* t, std::vector<Def> *v) : type_decl(t), var_def_list(v) {}
 
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
 
-class _BlockItem : public ASTNode {
+/************************ Block *************************/
+class __BlockItem : public ASTNode {
 public:
 };
-typedef _BlockItem *BlockItem;
+typedef __BlockItem *BlockItem;
 
-class BlockItem_Decl : public _BlockItem {
+class BlockItem_Decl : public __BlockItem {
 public:
     DeclBase decl;
     BlockItem_Decl(DeclBase d) : decl(d) {}
@@ -442,7 +473,7 @@ public:
     void printAST(std::ostream &s, int pad);
 };
 
-class BlockItem_Stmt : public _BlockItem {
+class BlockItem_Stmt : public __BlockItem {
 public:
     Stmt stmt;
     BlockItem_Stmt(Stmt s) : stmt(s) {}
@@ -452,39 +483,41 @@ public:
 };
 
 // block
-class _Block : public ASTNode {
+class __Block : public ASTNode {
 public:
     std::vector<BlockItem> *item_list{};
     // construction
-    _Block() {}
-    _Block(std::vector<BlockItem> *i) : item_list(i) {}
+    __Block() {}
+    __Block(std::vector<BlockItem> *i) : item_list(i) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
+typedef __Block *Block;
 
+/************************** Func *************************/
 // FuncParam -> Type IDENT
 // FuncParam -> Type IDENT [] {[Exp]}
 class __FuncFParam : public ASTNode {
 public:
-    Type::ty type_decl;
+    Type* type_decl;
     std::vector<ExprBase> *dims;
-    // 如果dims为nullptr, 表示该变量不含数组下标, 你也可以通过其他方式判断，但需要修改SysY_parser.y已有的代码
-    Symbol name;
+    // 如果dims为nullptr, 表示该变量不含数组下标
+    Symbol* name;
     int scope = -1;    // 在语义分析阶段填入正确的作用域
 
-    __FuncFParam(Type::ty t, Symbol n, std::vector<ExprBase> *d) {
+    __FuncFParam(Type* t, Symbol* n, std::vector<ExprBase> *d) {
         type_decl = t;
         name = n;
         dims = d;
     }
 	// 函数声明时省略形参 int foo(int [][3]); 
-    __FuncFParam(Type::ty t, std::vector<ExprBase> *d) {
+    __FuncFParam(Type* t, std::vector<ExprBase> *d) {
         type_decl = t;
         dims = d;
     }
 	// int foo(int, int);
-    __FuncFParam(Type::ty t) : type_decl(t) {}
+    __FuncFParam(Type* t) : type_decl(t) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -494,11 +527,11 @@ typedef __FuncFParam *FuncFParam;
 // return_type name '(' [formals] ')' block
 class __FuncDef : public ASTNode {
 public:
-    Type::ty return_type;
-    Symbol name;
+    Type* return_type;
+    Symbol* name;
     std::vector<FuncFParam> *formals;
     Block block;
-    __FuncDef(Type::ty t, Symbol functionName, std::vector<FuncFParam> *f, Block b) {
+    __FuncDef(Type* t, Symbol* functionName, std::vector<FuncFParam> *f, Block b) {
         formals = f;
         name = functionName;
         return_type = t;
@@ -510,38 +543,42 @@ public:
 };
 typedef __FuncDef *FuncDef;
 
+
+/*****************  CompUnit  ***********************/
 class __CompUnit : public ASTNode {
-public:
+    public:
 };
 typedef __CompUnit *CompUnit;
-
 class CompUnit_Decl : public __CompUnit {
-public:
-    DeclBase decl;
-    CompUnit_Decl(DeclBase d) : decl(d) {}
-    void codeIR();
-    void TypeCheck();
-    void printAST(std::ostream &s, int pad);
+    public:
+        DeclBase decl;
+        CompUnit_Decl(DeclBase d) : decl(d) {}
+        void codeIR();
+        void TypeCheck();
+        void printAST(std::ostream &s, int pad);
+};
+    
+class CompUnit_FuncDef : public __CompUnit {
+    public:
+        FuncDef func_def;
+        CompUnit_FuncDef(FuncDef f) : func_def(f) {}
+        void codeIR();
+        void TypeCheck();
+        void printAST(std::ostream &s, int pad);
 };
 
-class CompUnit_FuncDef : public __CompUnit {
-public:
-    FuncDef func_def;
-    CompUnit_FuncDef(FuncDef f) : func_def(f) {}
-    void codeIR();
-    void TypeCheck();
-    void printAST(std::ostream &s, int pad);
-};
+/*****************  Program ***********************/
 
 class __Program : public ASTNode {
-public:
-    std::vector<CompUnit> *comp_list;
-
-    __Program(std::vector<CompUnit> *c) { comp_list = c; }
-    void codeIR();
-    void TypeCheck();
-    void printAST(std::ostream &s, int pad);
+    public:
+        std::vector<CompUnit> *comp_list;
+    
+        __Program(std::vector<CompUnit> *c) { comp_list = c; }
+        void codeIR();
+        void TypeCheck();
+        void printAST(std::ostream &s, int pad);
 };
 typedef __Program *Program;
+
 
 #endif

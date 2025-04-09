@@ -45,33 +45,46 @@ public:
 //     Type() { type = VOID; }
 // };
 
+// enum ty{
+//     Void=0,
+//     Int=1,
+//     Float=2,
+//     Bool=3,
+//     String=4,
+
+
+// }type;
+
 class Type {
     public:
         enum TypeKind {
             Builtin,
             Pointer,
             Array
-        };
+        }ty;
     TypeKind kind;
+    virtual std::string getString()=0;
     virtual ~Type() = default;
 };
     
 class BuiltinType : public Type {
 public:
-    enum BuiltinKind { Int, Float, String };
+    enum BuiltinKind {  Int, Float, String , Bool, Void }builtinty;
     BuiltinKind builtinKind;
     BuiltinType(BuiltinKind kind) : builtinKind(kind) {
         this->kind = Type::Builtin;
     }
+    std::string getString();
 };
-    
-    class PointerType : public Type {
-    public:
-        Type* pointeeType;  // the type ptr point to 
-        PointerType(Type* pointee) : pointeeType(pointee) {
-            this->kind = Type::Pointer;
-        }
-    };
+
+class PointerType : public Type {
+public:
+    Type* pointeeType;  // the type ptr point to 
+    PointerType(Type* pointee) : pointeeType(pointee) {
+        this->kind = Type::Pointer;
+    }
+    std::string getString();
+};
     
 class ArrayType : public Type {
 public:
@@ -80,16 +93,16 @@ public:
         
     ArrayType(Type* elementType, int length)
         : elementType(elementType), length(length) {
-        kind = Type::Array;
+        this->kind = Type::Array;
     }
-    
+    std::string getString();
     bool isFixedSize() const { return length >= 0; }
 };
 
 class NodeAttribute {
 public:
     int line_number = -1;
-    Type T;
+    Type* T;
     bool ConstTag;
     union ConstVal {
         bool BoolVal;
@@ -99,7 +112,7 @@ public:
     } val;
     NodeAttribute() { ConstTag = false; val.IntVal=0;}
     std::string GetAttributeInfo();
-    std::string GetConstValueInfo(Type ty);
+    std::string GetConstValueInfo(Type* ty);
 };
 
 
