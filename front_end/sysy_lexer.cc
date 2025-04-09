@@ -1039,7 +1039,7 @@ YY_RULE_SETUP
 #line 129 "front_end/sysy_lexer.l"
 {   
 	/* unknown tokens, return ERROR */
-    yylval.error_msg = yytext;
+    yylval.error_msg = (char*)yytext;
     return ERROR;
 }
 	YY_BREAK

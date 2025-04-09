@@ -128,7 +128,7 @@ IDENTIFIER       		 [_a-zA-Z][_a-zA-Z0-9]*
 
 . {   
 	/* unknown tokens, return ERROR */
-    yylval.error_msg = yytext;
+    yylval.error_msg =yytext;
     return ERROR;
 }
 %%

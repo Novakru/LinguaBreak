@@ -61,3 +61,13 @@ size_t SymbolTable::tableSize() const {
     return table.size();
 }
 
+Symbol* IdTable::add_id(std::string s) {
+    auto it = id_table.find(s);
+    if (it == id_table.end()) {
+        Symbol* new_symbol = new Symbol(s);
+        id_table[s] = new_symbol;
+        return new_symbol;
+    } else {
+        return id_table[s];
+    }
+}
