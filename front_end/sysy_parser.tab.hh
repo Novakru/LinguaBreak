@@ -64,17 +64,19 @@ extern int yydebug;
     NE = 264,                      /* NE  */
     AND = 265,                     /* AND  */
     OR = 266,                      /* OR  */
-    CONST = 267,                   /* CONST  */
-    IF = 268,                      /* IF  */
-    ELSE = 269,                    /* ELSE  */
-    WHILE = 270,                   /* WHILE  */
-    NONE_TYPE = 271,               /* NONE_TYPE  */
-    INT = 272,                     /* INT  */
-    FLOAT = 273,                   /* FLOAT  */
-    RETURN = 274,                  /* RETURN  */
-    BREAK = 275,                   /* BREAK  */
-    CONTINUE = 276,                /* CONTINUE  */
-    ERROR = 277                    /* ERROR  */
+    NOT = 267,                     /* NOT  */
+    CONST = 268,                   /* CONST  */
+    IF = 269,                      /* IF  */
+    ELSE = 270,                    /* ELSE  */
+    WHILE = 271,                   /* WHILE  */
+    NONE_TYPE = 272,               /* NONE_TYPE  */
+    INT = 273,                     /* INT  */
+    FLOAT = 274,                   /* FLOAT  */
+    RETURN = 275,                  /* RETURN  */
+    BREAK = 276,                   /* BREAK  */
+    CONTINUE = 277,                /* CONTINUE  */
+    ERROR = 278,                   /* ERROR  */
+    THEN = 279                     /* THEN  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -83,14 +85,24 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 14 "front_end/sysy_parser.y"
+#line 15 "front_end/sysy_parser.y"
 
     char* error_msg;
     Symbol* symbol_token;
-    double float_token; // 对于SysY的浮点常量，我们需要先以double类型计算，再在语法树节点创建的时候转为float
-    int int_token;
+    int int_token;         double float_token; // 对于SysY的浮点常量，我们需要先以double类型计算，再在语法树节点创建的时候转为float
+    Program program;
+    CompUnit comp_unit;    std::vector<CompUnit>* comp_list;
+    ExprBase expression;   std::vector<ExprBase>* expression_list;
+    DeclBase decl;
+    Def def;               std::vector<Def>* def_list;
+    FuncDef func_def;
+    FuncFParam formal;   std::vector<FuncFParam>* formal_list;
+    Stmt stmt;
+    Block block;
+    BlockItem block_item;   std::vector<BlockItem>* block_item_list;
+    InitValBase initval;  std::vector<InitValBase>* initval_list;
 
-#line 93 "front_end/sysy_parser.tab.hh"
+#line 105 "front_end/sysy_parser.tab.hh"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -98,9 +110,23 @@ typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_DECLARED 1
 #endif
 
+/* Location type.  */
+#if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
+typedef struct YYLTYPE YYLTYPE;
+struct YYLTYPE
+{
+  int first_line;
+  int first_column;
+  int last_line;
+  int last_column;
+};
+# define YYLTYPE_IS_DECLARED 1
+# define YYLTYPE_IS_TRIVIAL 1
+#endif
+
 
 extern YYSTYPE yylval;
-
+extern YYLTYPE yylloc;
 
 int yyparse (void);
 

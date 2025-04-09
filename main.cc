@@ -8,6 +8,8 @@
 extern FILE *yyin;
 extern char *yytext;
 extern YYSTYPE yylval;
+extern int error_num;
+extern Program ASTroot;
 extern int yylex();
 extern void dumpTokens(FILE* output, int token, int line_number, char *yytext, YYSTYPE yylval);
 
@@ -40,7 +42,7 @@ int main(int argc, char** argv) {
 	
 	output = fopen(argv[3], "w");
 	
-	/* lexer */
+	/* 【1】lexer */
 	int token;
 	yyin = input;
 	if (strcmp(argv[2], "-lexer") == 0) {
@@ -51,9 +53,18 @@ int main(int argc, char** argv) {
 	    }
 		fclose(input), fclose(output);
 		return 0;
-	} else {
-		while ((token = yylex()) != 0) {}
-	}
+	} 
+	/* 【2】parser */
+	yyparse();
+	if (error_num > 0) {
+		fprintf(output,"Parser error\n");
+        fclose(input), fclose(output);
+        return 0;
+    }
+	// if(strcmp(argv[2], "-parser") == 0) {
+	// 	ASTroot->printAST();
+	// }
+
 
 	/* parser and so on */
 	// if (strcmp(argv[2], "-parser") == 0) {

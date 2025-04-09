@@ -1,0 +1,1 @@
+obj/./tools/type.o: tools/type.cc

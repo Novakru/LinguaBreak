@@ -31,5 +31,13 @@ private:
     std::vector<std::vector<Symbol*>> scopes;  
 };
 
+class IdTable {
+    private:
+        std::unordered_map<std::string, Symbol*> id_table{};
+    
+    public:
+        Symbol* add_id(std::string s);
+};
+
 
 #endif
