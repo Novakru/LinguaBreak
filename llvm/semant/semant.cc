@@ -1,0 +1,43 @@
+// ASTNode 派生类的 TypeCheck() 实现
+#include "../../include/ast.h"
+
+void Exp::TypeCheck() {}
+void ConstExp::TypeCheck() {}
+void AddExp::TypeCheck() {}
+void MulExp::TypeCheck() {}
+void RelExp::TypeCheck() {}
+void EqExp::TypeCheck() {}
+void LAndExp::TypeCheck() {}
+void LOrExp::TypeCheck() {}
+void Lval::TypeCheck() {}
+void FuncRParams::TypeCheck() {}
+void FuncCall::TypeCheck() {}
+void UnaryExp::TypeCheck() {}
+void IntConst::TypeCheck() {}
+void FloatConst::TypeCheck() {}
+void PrimaryExp::TypeCheck() {}
+void AssignStmt::TypeCheck() {}
+void ExprStmt::TypeCheck() {}
+void BlockStmt::TypeCheck() {}
+void IfStmt::TypeCheck() {}
+void WhileStmt::TypeCheck() {}
+void ContinueStmt::TypeCheck() {}
+void BreakStmt::TypeCheck() {}
+void RetStmt::TypeCheck() {}
+void ConstInitValList::TypeCheck() {}
+void ConstInitVal::TypeCheck() {}
+void VarInitValList::TypeCheck() {}
+void VarInitVal::TypeCheck() {}
+void VarDef_no_init::TypeCheck() {}
+void VarDef::TypeCheck() {}
+void ConstDef::TypeCheck() {}
+void VarDecl::TypeCheck() {}
+void ConstDecl::TypeCheck() {}
+void BlockItem_Decl::TypeCheck() {}
+void BlockItem_Stmt::TypeCheck() {}
+void __Block::TypeCheck() {}
+void __FuncFParam::TypeCheck() {}
+void __FuncDef::TypeCheck() {}
+void CompUnit_Decl::TypeCheck() {}
+void CompUnit_FuncDef::TypeCheck() {}
+void __Program::TypeCheck() {}

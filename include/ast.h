@@ -13,14 +13,12 @@ class ASTNode {
 public:
     int line; 
     NodeAttribute attribute; 
-    virtual ~ASTNode() = default;
+    // virtual ~ASTNode() = default;
     void SetLineNumber(int line_number){line=line_number;}
 	virtual void codeIR() = 0;
     virtual void TypeCheck() = 0; 
     virtual void printAST(std::ostream &s, int pad) = 0;
 };
-
-
 
 class __Block;
 typedef __Block *Block;
@@ -52,8 +50,8 @@ typedef __ExprBase *ExprBase;
 // Exp → AddExp
 class Exp : public __ExprBase {
 public:
-	ExprBasePtr addExp;
-	Exp(ExprBasePtr addExp) : addExp(addExp) {};
+	ExprBase addExp;
+	Exp(ExprBase addExp) : addExp(addExp) {};
 	
     void codeIR();
     void TypeCheck();
@@ -70,28 +68,173 @@ class ConstExp : public __ExprBase {
         void TypeCheck();
         void printAST(std::ostream &s, int pad);
 };
-
+/*
 // AddExp → MulExp | AddExp ('+' | '−') MulExp 
-class AddExp : public __ExprBase {
+class Add2MulExp : public __ExprBase {
 public:
-	ExprBasePtr mulExp;
+	ExprBase mulExp;
 
 	// select Production 1.
-    Add2MulExp(ExprBasePtr mulExp) : mulExp(mulExp) {}
+    Add2MulExp(ExprBase mulExp) : mulExp(mulExp) {}
+	
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+class BinaryAddExp : public __ExprBase {
+public:
+	ExprBase addExp, mulExp;
+	OpType op;
+
+	// select Production 2.
+    BinaryAddExp(ExprBase addExp, OpType op, ExprBase mulExp) : addExp(addExp), op(op), mulExp(mulExp) {}
 	
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
 
-
-class BinaryAddExp : public _ExprBase {
+// MulExp → UnaryExp | MulExp ('*' | '/' | '%') UnaryExp 
+class Mul2UnaryExp : public __ExprBase {
 public:
-	ExprBasePtr addExp, mulExp;
+    ExprBase unaryExp;
+
+    // select Production 1.
+    Mul2UnaryExp(ExprBase unaryExp) : unaryExp(unaryExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+class BinaryMulExp : public __ExprBase {
+public:
+    ExprBase mulExp, unaryExp;
+    OpType op;
+
+    // select Production 2.
+    BinaryMulExp(ExprBase mulExp, OpType op, ExprBase unaryExp) : mulExp(mulExp), op(op), unaryExp(unaryExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+// RelExp → AddExp | RelExp ('<' | '>' | '<=' | '>=') AddExp
+class Rel2AddExp : public __ExprBase {
+public:
+    ExprBase addExp;
+
+    // select Production 1.
+    Rel2AddExp(ExprBase addExp) : addExp(addExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+class BinaryRelExp : public __ExprBase {
+public:
+    ExprBase relExp, addExp;
+    OpType op;
+
+    // select Production 2.
+    BinaryRelExp(ExprBase relExp, OpType op, ExprBase addExp) : relExp(relExp), op(op), addExp(addExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+// EqExp → RelExp | EqExp ('==' | '!=') RelExp
+class Eq2RelExp: public __ExprBase {
+public:
+    ExprBase relExp;
+
+    // select Production 1.
+    Eq2RelExp(ExprBase relExp) : relExp(relExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+class BinaryEqExp: public __ExprBase {
+public:
+    ExprBase eqExp, relExp;
+    OpType op;
+
+    // select Production 2.
+    BinaryEqExp(ExprBase eqExp, OpType op, ExprBase relExp) : eqExp(eqExp), op(op), relExp(relExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+// LAndExp → EqExp | LAndExp '&&' EqExp
+class LAnd2EqExp : public __ExprBase {
+public:
+    ExprBase eqExp;
+
+    // select Production 1.
+    LAnd2EqExp(ExprBase eqExp) : eqExp(eqExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+class BinaryLAndExp : public __ExprBase {
+public:
+    ExprBase lAndExp, eqExp;
+    OpType op;
+
+    // select Production 2.
+    BinaryLAndExp(ExprBase lAndExp, OpType op, ExprBase eqExp)
+        : lAndExp(lAndExp), op(op), eqExp(eqExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+// LOrExp → LAndExp | LOrExp '||' LAndExp
+class LOr2LAndExp : public __ExprBase {
+public:
+    ExprBase lAndExp;
+
+    // select Production 1.
+    LOr2LAndExp(ExprBase lAndExp) :lAndExp(lAndExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+class BinaryLOrExp : public __ExprBase {
+public:
+    ExprBase lOrExp, lAndExp;
+    OpType op;
+
+    // select Production 2.
+    BinaryLOrExp(ExprBase lOrExp, OpType op, ExprBase lAndExp) 
+        : lOrExp(lOrExp), op(op), lAndExp(lAndExp) {}
+
+    void codeIR();
+    void TypeCheck();
+    void printAST(std::ostream &s, int pad);
+};
+
+*/
+
+// AddExp → MulExp | AddExp ('+' | '−') MulExp 
+class AddExp : public __ExprBase {
+public:
+	ExprBase addExp, mulExp;
 	OpType op;
 
-	// select Production 2.
-    BinaryAddExp(ExprBasePtr addExp, OpType op, ExprBasePtr mulExp) : addExp(addExp), op(op), mulExp(mulExp) {}
+    AddExp(ExprBase addExp, OpType op, ExprBase mulExp) : addExp(addExp), op(op), mulExp(mulExp) {}
 	
     void codeIR();
     void TypeCheck();
@@ -101,11 +244,10 @@ public:
 // MulExp → UnaryExp | MulExp ('*' | '/' | '%') UnaryExp 
 class MulExp : public __ExprBase {
 public:
-    ExprBasePtr mulExp, unaryExp;
+    ExprBase mulExp, unaryExp;
     OpType op;
 
-    // select Production 2.
-    BinaryMulExp(ExprBasePtr mulExp, OpType op, ExprBasePtr unaryExp) : mulExp(mulExp), op(op), unaryExp(unaryExp) {}
+    MulExp(ExprBase mulExp, OpType op, ExprBase unaryExp) : mulExp(mulExp), op(op), unaryExp(unaryExp) {}
 
     void codeIR();
     void TypeCheck();
@@ -115,25 +257,22 @@ public:
 // RelExp → AddExp | RelExp ('<' | '>' | '<=' | '>=') AddExp
 class RelExp : public __ExprBase {
 public:
-    ExprBasePtr relExp, addExp;
+    ExprBase relExp, addExp;
     OpType op;
 
-    // select Production 2.
-    BinaryRelExp(ExprBasePtr relExp, OpType op, ExprBasePtr addExp) : relExp(relExp), op(op), addExp(addExp) {}
+    RelExp(ExprBase relExp, OpType op, ExprBase addExp) : relExp(relExp), op(op), addExp(addExp) {}
 
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
+
 // EqExp → RelExp | EqExp ('==' | '!=') RelExp
 class EqExp: public __ExprBase {
 public:
     ExprBase eqExp, relExp;
     OpType op;
 
-    // select Production 1.
-    EqExp(ExprBase relExp) : eqExp(NULL), op(OpType::Void), relExp(relExp) {}
-    // select Production 2.
     EqExp(ExprBase eqExp, OpType op, ExprBase relExp) : eqExp(eqExp), op(op), relExp(relExp) {}
 
     void codeIR();
@@ -144,13 +283,11 @@ public:
 // LAndExp → EqExp | LAndExp '&&' EqExp
 class LAndExp : public __ExprBase {
 public:
-	ExprBasePtr lAndExp, eqExp;
-	OpType op;
+    ExprBase lAndExp, eqExp;
+    OpType op;
 
-	// select Production 1.
-    LAndExp(ExprBasePtr eqExp) : lAndExp(NULL), op(OpType::Void), eqExp(eqExp) {}
-	// select Production 2.
-    LAndExp(ExprBasePtr lAndExp, OpType op, ExprBasePtr eqExp) : lAndExp(lAndExp), op(op), eqExp(eqExp) {}
+    LAndExp(ExprBase lAndExp, OpType op, ExprBase eqExp)
+        : lAndExp(lAndExp), op(op), eqExp(eqExp) {}
 
     void codeIR();
     void TypeCheck();
@@ -160,16 +297,19 @@ public:
 // LOrExp → LAndExp | LOrExp '||' LAndExp
 class LOrExp : public __ExprBase {
 public:
-    ExprBasePtr lAndExp, eqExp;
+    ExprBase lOrExp, lAndExp;
     OpType op;
 
-    // select Production 2.
-    BinaryLAndExp(ExprBasePtr lAndExp, OpType op, ExprBasePtr eqExp) : lAndExp(lAndExp), op(op), eqExp(eqExp) {}
+    LOrExp(ExprBase lOrExp, OpType op, ExprBase lAndExp) 
+        : lOrExp(lOrExp), op(op), lAndExp(lAndExp) {}
 
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
 };
+
+
+
 
 
 /*****************  Lval  ***********************/
@@ -189,8 +329,8 @@ public:
 // FuncRParams → Exp { ',' Exp }
 class FuncRParams : public __ExprBase {
 public:
-    std::vector<ExprBasePtr> *rParams{};
-    FuncRParams(std::vector<ExprBasePtr> *p) : rParams(p) {}
+    std::vector<ExprBase> *rParams{};
+    FuncRParams(std::vector<ExprBase> *p) : rParams(p) {}
 
     void codeIR();
     void TypeCheck();
@@ -214,10 +354,10 @@ public:
 // UnaryOp  → '+' | '−' | '!' 
 class UnaryExp : public __ExprBase {
 public:
-	ExprBasePtr unaryExp;
+	ExprBase unaryExp;
 	OpType unaryOp;
 
-    UnaryExp(OpType unaryOp, ExprBasePtr unaryExp) : unaryExp(unaryExp), unaryOp(unaryOp) {}
+    UnaryExp(OpType unaryOp, ExprBase unaryExp) : unaryExp(unaryExp), unaryOp(unaryOp) {}
 
     void codeIR();
     void TypeCheck();
@@ -246,8 +386,8 @@ public:
 // PrimaryExp → '(' Exp ')' | LVal | Number
 class PrimaryExp : public __ExprBase {
 public:
-	ExprBasePtr exp;
-    PrimaryExp(ExprBasePtr exp) : exp(exp) {}
+	ExprBase exp;
+    PrimaryExp(ExprBase exp) : exp(exp) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -258,10 +398,10 @@ public:
 // Stmt → LVal '=' Exp ';' 
 class AssignStmt : public __Stmt {
 public:
-    ExprBasePtr lval;
-    ExprBasePtr exp;
+    ExprBase lval;
+    ExprBase exp;
 
-    AssignStmt(ExprBasePtr l, ExprBasePtr e) : lval(l), exp(e) {}
+    AssignStmt(ExprBase l, ExprBase e) : lval(l), exp(e) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -270,10 +410,10 @@ public:
 // Stmt → [Exp] ';' 
 class ExprStmt : public __Stmt {
 public:
-    ExprBasePtr exp;  // may be empty
+    ExprBase exp;  // may be empty
 
 	bool getExp() { return exp; }
-    ExprStmt(ExprBasePtr e) : exp(e) {}
+    ExprStmt(ExprBase e) : exp(e) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -292,12 +432,12 @@ public:
 // Stmt → 'if' '( Cond ')' Stmt  ['else' Stmt] 
 class IfStmt : public __Stmt {
 public:
-    ExprBasePtr Cond;
+    ExprBase Cond;
     Stmt ifStmt;
     Stmt elseStmt;   // may be empty
 
 	Stmt getElseStmt() { return elseStmt; }
-    IfStmt(ExprBasePtr c, Stmt i, Stmt t) : Cond(c), ifStmt(i), elseStmt(t) {}
+    IfStmt(ExprBase c, Stmt i, Stmt t) : Cond(c), ifStmt(i), elseStmt(t) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -306,10 +446,10 @@ public:
 // Stmt → 'while' '(' Cond ')' Stmt
 class WhileStmt : public __Stmt {
 public:
-    ExprBasePtr Cond;
+    ExprBase Cond;
     Stmt loopBody;
 
-    WhileStmt(ExprBasePtr c, Stmt b) : Cond(c), loopBody(b) {}
+    WhileStmt(ExprBase c, Stmt b) : Cond(c), loopBody(b) {}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -338,10 +478,10 @@ public:
 // Stmt → 'return' [Exp] 
 class RetStmt : public __Stmt {
 public:
-    ExprBasePtr retExp; // may be empty
-    RetStmt(ExprBasePtr r) : retExp(r) {}
+    ExprBase retExp; // may be empty
+    RetStmt(ExprBase r) : retExp(r) {}
 
-	ExprBasePtr getExp() { return retExp; }
+	ExprBase getExp() { return retExp; }
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -364,7 +504,7 @@ public:
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
-	ExprBasePtr getExp() {return nullptr;}
+	ExprBase getExp() {return nullptr;}
 };
 
 class ConstInitVal : public __InitValBase {
@@ -385,7 +525,7 @@ public:
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
-	ExprBasePtr getExp() {return nullptr;}
+	ExprBase getExp() {return nullptr;}
 };
 
 class VarInitVal: public __InitValBase { // Multiple Inheritance
@@ -400,7 +540,7 @@ public:
 
 /************************ Def  *************************/
 
-class VarDef_no_init : public _Def {
+class VarDef_no_init : public __Def {
 public:
     Symbol* name;
     std::vector<ExprBase> *dims;
@@ -412,7 +552,7 @@ public:
     void printAST(std::ostream &s, int pad);
 };
 
-class VarDef : public _Def {
+class VarDef : public __Def {
 public:
     Symbol* name;
     std::vector<ExprBase> *dims;
@@ -424,13 +564,13 @@ public:
     void printAST(std::ostream &s, int pad);
 };
 
-class ConstDef : public _Def {
+class ConstDef : public __Def {
 public:
     Symbol* name;
     std::vector<ExprBase> *dims;
     // 如果dims为nullptr, 表示该变量不含数组下标
     InitValBase init;
-    ConstDef(Symbol* n, std::vector<ExprBasePtr> *d, InitValBase i) : name(n), dims(d), init(i) {}
+    ConstDef(Symbol* n, std::vector<ExprBase> *d, InitValBase i) : name(n), dims(d), init(i) {}
 
     void codeIR();
     void TypeCheck();

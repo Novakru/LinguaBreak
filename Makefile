@@ -1,8 +1,19 @@
-# SRCDIR += ./front_end
-# SRCDIR += ./include
+# 更新SRCDIR包含所有必要目录
 SRCDIR += .
 SRCDIR += ./tools
+SRCDIR += ./llvm/generate
+SRCDIR += ./llvm/semant
+# SRCDIR += ./front_end  # 取消注释(multi defined)
 
+# 显式列出所有源文件（确保包含实现文件）
+SRCS := $(wildcard *.cc)
+SRCS += $(wildcard llvm/generate/*.cc)
+SRCS += $(wildcard llvm/semant/*.cc)
+SRCS += front_end/sysy_lexer.cc 
+SRCS += front_end/sysy_parser.tab.cc
+
+# 添加-Wall -Wextra警告选项
+# CFLAGS += -Wall -Wextra
 
 NAME = SysYc
 BIN_DIR ?= ./bin

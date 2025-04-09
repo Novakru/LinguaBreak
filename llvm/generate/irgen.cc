@@ -1,0 +1,43 @@
+#include "../../include/ast.h"
+
+// ASTNode 派生类的 codeIR() 实现
+void Exp::codeIR() {}
+void ConstExp::codeIR() {}
+void AddExp::codeIR() {}
+void MulExp::codeIR() {}
+void RelExp::codeIR() {}
+void EqExp::codeIR() {}
+void LAndExp::codeIR() {}
+void LOrExp::codeIR() {}
+void Lval::codeIR() {}
+void FuncRParams::codeIR() {}
+void FuncCall::codeIR() {}
+void UnaryExp::codeIR() {}
+void IntConst::codeIR() {}
+void FloatConst::codeIR() {}
+void PrimaryExp::codeIR() {}
+void AssignStmt::codeIR() {}
+void ExprStmt::codeIR() {}
+void BlockStmt::codeIR() {}
+void IfStmt::codeIR() {}
+void WhileStmt::codeIR() {}
+void ContinueStmt::codeIR() {}
+void BreakStmt::codeIR() {}
+void RetStmt::codeIR() {}
+void ConstInitValList::codeIR() {}
+void ConstInitVal::codeIR() {}
+void VarInitValList::codeIR() {}
+void VarInitVal::codeIR() {}
+void VarDef_no_init::codeIR() {}
+void VarDef::codeIR() {}
+void ConstDef::codeIR() {}
+void VarDecl::codeIR() {}
+void ConstDecl::codeIR() {}
+void BlockItem_Decl::codeIR() {}
+void BlockItem_Stmt::codeIR() {}
+void __Block::codeIR() {}
+void __FuncFParam::codeIR() {}
+void __FuncDef::codeIR() {}
+void CompUnit_Decl::codeIR() {}
+void CompUnit_FuncDef::codeIR() {}
+void __Program::codeIR() {}
