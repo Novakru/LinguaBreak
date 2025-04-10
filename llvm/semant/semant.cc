@@ -5,27 +5,7 @@
 #include "../include/type.h"
 //#include "../include/Instruction.h"
 #include<map>
-// /*
-//     语义分析阶段需要对语法树节点上的类型和常量等信息进行标注, 即NodeAttribute类
-//     同时还需要标注每个变量的作用域信息，即部分语法树节点中的scope变量
-//     你可以在utils/ast_out.cc的输出函数中找到你需要关注哪些语法树节点中的NodeAttribute类及其他变量
-//     以及对语义错误的代码输出报错信息
-// */
 
-// /*
-//     错误检查的基本要求:
-//     • 检查 main 函数是否存在 (根据SysY定义，如果不存在main函数应当报错)；
-//     • 检查未声明变量，及在同一作用域下重复声明的变量；
-//     • 条件判断和运算表达式：int 和 bool 隐式类型转换（例如int a=5，return a+!a）；
-//     • 数值运算表达式：运算数类型是否正确 (如返回值为 void 的函数调用结果是否参与了其他表达式的计算)；
-//     • 检查未声明函数，及函数形参是否与实参类型及数目匹配；
-//     • 检查是否存在整型变量除以整型常量0的情况 (如对于表达式a/(5-4-1)，编译器应当给出警告或者直接报错)；
-
-//     错误检查的进阶要求:
-//     • 对数组维度进行相应的类型检查 (例如维度是否有浮点数，定义维度时是否为常量等)；
-//     • 对float进行隐式类型转换以及其他float相关的检查 (例如模运算中是否有浮点类型变量等)；
-// */
-// //改写二维数组
 
 //extern LLVMIR llvmIR;
 extern std::map<std::pair<BuiltinType::BuiltinKind, BuiltinType::BuiltinKind>, NodeAttribute (*)(NodeAttribute, NodeAttribute, OpType::Op)> SemantBinaryNodeMap;
