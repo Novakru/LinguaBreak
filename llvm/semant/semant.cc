@@ -59,14 +59,7 @@ void AddExp::TypeCheck()
     auto key = std::make_pair(addExp->attribute.type->builtinKind, mulExp->attribute.type->builtinKind);
     auto it = SemantBinaryNodeMap.find(key);
     if (it != SemantBinaryNodeMap.end()) {
-        if(op.optype==OpType::Add)
-        {
-            attribute = it->second(addExp->attribute, mulExp->attribute, OpType::Add);
-        }
-        else
-        {
-            attribute = it->second(addExp->attribute, mulExp->attribute, OpType::Sub);
-        }
+        attribute = it->second(addExp->attribute, mulExp->attribute,op.optype);
        
     } else
     {
@@ -80,19 +73,7 @@ void MulExp::TypeCheck()
     auto key = std::make_pair(mulExp->attribute.type->builtinKind,unaryExp->attribute.type->builtinKind);
     auto it = SemantBinaryNodeMap.find(key);
     if (it != SemantBinaryNodeMap.end()) {
-        if(op.optype==OpType::Mul)
-        {
-            attribute = it->second(mulExp->attribute, unaryExp->attribute, OpType::Mul);
-        }
-        else if(op.optype==OpType::Div)
-        {
-            attribute = it->second(mulExp->attribute, unaryExp->attribute, OpType::Div);
-        }
-        else
-        {
-            attribute = it->second(mulExp->attribute, unaryExp->attribute, OpType::Mod);
-        }
-        
+        attribute = it->second(mulExp->attribute, unaryExp->attribute, op.optype);
     } else
     {
          error_msgs.push_back("invalid operators in line " + std::to_string(mulExp->attribute.line_number) + "\n");
@@ -105,23 +86,8 @@ void RelExp::TypeCheck()
     auto key = std::make_pair(relExp->attribute.type->builtinKind,addExp->attribute.type->builtinKind);
     auto it = SemantBinaryNodeMap.find(key);
     if (it != SemantBinaryNodeMap.end()) {
-        if(op.optype==OpType::Le)
-        {
-            attribute = it->second(relExp->attribute, addExp->attribute, OpType::Le);
-        }
-        else if(op.optype==OpType::Lt)
-        {
-            attribute = it->second(relExp->attribute, addExp->attribute, OpType::Lt);
-        }
-        else if(op.optype==OpType::Ge)
-        {
-            attribute = it->second(relExp->attribute, addExp->attribute, OpType::Ge);
-        }
-        else if(op.optype==OpType::Gt)
-        {
-            attribute = it->second(relExp->attribute, addExp->attribute, OpType::Gt);
-        }
-       
+        attribute = it->second(relExp->attribute, addExp->attribute, op.optype);
+        
     } else
     {
          error_msgs.push_back("invalid operators in line " + std::to_string(relExp->attribute.line_number) + "\n");
@@ -134,14 +100,7 @@ void EqExp::TypeCheck()
     auto key = std::make_pair(eqExp->attribute.type->builtinKind,relExp->attribute.type->builtinKind);
     auto it = SemantBinaryNodeMap.find(key);
     if (it != SemantBinaryNodeMap.end()) {
-        if(op.optype==OpType::Eq)
-        {
-            attribute = it->second(eqExp->attribute, relExp->attribute,OpType::Eq);
-        }
-        else
-        {
-            attribute = it->second(eqExp->attribute, relExp->attribute,OpType::Neq);
-        }
+        attribute = it->second(eqExp->attribute, relExp->attribute,op.optype);
         
     } else
     {
@@ -184,21 +143,8 @@ void FuncCall::TypeCheck() {}
 void UnaryExp::TypeCheck() 
 {
     unaryExp->TypeCheck();
-    if(unaryOp.optype==OpType::Add)
-    {
-        attribute=SemantSingleNodeMap[unaryExp->attribute.type->builtinKind]
-        (unaryExp->attribute,OpType::Add);
-    }
-    else if(unaryOp.optype==OpType::Sub)
-    {
-        attribute=SemantSingleNodeMap[unaryExp->attribute.type->builtinKind]
-        (unaryExp->attribute,OpType::Sub);
-    }
-    else
-    {
-        attribute=SemantSingleNodeMap[unaryExp->attribute.type->builtinKind]
-        (unaryExp->attribute,OpType::Not);
-    }
+    attribute=SemantSingleNodeMap[unaryExp->attribute.type->builtinKind]
+        (unaryExp->attribute,unaryOp.optype);
     
 }
 void IntConst::TypeCheck() 
