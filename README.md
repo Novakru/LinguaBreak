@@ -17,31 +17,93 @@ tree -L 3
 
 
 ```
-Node
-├── AST
-├── ExprNode                    （表示表达式的节点）
-│   ├── AbstractAssignNode      （赋值）
-│   │   ├── AssignNode          （赋值表达式 `=`）
-│   ├── BinaryOpNode            （二元运算表达式 `x+y`、`x-y` 等）
-│   │   ├── LogicalAndNode      （`&&`）
-│   │   ├── LogicalOrNode       （`||`）
-│   ├── FuncallNode             （函数调用表达式）
-│   ├── LHSNode                 （能够成为赋值目标的节点）
-│   │   ├── ArefNode            （数组表达式 `a[i]`）
-│   ├── VariableNode            （变量表达式）
-│   ├── LiteralNode             （字面量）
-│   │   ├── IntegerLiteralNode  （整数字面量）
-|	|	├── FloatLiteralNode	（浮点数字面量）
-│   │   ├── StringLiteralNode   （字符串字面量）
-│   ├── UnaryOpNode             （一元运算表达式 `+x`、`-x` 等）
-├── StmtNode                    （表示语句的节点）
-│   ├── BlockNode               （程序块 `{...}`）
-│   ├── BreakNode               （`break` 语句）
-│   ├── ContinueNode            （`continue` 语句）
-│   ├── ExprStmtNode            （单独构成语句的表达式）
-│   ├── IfNode                  （`if` 语句）
-│   ├── ReturnNode              （`return` 语句）
-│   ├── WhileNode               （`while` 语句）
-├── TypeNode                    （存储类型的节点）
-
+Your Syntax Tree Structure
+│
+├── ASTNode (base)
+│   ├── line: int
+│   ├── attribute: NodeAttribute
+│   ├── codeIR(): virtual
+│   ├── TypeCheck(): virtual
+│   ├── printAST(): virtual
+│
+├── __ExprBase (ExprNode)
+│   ├── Exp
+│   │   └── addExp: ExprBase
+│   ├── ConstExp
+│   │   └── addExp: ExprBase
+│   ├── Binary Expressions
+│   │   ├── AddExp (left, op, right)
+│   │   ├── MulExp (left, op, right)
+│   │   ├── RelExp (left, op, right)
+│   │   ├── EqExp (left, op, right)
+│   │   ├── LAndExp (left, op, right)
+│   │   └── LOrExp (left, op, right)
+│   ├── Lval (VariableNode + ArefNode)
+│   │   ├── name: Symbol*
+│   │   └── dims: vector<ExprBase>*
+│   ├── FuncCall (FuncallNode)
+│   │   ├── name: Symbol*
+│   │   └── funcRParams: ExprBase
+│   ├── UnaryExp
+│   │   ├── unaryOp: OpType
+│   │   └── unaryExp: ExprBase
+│   ├── Literals
+│   │   ├── IntConst (IntegerLiteralNode)
+│   │   ├── FloatConst (FloatLiteralNode)
+│   │   └── PrimaryExp (wrapper)
+│
+├── __Stmt (StmtNode)
+│   ├── AssignStmt (AssignNode)
+│   │   ├── lval: ExprBase
+│   │   └── exp: ExprBase
+│   ├── ExprStmt (ExprStmtNode)
+│   │   └── exp: ExprBase
+│   ├── BlockStmt (BlockNode)
+│   │   └── b: Block
+│   ├── IfStmt (IfNode)
+│   │   ├── Cond: ExprBase
+│   │   ├── ifStmt: Stmt
+│   │   └── elseStmt: Stmt
+│   ├── WhileStmt (WhileNode)
+│   │   ├── Cond: ExprBase
+│   │   └── loopBody: Stmt
+│   ├── ContinueStmt (ContinueNode)
+│   ├── BreakStmt (BreakNode)
+│   └── RetStmt (ReturnNode)
+│       └── retExp: ExprBase
+│
+├── __Def
+│   ├── VarDef/VarDef_no_init
+│   │   ├── name: Symbol*
+│   │   ├── dims: vector<ExprBase>*
+│   │   └── init: InitValBase
+│   └── ConstDef
+│       ├── name: Symbol*
+│       ├── dims: vector<ExprBase>*
+│       └── init: InitValBase
+│
+├── __DeclBase
+│   ├── VarDecl
+│   │   ├── type_decl: Type*
+│   │   └── var_def_list: vector<Def>*
+│   └── ConstDecl
+│       ├── type_decl: Type*
+│       └── var_def_list: vector<Def>*
+│
+├── __Block (BlockNode)
+│   └── item_list: vector<BlockItem>*
+│
+├── __FuncFParam
+│   ├── type_decl: Type*
+│   ├── dims: vector<ExprBase>*
+│   └── name: Symbol*
+│
+├── __FuncDef
+│   ├── return_type: Type*
+│   ├── name: Symbol*
+│   ├── formals: vector<FuncFParam>*
+│   └── block: Block
+│
+└── __Program
+    └── comp_list: vector<CompUnit>*
 ```
