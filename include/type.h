@@ -102,7 +102,9 @@ public:
 class NodeAttribute {
 public:
     int line_number = -1;
-    Type* T;
+    //Type* T;
+    //Type* type;
+    BuiltinType* type;
     bool ConstTag;
     union ConstVal {
         bool BoolVal;

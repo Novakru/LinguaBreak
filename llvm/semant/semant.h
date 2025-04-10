@@ -36,12 +36,12 @@
         //  Symbol* getarray = id_table.add_id("getarray");
         //  FunctionTable[getarray] = new __FuncDef(
         //  new BuiltinType(BuiltinType::Int), getarray,
-        //  new std::vector<FuncFParam>{new __FuncFParam(new BuiltinType(BuiltinType::Int), new std::vector<ExprBasePtr>(1, nullptr))}, nullptr);
+        //  new std::vector<FuncFParam>{new __FuncFParam(new BuiltinType(BuiltinType::Int), new std::vector<ExprBase>(1, nullptr))}, nullptr);
  
         //  Symbol* getfarray = id_table.add_id("getfarray");
         //  FunctionTable[getfarray] = new __FuncDef(
         //  new BuiltinType(BuiltinType::Int), getfarray,
-        //  new std::vector<FuncFParam>{new __FuncFParam(new BuiltinType(BuiltinType::Float), new std::vector<ExprBasePtr>(1, nullptr))}, nullptr);
+        //  new std::vector<FuncFParam>{new __FuncFParam(new BuiltinType(BuiltinType::Float), new std::vector<ExprBase>(1, nullptr))}, nullptr);
  
          Symbol* putint = id_table.add_id("putint");
          FunctionTable[putint] =
@@ -59,14 +59,14 @@
          FunctionTable[putarray] =
          new __FuncDef(new BuiltinType(BuiltinType::Void), putarray,
                        new std::vector<FuncFParam>{new __FuncFParam(new BuiltinType(BuiltinType::Int)),
-                                                   new __FuncFParam(new BuiltinType(BuiltinType::Int), new std::vector<ExprBasePtr>(1, nullptr))},
+                                                   new __FuncFParam(new BuiltinType(BuiltinType::Int), new std::vector<ExprBase>(1, nullptr))},
                        nullptr);
  
          Symbol* putfarray = id_table.add_id("putfarray");
          FunctionTable[putfarray] = new __FuncDef(
          new BuiltinType(BuiltinType::Void), putfarray,
          new std::vector<FuncFParam>{new __FuncFParam(new BuiltinType(BuiltinType::Int)),
-                                     new __FuncFParam(new BuiltinType(BuiltinType::Float), new std::vector<ExprBasePtr>(1, nullptr))},
+                                     new __FuncFParam(new BuiltinType(BuiltinType::Float), new std::vector<ExprBase>(1, nullptr))},
          nullptr);
  
          Symbol* starttime = id_table.add_id("_sysy_starttime");

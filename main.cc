@@ -4,6 +4,7 @@
 #include <cstring>
 #include "front_end/sysy_parser.tab.hh"
 #include "include/symbol.h"
+#include "llvm/semant/semant.h"
 
 extern FILE *yyin;
 extern char *yytext;
@@ -12,7 +13,8 @@ extern int error_num;
 extern Program ASTroot;
 extern int yylex();
 extern void dumpTokens(FILE* output, int token, int line_number, char *yytext, YYSTYPE yylval);
-
+extern std::vector<std::string> error_msgs;//新增
+IdTable id_table;//新增
 int line = 1;
 
 // option table 
