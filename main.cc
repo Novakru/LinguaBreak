@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <cstring>
+#include <iostream>
+#include <fstream>
 #include "front_end/sysy_parser.tab.hh"
 #include "include/symbol.h"
 #include "llvm/semant/semant.h"
@@ -42,12 +44,12 @@ int main(int argc, char** argv) {
 		return 1;
 	} 
 	
-	output = fopen(argv[3], "w");
 	
 	/* 【1】lexer */
 	int token;
 	yyin = input;
 	if (strcmp(argv[2], "-lexer") == 0) {
+		output = fopen(argv[3], "w");
 		fprintf(output, "%-10s %-20s %-15s %-10s\n", "line", "token", "type", "value");
 		fprintf(output, "------------------------------------------------------\n");
 		while ((token = yylex()) != 0) {
@@ -56,16 +58,22 @@ int main(int argc, char** argv) {
 		fclose(input), fclose(output);
 		return 0;
 	} 
+
+	std::ofstream fout(argv[3]);
+	if (!fout) {
+        std::cerr << "Could not open file: " << argv[3] << std::endl;
+        return 1;
+    }
 	/* 【2】parser */
 	yyparse();
 	if (error_num > 0) {
-		fprintf(output,"Parser error\n");
-        fclose(input), fclose(output);
+		fout<<"Parser error\n";
+        fclose(input);fout.close();
         return 0;
     }
-	// if(strcmp(argv[2], "-parser") == 0) {
-	// 	ASTroot->printAST();
-	// }
+	if(strcmp(argv[2], "-parser") == 0) {
+		ASTroot->printAST(fout,0);
+	}
 
 
 	/* parser and so on */

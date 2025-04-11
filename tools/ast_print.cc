@@ -235,8 +235,8 @@ void LOrExp::printAST(std::ostream &s, int pad) {
 
 
 void Lval::printAST(std::ostream &s, int pad) {
-    s << std::string(pad, ' ') << "Lval   " << attribute.GetAttributeInfo() << "   name:" << name->getName() << "   "<<"\n";
-    //   << "scope:" << scope << "\n";
+    s << std::string(pad, ' ') << "Lval   " << attribute.GetAttributeInfo() << "   name:" << name->getName() << "   "
+       << "scope:" << scope << "\n";
     if (dims != nullptr) {
         s << std::string(pad + 2, ' ') << "dims:\n";
         for (auto dim : (*dims)) {
@@ -277,6 +277,11 @@ void IntConst::printAST(std::ostream &s, int pad) {
 void FloatConst::printAST(std::ostream &s, int pad) {
     s << std::string(pad, ' ') << "Floatconst   val:" << val << "   " << attribute.GetAttributeInfo() << "\n";
 }
+
+// void StringConst::printAST(std::ostream &s, int pad) {
+//     s << std::string(pad, ' ') << "StringConst   type:string   val:" << str->get_string() << "\n";
+// }
+
 
 void PrimaryExp::printAST(std::ostream &s, int pad) {
     s << std::string(pad, ' ') << "PrimaryExp_branch   " << attribute.GetAttributeInfo() << "\n";
@@ -325,8 +330,5 @@ void RetStmt::printAST(std::ostream &s, int pad) {
     }
 }
 
-// void StringConst::printAST(std::ostream &s, int pad) {
-//     s << std::string(pad, ' ') << "StringConst   type:string   val:" << str->get_string() << "\n";
-// }
 
 //void null_stmt::printAST(std::ostream &s, int pad) { s << std::string(pad, ' ') << "NullStmt\n"; }

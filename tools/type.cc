@@ -49,7 +49,7 @@ std::string OpType::GetOpTypeString(){
 
 std::string BuiltinType::getString(){
     std::string str="Builtin:";
-        switch(builtinty){
+        switch(builtinKind){
             case Int:
                 return str+"Int";
             case Float:
@@ -72,26 +72,37 @@ std::string ArrayType::getString(){
     return ("Array:"+elementType->getString());
 }
 
+int BuiltinType::getType(){
+    return builtinKind;
+}
+int PointerType::getType(){
+    return 6;
+}
+int ArrayType::getType(){
+    return 7;
+}
 
-std::string NodeAttribute::GetConstValueInfo(Type* ty) {
-    // if (!ConstTag) {
-    //     return "";
-    // }
-
-    // if (ty.type == BuiltinType::BuiltinKind::Int) {
-    //     return "ConstValue: " + std::to_string(val.IntVal);
-    // } else if (ty.type == BuiltinType::BuiltinKind::Float) {
-    //     return "ConstValue: " + std::to_string(val.FloatVal);
-    // } else if (ty.type == BuiltinType::BuiltinKind::Bool) {
-    //     return "ConstValue: " + std::to_string(val.BoolVal);
-    // } else {
-    //     return "";
-    // }
+std::string NodeAttribute::GetConstValueInfo() {
+    if (!ConstTag) {
+        return "";
+    }
+    switch(type->getType()){
+        case 1:
+            return "ConstValue: " + std::to_string(val.IntVal);
+        case 2:
+            return "ConstValue: " + std::to_string(val.FloatVal);
+        case 3:
+            return "ConstValue: " + StrVal;
+        case 4:
+            return "ConstValue: " + std::to_string(val.BoolVal);
+        default:
+            assert(0);
+    }
     return "";
 }
 
 std::string NodeAttribute::GetAttributeInfo() { 
-    // return T.GetTypeInfo() + "   " + GetConstValueInfo(T); 
+    return type->getString() + "   " + GetConstValueInfo(); 
     return "";
 }
 
@@ -340,7 +351,7 @@ NodeAttribute SemantInt(NodeAttribute a, OpType::Op opcode)
         [](NodeAttribute a)
         { 
             NodeAttribute result=SingleOperation<int>(a,BuiltinType::Int);
-            result.val.IntVal=- result.val.IntVal;
+            result.val.IntVal= -result.val.IntVal;
             return result; 
         },//SUB,需要处理符号
         nullptr,
@@ -364,7 +375,7 @@ NodeAttribute SemantFloat(NodeAttribute a, OpType::Op opcode)
                 [](NodeAttribute a)
                 { 
                     NodeAttribute result=SingleOperation<float>(a,BuiltinType::Float);
-                    result.val.FloatVal=- result.val.FloatVal;
+                    result.val.FloatVal= -result.val.FloatVal;
                     return result; 
                 },//SUB,需要处理符号
                 nullptr,

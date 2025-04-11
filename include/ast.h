@@ -41,6 +41,7 @@ typedef __DeclBase *DeclBase;
 /* basic class of expression */
 class __ExprBase : public ASTNode {
 public:
+    int scope = -1;
 	virtual void codeIR() {}
     virtual void TypeCheck() {}
     virtual void printAST(std::ostream &s, int pad) {}
