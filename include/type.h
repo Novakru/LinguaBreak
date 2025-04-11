@@ -50,6 +50,7 @@ class Type {
 class BuiltinType : public Type {
     public:
         enum BuiltinKind { Int =1, Float=2, String=3 , Bool=4, Void=5 }builtinKind;
+        BuiltinType() { builtinKind = BuiltinKind::Void; }
         BuiltinType(BuiltinKind kind) : builtinKind(kind) {
             this->kind = Type::Builtin;
         }
@@ -93,7 +94,12 @@ class NodeAttribute {
             double DoubleVal;
         } val;
         std::string StrVal;
-        NodeAttribute() { ConstTag = false; val.IntVal=0;StrVal="";}
+        NodeAttribute() { 
+            ConstTag = false; 
+            val.IntVal=0; 
+            StrVal="";
+            type = new BuiltinType(BuiltinType::BuiltinKind::Void);
+        }
         std::string GetAttributeInfo();
         std::string GetConstValueInfo();
 };

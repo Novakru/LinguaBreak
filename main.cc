@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
 	/* 【2】parser */
 	yyparse();
 	if (error_num > 0) {
-		fout<<"Parser error\n";
+		fout<<"Parser error in line "<<line<<std::endl;
         fclose(input);fout.close();
         return 0;
     }

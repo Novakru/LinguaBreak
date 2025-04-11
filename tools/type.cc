@@ -95,6 +95,8 @@ std::string NodeAttribute::GetConstValueInfo() {
             return "ConstValue: " + StrVal;
         case 4:
             return "ConstValue: " + std::to_string(val.BoolVal);
+        case 5:
+            return "";
         default:
             assert(0);
     }

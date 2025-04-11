@@ -1,0 +1,15 @@
+
+int main(){
+    int a=3;
+    return 0;
+}
+
+//#define pi 3;
+//int main(){
+//    int a=-2;
+//    int f=a*/**/pi;
+//    int b=pi-/*this and that*/ a;
+//    a=a///**/-pi;
+//    ;
+//    return a;
+//}
