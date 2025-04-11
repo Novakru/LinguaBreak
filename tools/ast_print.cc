@@ -176,8 +176,12 @@ void AssignStmt::printAST(std::ostream &s, int pad) {
 }
 
 void ExprStmt::printAST(std::ostream &s, int pad) {
-    s << std::string(pad, ' ') << "ExpressionStmt:   " << attribute.GetAttributeInfo() << "\n";
-    exp->printAST(s, pad + 2);
+    if(exp!=nullptr){
+        s << std::string(pad, ' ') << "ExpressionStmt:   " << attribute.GetAttributeInfo() << "\n";
+        exp->printAST(s, pad + 2);
+    }else{
+        s << std::string(pad, ' ') << "ExpressionStmt:  empty \n";
+    }
 }
 
 void BlockStmt::printAST(std::ostream &s, int pad) {
@@ -294,27 +298,27 @@ void IfStmt::printAST(std::ostream &s, int pad) {
     
     if(elseStmt != nullptr) {
         s << std::string(pad, ' ') << "IfElseStmt:\n";
-        s << std::string(pad, ' ') << "Cond   type:bool\n";
-        Cond->printAST(s, pad + 2);
-        s << std::string(pad, ' ') << "if_stmt:\n";
-        ifStmt->printAST(s, pad + 2);
-        s << std::string(pad, ' ') << "else_Stmt:\n";
-        elseStmt->printAST(s, pad + 2);
+        s << std::string(pad+2, ' ') << "Cond   type:bool\n";
+        Cond->printAST(s, pad + 4);
+        s << std::string(pad+2, ' ') << "if_stmt:\n";
+        ifStmt->printAST(s, pad + 4);
+        s << std::string(pad+2, ' ') << "else_Stmt:\n";
+        elseStmt->printAST(s, pad + 4);
     }else{
         s << std::string(pad, ' ') << "IfStmt:\n";
-        s << std::string(pad, ' ') << "Cond   type:bool\n";
-        Cond->printAST(s, pad + 2);
-        s << std::string(pad, ' ') << "if_stmt:\n";
-        ifStmt->printAST(s, pad + 2);
+        s << std::string(pad+2, ' ') << "Cond   type:bool\n";
+        Cond->printAST(s, pad + 4);
+        s << std::string(pad+2, ' ') << "if_stmt:\n";
+        ifStmt->printAST(s, pad + 4);
     }
 }
 
 void WhileStmt::printAST(std::ostream &s, int pad) {
     s << std::string(pad, ' ') << "WhileStmt:\n";
-    s << std::string(pad, ' ') << "Cond   type:bool\n";
-    Cond->printAST(s, pad + 2);
-    s << std::string(pad, ' ') << "Body:\n";
-    loopBody->printAST(s, pad + 2);
+    s << std::string(pad+2, ' ') << "Cond   type:bool\n";
+    Cond->printAST(s, pad + 4);
+    s << std::string(pad+2, ' ') << "Body:\n";
+    loopBody->printAST(s, pad + 4);
 }
 
 void ContinueStmt::printAST(std::ostream &s, int pad) { s << std::string(pad, ' ') << "ContinueStmt\n"; }
@@ -322,11 +326,11 @@ void ContinueStmt::printAST(std::ostream &s, int pad) { s << std::string(pad, ' 
 void BreakStmt::printAST(std::ostream &s, int pad) { s << std::string(pad, ' ') << "BreakStmt\n"; }
 
 void RetStmt::printAST(std::ostream &s, int pad) {
-    if(retExp == nullptr) {
-        s << std::string(pad, ' ') << "ReturnStmt_void   type:void\n";
-    }else{
-        s << std::string(pad, ' ') << "ReturnStmt:\n";
-        retExp->printAST(s, pad + 2);
+    s << std::string(pad, ' ') << "ReturnStmt:\n";
+    s << std::string(pad+2, ' ') << "ReturnType:    " << attribute.type->getString() << "\n";
+    if(retExp != nullptr) {
+        s << std::string(pad+2, ' ') << "ReturnValue:\n";
+        retExp->printAST(s, pad + 4);
     }
 }
 

@@ -1,0 +1,10 @@
+Program
+  FuncDef   Name:main   ReturnType: Builtin:Int
+    Block   Size:2
+      VarDecls   Type: Builtin:Int
+        VarDef   name:a   scope:-1
+          init:
+            VarInitVal
+              Intconst   val:3   Builtin:Void   
+      ReturnStmt:
+        Intconst   val:0   Builtin:Void   
