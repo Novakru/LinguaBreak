@@ -35,26 +35,6 @@ public:
     std::string GetOpTypeString();
 };
 
-
-// class Type {
-// public:
-//     // 我们认为数组的类型为PTR
-//     // 为了方便写浮点数指针，我们把PTR细化成整型指针和浮点数指针
-//     enum ty { VOID = 0, INT = 1, FLOAT = 2, BOOL = 3, INT_PTR = 4, FLOAT_PTR = 5, DOUBLE = 6 } type;
-//     std::string GetTypeInfo();
-//     Type() { type = VOID; }
-// };
-
-// enum ty{
-//     Void=0,
-//     Int=1,
-//     Float=2,
-//     Bool=3,
-//     String=4,
-
-
-// }type;
-
 class Type {
     public:
         enum TypeKind {
@@ -102,8 +82,6 @@ public:
 class NodeAttribute {
 public:
     int line_number = -1;
-    //Type* T;
-    //Type* type;
     BuiltinType* type;
     bool ConstTag;
     union ConstVal {
@@ -112,6 +90,8 @@ public:
         float FloatVal;
         double DoubleVal;
     } val;
+    std::string StrVal;
+    //std::variant <bool,int,float,double,std::string> val;
     NodeAttribute() { ConstTag = false; val.IntVal=0;}
     std::string GetAttributeInfo();
     std::string GetConstValueInfo(Type* ty);
