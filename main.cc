@@ -74,7 +74,16 @@ int main(int argc, char** argv) {
 	if(strcmp(argv[2], "-parser") == 0) {
 		ASTroot->printAST(fout,0);
 	}
-
+	ASTroot->TypeCheck();
+    if (error_msgs.size() > 0) {
+		fprintf(output,"Semant error\n");
+        for (auto msg : error_msgs) {
+			
+            fout << msg << std::endl;
+        }
+        fout.close();
+        return 0;
+    }
 
 	/* parser and so on */
 	// if (strcmp(argv[2], "-parser") == 0) {
