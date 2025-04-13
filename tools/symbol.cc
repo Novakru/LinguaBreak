@@ -20,7 +20,7 @@ std::string Symbol::getName() const {
 
 
 /* symbol table */
-void SymbolTable::enter(Symbol* sym, void* value) {
+void SymbolTable::enter(Symbol* sym, NodeAttribute value) {
     table[sym] = value;  
 
     if (!scopes.empty()) {
@@ -28,9 +28,9 @@ void SymbolTable::enter(Symbol* sym, void* value) {
     }
 }
 
-void* SymbolTable::look(Symbol* sym) {
+NodeAttribute SymbolTable::look(Symbol* sym) {
     auto it = table.find(sym);
-    return (it != table.end()) ? it->second : nullptr;  
+    return (it != table.end()) ? it->second : NodeAttribute();  
 }
 
 
@@ -59,6 +59,10 @@ int SymbolTable::findScope(Symbol* sym) {
 
 size_t SymbolTable::tableSize() const {
     return table.size();
+}
+size_t SymbolTable::scopesSize() const
+{
+    return scopes.size();
 }
 
 Symbol* IdTable::add_id(std::string s) {

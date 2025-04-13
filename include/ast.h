@@ -29,11 +29,14 @@ typedef __Stmt *Stmt;
 class __Def : public ASTNode {
     public:
         int scope = -1;    // 在语义分析阶段填入正确的作用域
+        Symbol* name;
 };
 typedef __Def *Def;
     
 class __DeclBase : public ASTNode {
         public:
+        Type* type_decl;
+        std::vector<Def> *var_def_list{};//这样可以吗？
 };
 typedef __DeclBase *DeclBase;
 
@@ -317,6 +320,8 @@ class Lval : public __ExprBase {
 public:
     Symbol* name;
     std::vector<ExprBase> *dims;  // may be empty
+    bool is_left=true;//新增，左值或者右值,Lval的typecheck为false,在assign_stmt之后被赋值为true
+    int scope = -1; //作用域
 
     Lval(Symbol* n, std::vector<ExprBase> *d) : name(n), dims(d) {}
     void codeIR();

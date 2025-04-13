@@ -20,7 +20,7 @@
      SymbolTable symbol_table;
  
  
-     //std::unordered_map<Symbol*, VarAttribute> GlobalTable;
+     std::unordered_map<Symbol*, NodeAttribute> GlobalTable;
      std::unordered_map<Symbol*, int> GlobalStrTable;//新增
      SemantTable() {
          

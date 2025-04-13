@@ -85,6 +85,7 @@ class ArrayType : public Type {
 class NodeAttribute {
     public:
         int line_number = -1;
+        Type* T;
         BuiltinType* type;
         bool ConstTag;
         union ConstVal {
@@ -94,6 +95,11 @@ class NodeAttribute {
             double DoubleVal;
         } val;
         std::string StrVal;
+        std::vector<int> dims{};    
+        // 对于数组的初始化值，我们将高维数组看作一维后再存储 eg.([3 x [4 x i32]] => [12 x i32])
+        std::vector<int> IntInitVals{}; 
+        std::vector<float> FloatInitVals{};
+        std::vector<int> RealInitvalPos;
         NodeAttribute() { 
             ConstTag = false; 
             val.IntVal=0; 
