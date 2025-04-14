@@ -2,3 +2,7 @@ obj/
 bin/
 .vscode/
 test/
+testcase/
+debug.sy
+output.txt
+semant_output.txt
