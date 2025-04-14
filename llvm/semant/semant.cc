@@ -200,7 +200,7 @@ void __Program::TypeCheck() {
         comp->TypeCheck();
     }
     for(auto [s,f] : semant_table.FunctionTable){
-        if(s->getName() == "main"){
+        if(s == "main"){
             return;
         }
     }
@@ -237,7 +237,7 @@ void AddExp::TypeCheck()
        
     } else
     {
-        error_msgs.push_back("invalid operators in line " + std::to_string(addExp->attribute.line_number) + "\n");
+        error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
     }
 }
 void MulExp::TypeCheck() 
@@ -253,7 +253,7 @@ void MulExp::TypeCheck()
         attribute = it->second(mulExp->attribute, unaryExp->attribute, op.optype);
     } else
     {
-         error_msgs.push_back("invalid operators in line " + std::to_string(mulExp->attribute.line_number) + "\n");
+         error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
     }
 }
 void RelExp::TypeCheck() 
@@ -268,7 +268,7 @@ void RelExp::TypeCheck()
         
     } else
     {
-         error_msgs.push_back("invalid operators in line " + std::to_string(relExp->attribute.line_number) + "\n");
+         error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
     }
 }
 void EqExp::TypeCheck() 
@@ -283,7 +283,7 @@ void EqExp::TypeCheck()
         
     } else
     {
-          error_msgs.push_back("invalid operators in line " + std::to_string(eqExp->attribute.line_number) + "\n");
+          error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
     }
 }
 void LAndExp::TypeCheck() 
@@ -297,7 +297,7 @@ void LAndExp::TypeCheck()
         attribute = it->second(lAndExp->attribute, eqExp->attribute, OpType::And);
     } else
     {
-         error_msgs.push_back("invalid operators in line " + std::to_string(lAndExp->attribute.line_number) + "\n");
+         error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
     }
 }
 void LOrExp::TypeCheck() 
@@ -311,7 +311,7 @@ void LOrExp::TypeCheck()
         attribute = it->second(lOrExp->attribute, lAndExp->attribute, OpType::Or);
     } else
     {
-          error_msgs.push_back("invalid operators in line " + std::to_string(lOrExp->attribute.line_number) + "\n");
+          error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
     }
 }
 void Lval::TypeCheck() 
@@ -337,6 +337,8 @@ void Lval::TypeCheck()
     //2.处理数组[]部分
     std::vector<int> arrayIndexes;
     bool arrayindexConstTag=true;//有效位
+    attribute.ConstTag=val.ConstTag&arrayindexConstTag;
+    attribute.type=val.type;
     if(dims!=nullptr)
     {
         for(auto d:*dims)
@@ -348,8 +350,7 @@ void Lval::TypeCheck()
         }
          //3.判断数组使用规范
         if(arrayIndexes.size()==val.dims.size()){//使用维度与定义维度相同，比如定义a[2][3]，使用a[0][1]
-            attribute.ConstTag=val.ConstTag&arrayindexConstTag;
-            attribute.type=val.type;
+            
             if(attribute.ConstTag)
             {
                 if(attribute.type->builtinKind==BuiltinType::Int){attribute.val.IntVal=GetArrayVal(val,arrayIndexes,BuiltinType::Int);}
@@ -382,13 +383,14 @@ void FuncCall::TypeCheck()
 {
     std::cout<<"FuncCall::TypeCheck() is called!"<<std::endl;
      //1.查找函数是否存在
-     auto it = semant_table.FunctionTable.find(name);
+     auto it = semant_table.FunctionTable.find(name->getName());
+    //std::cout<<"func_call name="<<name->getName()<<std::endl;
      if (it == semant_table.FunctionTable.end()) {
          error_msgs.push_back("Function is undefined in line " + std::to_string(line) + "\n");
          return;
      }
      FuncDef funcdef = it->second;
-     attribute.type = (BuiltinType*)(semant_table.FunctionTable[name])->return_type;//需要检查类型转换是否成功
+     attribute.type = (BuiltinType*)(semant_table.FunctionTable[name->getName()])->return_type;//需要检查类型转换是否成功
      attribute.ConstTag = false;
      
      //2.检查函数调用传入的参数
@@ -459,17 +461,21 @@ void IfStmt::TypeCheck()
     std::cout<<"IfStmt::TypeCheck() is called!"<<std::endl;
     Cond->TypeCheck();
     if (Cond->attribute.type->builtinKind == BuiltinType::Void) {
-        error_msgs.push_back("if cond type is invalid " + std::to_string(line) + "\n");
+        error_msgs.push_back("if cond type is invalid in line " + std::to_string(Cond->line) + "\n");
     }
     ifStmt->TypeCheck();
-    elseStmt->TypeCheck();//???else一定存在吗
+    if(elseStmt!=nullptr)
+    {
+        elseStmt->TypeCheck();
+    }
+    
 }
 void WhileStmt::TypeCheck() 
 {
     std::cout<<"WhileStmt::TypeCheck() is called!"<<std::endl;
     Cond->TypeCheck();
     if (Cond->attribute.type->builtinKind == BuiltinType::Void) {
-        error_msgs.push_back("while cond type is invalid " + std::to_string(line) + "\n");
+        error_msgs.push_back("while cond type is invalid in line " + std::to_string(Cond->line) + "\n");
     }
     whileCount++;
     loopBody->TypeCheck();
@@ -614,7 +620,7 @@ void VarDecl::TypeCheck()
     for(auto def:*var_def_list)//逐一处理def
     {
         //1.获取当前作用域
-        def->scope=semant_table.symbol_table.scopesSize();
+        def->scope=semant_table.symbol_table.scopesSize()-1;
         //2.多重定义的错误处理(这个变量声明的最近的作用域与当前作用域相同)//新增 SySyYtree.h GetName Getdims GetInit
         if(semant_table.symbol_table.findScope(def->GetSymbol())==def->scope)
         {
@@ -634,7 +640,7 @@ void ConstDecl::TypeCheck()
     std::cout<<"ConstDecl::TypeCheck() is called!"<<std::endl;
     for(auto def:*var_def_list)//逐一处理def
     {
-        def->scope=semant_table.symbol_table.scopesSize();
+        def->scope=semant_table.symbol_table.scopesSize()-1;
         //多次定义的错误处理//新增 SySyYtree.h GetName Getdims GetInit
         if(semant_table.symbol_table.findScope(def->GetSymbol())==def->scope)
         {
@@ -708,7 +714,7 @@ void __FuncDef::TypeCheck()
     std::cout<<"__FuncDef::TypeCheck() is called!"<<std::endl;
     semant_table.symbol_table.beginScope();//进入新的作用域
 
-    semant_table.FunctionTable[name] = this;
+    semant_table.FunctionTable[name->getName()] = this;
 
     auto formal_vector = *formals;
     for (auto formal : formal_vector) {

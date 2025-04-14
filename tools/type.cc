@@ -128,7 +128,7 @@ extern int max_reg;
 constexpr size_t TYPE_COUNT = 6;
 
 NodeAttribute SemantErrorError(NodeAttribute a, NodeAttribute b, OpType::Op opcode) {
-    error_msgs.push_back("invalid operators in line " + std::to_string(a.line_number) + "\n");
+    error_msgs.push_back("SemantErrorError in line " + std::to_string(a.line_number) + "\n");
     NodeAttribute result;
     return result;
 }
