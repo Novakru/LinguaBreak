@@ -1,42 +1,4 @@
-invalid operators in line -1
+FuncRParam is void in line 5
 
-Expression is not const 6
-
-Initval expression can not be void in line 6
-
-exp can not be void in initval in line 6
-
-invalid operators in line -1
-
-invalid operators in line -1
-
-Expression is not const 7
-
-Initval expression can not be void in line 7
-
-exp can not be void in initval in line 7
-
-invalid operators in line -1
-
-invalid operators in line -1
-
-invalid operators in line -1
-
-Expression is not const 8
-
-Initval expression can not be void in line 8
-
-exp can not be void in initval in line 8
-
-invalid operators in line -1
-
-invalid operators in line -1
-
-invalid operators in line -1
-
-invalid operators in line -1
-
-invalid operators in line -1
-
-Return type is invalid in line 9
+Function FuncFParams and FuncRParams size are not matched in line 5
 
