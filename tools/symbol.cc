@@ -22,7 +22,7 @@ std::string Symbol::getName() const {
 /* symbol table */
 
 void SymbolTable::enter(Symbol* sym, NodeAttribute value) {
-    std::cout<<"ADD symbol "<<sym->getName()<<" in scope"<<scopes.size()-1<<std::endl;
+    //std::cout<<"ADD symbol "<<sym->getName()<<" in scope"<<scopes.size()-1<<std::endl;
     if (!scopes.empty()&&sym!=nullptr) {
         int cur_scope=scopes.size();
         scopes[cur_scope-1][sym]=value;
