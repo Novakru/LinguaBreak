@@ -20,18 +20,18 @@ static std::unordered_map<std::string, Symbol*> symbolMap;
 
 class SymbolTable {
     public:
+        //SymbolTable(){beginScope();}
         void enter(Symbol* sym, NodeAttribute value); 
         //void* look(Symbol* sym); 
         NodeAttribute look(Symbol* sym); 
         void beginScope(); 
         void endScope(); 
         int findScope(Symbol* sym);  
-        size_t tableSize() const;
+        //size_t tableSize() const;
         size_t scopesSize() const;
     private:
-        //std::unordered_map<Symbol*, void*> table;  
-        std::unordered_map<Symbol*, NodeAttribute> table;
-        std::vector<std::vector<Symbol*>> scopes;  
+        //std::unordered_map<Symbol*, NodeAttribute> table;//疑点，如果多个作用域下都存储有某个变量，那么table中怎么存储？
+        std::vector<std::unordered_map<Symbol*, NodeAttribute>> scopes;  
     };
 
 class IdTable {
