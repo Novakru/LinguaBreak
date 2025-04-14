@@ -20,46 +20,58 @@ std::string Symbol::getName() const {
 
 
 /* symbol table */
-void SymbolTable::enter(Symbol* sym, NodeAttribute value) {
-    table[sym] = value;  
 
-    if (!scopes.empty()) {
-        scopes.back().push_back(sym); 
+void SymbolTable::enter(Symbol* sym, NodeAttribute value) {
+    std::cout<<"ADD symbol "<<sym->getName()<<" in scope"<<scopes.size()-1<<std::endl;
+    if (!scopes.empty()&&sym!=nullptr) {
+        int cur_scope=scopes.size();
+        scopes[cur_scope-1][sym]=value;
     }
 }
 
-NodeAttribute SymbolTable::look(Symbol* sym) {
-    auto it = table.find(sym);
-    return (it != table.end()) ? it->second : NodeAttribute();  
+NodeAttribute SymbolTable::look(Symbol* sym) {//获取当前作用域下，该symbol对应的node(比如name,type)
+    int cur_scope=scopes.size();
+    if(cur_scope!=0)
+    {
+        auto it=scopes[cur_scope-1].find(sym);
+        //return (it != scopes[cur_scope-1].end()) ? it->second : NodeAttribute();  
+        if(it != scopes[cur_scope-1].end())
+        {
+            //std::cout<<"Find symbol "<<sym->getName()<<std::endl;
+            return it->second;
+        }
+    }
+    //std::cout<<"Not Find symbol "<<sym->getName()<<std::endl;
+    return NodeAttribute();  
 }
 
-
-void SymbolTable::beginScope() {
+void SymbolTable::beginScope() {//scopes的size增大1
     scopes.push_back({}); 
 }
 
-void SymbolTable::endScope() {
+void SymbolTable::endScope() {//scopes的size减少1
     if (!scopes.empty()) {
-        for (Symbol* sym : scopes.back()) {
-            table.erase(sym);  
-        }
         scopes.pop_back();
     }
 }
 
 int SymbolTable::findScope(Symbol* sym) {
-	int tabSize = table.size();
+    int tabSize=scopes.size();
+    //std::cout<<"scopeSize="<<scopes.size()<<std::endl;
+    //std::cout<<"sym ="<<(sym->getName())<<std::endl;
     for (int i = tabSize - 1; i >= 0; --i) {
-        for (Symbol* s : scopes[i]) {
-            if (s == sym) return i; 
+        auto it=scopes[i].find(sym);
+        if(it!=scopes[i].end())
+        {
+            return i;
         }
     }
     return -1; 
 }
 
-size_t SymbolTable::tableSize() const {
-    return table.size();
-}
+// size_t SymbolTable::tableSize() const {
+//     return table.size();
+// }
 size_t SymbolTable::scopesSize() const
 {
     return scopes.size();

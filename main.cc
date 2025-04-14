@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
 			
             fout << msg << std::endl;
         }
-        fout.close();
+        fclose(input);fout.close();
         return 0;
     }
 
