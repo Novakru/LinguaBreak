@@ -43,6 +43,7 @@ int a[2][2][2][2]={    {  {{    },{3,  }},   { 5, 6 ,{7, 8}}     },
 
 */
 void GatherArrayrecursion(NodeAttribute & attr, InitValBase init,std::vector<int> needed_num,int depth,int& pos){
+    std::cout<<"GatherArrayrecursion() is called!"<<std::endl;
     //curr_num : 这一层已经收集到的初始值个数
     int curr_num=0;
     //initval包含了该层{}内   所有显式给出的初始值
@@ -99,6 +100,7 @@ void GatherArrayrecursion(NodeAttribute & attr, InitValBase init,std::vector<int
 }
 
 void GatherArrayInitVals(NodeAttribute & attr, InitValBase init){
+    std::cout<<"GatherArrayInitVals() is called!"<<std::endl;
 /* 辅助信息准备:total_num , needed_num[]*/
     //计算total_num：数组中元素总数
     int total_num=attr.dims[0];//前提：dims不能为空，且正整数
@@ -123,21 +125,23 @@ void GatherArrayInitVals(NodeAttribute & attr, InitValBase init){
 }
 
 void InitializeSingleValue(InitValBase init, NodeAttribute &val, BuiltinType* initval_type) {
+    std::cout<<"InitializeSingleValue() is called!"<<std::endl;
     if (init->getExp() != nullptr) {
         if (init->getExp()->attribute.type->builtinKind == BuiltinType::Void) {
             error_msgs.push_back("exp can not be void in initval in line " + std::to_string(init->line) + "\n");
         } else if (initval_type->builtinKind == BuiltinType::Int) {
-            val.IntInitVals[0] = (init->getExp()->attribute.type->builtinKind == BuiltinType::Float) ?
-                                  int(init->getExp()->attribute.val.FloatVal) :
-                                  init->getExp()->attribute.val.IntVal;
+             (init->getExp()->attribute.type->builtinKind == BuiltinType::Float) ?
+             val.IntInitVals.push_back (int(init->getExp()->attribute.val.FloatVal) ):
+             val.IntInitVals.push_back (init->getExp()->attribute.val.IntVal);
         } else if (initval_type->builtinKind == BuiltinType::Float) {
-            val.FloatInitVals[0] = (init->getExp()->attribute.type->builtinKind == BuiltinType::Float) ? 
-                                    init->getExp()->attribute.val.FloatVal : 
-                                    float(init->getExp()->attribute.val.IntVal);
+           (init->getExp()->attribute.type->builtinKind == BuiltinType::Float) ? 
+           val.IntInitVals.push_back( init->getExp()->attribute.val.FloatVal ): 
+           val.IntInitVals.push_back(     float(init->getExp()->attribute.val.IntVal));
         }
     }
 }
 void SolveInitVal(InitValBase init, NodeAttribute &val, BuiltinType* initval_type) {
+    std::cout<<"SolveInitVal() is called!"<<std::endl;
     val.type= initval_type;
     if (val.dims.empty()) {
         InitializeSingleValue(init, val, initval_type);
@@ -152,6 +156,7 @@ void SolveInitVal(InitValBase init, NodeAttribute &val, BuiltinType* initval_typ
 
 int GetArrayVal(NodeAttribute &val,std::vector<int> &arrayIndexes,BuiltinType::BuiltinKind type)
 {
+    std::cout<<"GetArrayVal() is called!"<<std::endl;
     int index=0;//获取多维数组展开后的线性索引
     for(int i=0;i<arrayIndexes.size();i++)
     {
@@ -166,6 +171,7 @@ int GetArrayVal(NodeAttribute &val,std::vector<int> &arrayIndexes,BuiltinType::B
 //可能需要完善
 void CheckArrayDim(ExprBase &d,int line_number)
 {
+    std::cout<<"CheckArrayDim() is called!"<<std::endl;
     // if(d->attribute.type->builtinKind==Type::VOID)//错误处理->出现错误仍把Intval压入，确保arrayIndexes中的个数一致
     // {
     //     error_msgs.push_back("Void is not allowed in  Array Dim in line " + std::to_string(line_number) + "\n");
@@ -187,6 +193,7 @@ void CheckArrayDim(ExprBase &d,int line_number)
 
 
 void __Program::TypeCheck() {
+    std::cout<<"__Program::TypeCheck() is called!"<<std::endl;
     semant_table.symbol_table.beginScope();
     auto comp_vector = *comp_list;
     for (auto comp : comp_vector) {
@@ -204,12 +211,14 @@ void __Program::TypeCheck() {
 
 void Exp::TypeCheck() 
 {
+    std::cout<<"Exp::TypeCheck() is called!"<<std::endl;
     addExp->TypeCheck();
 
     attribute = addExp->attribute;
 }
 void ConstExp::TypeCheck() 
 {
+    std::cout<<"ConstExp::TypeCheck() is called!"<<std::endl;
     addExp->TypeCheck();
     attribute = addExp->attribute;
     if (!attribute.ConstTag) {    // addexp is not const
@@ -218,6 +227,7 @@ void ConstExp::TypeCheck()
 }
 void AddExp::TypeCheck() 
 {
+    std::cout<<"AddExp::TypeCheck() is called!"<<std::endl;
     addExp->TypeCheck();
     mulExp->TypeCheck();
     auto key = std::make_pair(addExp->attribute.type->builtinKind, mulExp->attribute.type->builtinKind);
@@ -232,8 +242,11 @@ void AddExp::TypeCheck()
 }
 void MulExp::TypeCheck() 
 {
+    std::cout<<"MulExp::TypeCheck() is called!"<<std::endl;
     mulExp->TypeCheck();
     unaryExp->TypeCheck();
+    std::cout<<"mulExp->attribute.type->builtinKind="<<mulExp->attribute.type->builtinKind<<std::endl;
+    std::cout<<"unaryExp->attribute.type->builtinKind="<<unaryExp->attribute.type->builtinKind<<std::endl;
     auto key = std::make_pair(mulExp->attribute.type->builtinKind,unaryExp->attribute.type->builtinKind);
     auto it = SemantBinaryNodeMap.find(key);
     if (it != SemantBinaryNodeMap.end()) {
@@ -245,6 +258,7 @@ void MulExp::TypeCheck()
 }
 void RelExp::TypeCheck() 
 {
+    std::cout<<"RelExp::TypeCheck() is called!"<<std::endl;
     relExp->TypeCheck();
     addExp->TypeCheck();
     auto key = std::make_pair(relExp->attribute.type->builtinKind,addExp->attribute.type->builtinKind);
@@ -259,6 +273,7 @@ void RelExp::TypeCheck()
 }
 void EqExp::TypeCheck() 
 {
+    std::cout<<"EqExp::TypeCheck() is called!"<<std::endl;
     eqExp->TypeCheck();
     relExp->TypeCheck();
     auto key = std::make_pair(eqExp->attribute.type->builtinKind,relExp->attribute.type->builtinKind);
@@ -273,6 +288,7 @@ void EqExp::TypeCheck()
 }
 void LAndExp::TypeCheck() 
 {
+    std::cout<<"LAndExp::TypeCheck() is called!"<<std::endl;
     lAndExp->TypeCheck();
     eqExp->TypeCheck();
     auto key = std::make_pair(lAndExp->attribute.type->builtinKind,eqExp->attribute.type->builtinKind);
@@ -286,6 +302,7 @@ void LAndExp::TypeCheck()
 }
 void LOrExp::TypeCheck() 
 {
+    std::cout<<"LOrExp::TypeCheck() is called!"<<std::endl;
     lOrExp->TypeCheck();
     lAndExp->TypeCheck();
     auto key = std::make_pair(lOrExp->attribute.type->builtinKind,lAndExp->attribute.type->builtinKind);
@@ -299,6 +316,7 @@ void LOrExp::TypeCheck()
 }
 void Lval::TypeCheck() 
 {
+    std::cout<<"Lval::TypeCheck() is called!"<<std::endl;
     is_left=false;
     //1.查找左值name是否已经定义
     NodeAttribute val=semant_table.symbol_table.look(name); // 返回离当前作用域最近的局部变量的相关信息
@@ -328,29 +346,31 @@ void Lval::TypeCheck()
             arrayIndexes.push_back(d->attribute.val.IntVal);
             arrayindexConstTag &=d->attribute.ConstTag;//需要数组元素都有效，arrayIndexes才有效
         }
-    }
-
-    //3.判断数组使用规范
-    if(arrayIndexes.size()==val.dims.size()){//使用维度与定义维度相同，比如定义a[2][3]，使用a[0][1]
-        attribute.ConstTag=val.ConstTag&arrayindexConstTag;
-        attribute.type=val.type;
-        if(attribute.ConstTag)
+         //3.判断数组使用规范
+        if(arrayIndexes.size()==val.dims.size()){//使用维度与定义维度相同，比如定义a[2][3]，使用a[0][1]
+            attribute.ConstTag=val.ConstTag&arrayindexConstTag;
+            attribute.type=val.type;
+            if(attribute.ConstTag)
+            {
+                if(attribute.type->builtinKind==BuiltinType::Int){attribute.val.IntVal=GetArrayVal(val,arrayIndexes,BuiltinType::Int);}
+                else if(attribute.type->builtinKind==BuiltinType::Float){attribute.val.FloatVal=GetArrayVal(val,arrayIndexes,BuiltinType::Float);}
+            }
+        }
+        else if(arrayIndexes.size()<val.dims.size())//使用维度小于定义维度，比如定义a[2][3]，使用a[0]
         {
-            if(attribute.type->builtinKind==BuiltinType::Int){attribute.val.IntVal=GetArrayVal(val,arrayIndexes,BuiltinType::Int);}
-            else if(attribute.type->builtinKind==BuiltinType::Float){attribute.val.FloatVal=GetArrayVal(val,arrayIndexes,BuiltinType::Float);}
+            attribute.ConstTag=false;
+            //attribute.T->kind=Type::Pointer;//???
+        }
+        else{
+            error_msgs.push_back("Array size is larger than defined size in line " + std::to_string(line) + "\n");
         }
     }
-    else if(arrayIndexes.size()<val.dims.size())//使用维度小于定义维度，比如定义a[2][3]，使用a[0]
-    {
-        attribute.ConstTag=false;
-        attribute.T->kind=BuiltinType::Pointer;//???
-    }
-    else{
-        error_msgs.push_back("Array size is larger than defined size in line " + std::to_string(line) + "\n");
-    }
+
+   
 }
 void FuncRParams::TypeCheck() 
 {
+    std::cout<<"FuncRParams::TypeCheck() is called!"<<std::endl;
     for (auto param : *rParams) {
         param->TypeCheck();
         if (param->attribute.type->builtinKind == BuiltinType::Void) {
@@ -360,6 +380,7 @@ void FuncRParams::TypeCheck()
 }
 void FuncCall::TypeCheck() 
 {
+    std::cout<<"FuncCall::TypeCheck() is called!"<<std::endl;
      //1.查找函数是否存在
      auto it = semant_table.FunctionTable.find(name);
      if (it == semant_table.FunctionTable.end()) {
@@ -386,6 +407,7 @@ void FuncCall::TypeCheck()
 
 void UnaryExp::TypeCheck() 
 {
+    std::cout<<"UnaryExp::TypeCheck() is called!"<<std::endl;
     unaryExp->TypeCheck();
     attribute=SemantSingleNodeMap[unaryExp->attribute.type->builtinKind]
         (unaryExp->attribute,unaryOp.optype);
@@ -393,23 +415,27 @@ void UnaryExp::TypeCheck()
 }
 void IntConst::TypeCheck() 
 {
+    std::cout<<"IntConst::TypeCheck() is called!"<<std::endl;
     attribute.type = new BuiltinType(BuiltinType::Int);
     attribute.ConstTag = true;
     attribute.val.IntVal = val;
 }
 void FloatConst::TypeCheck() 
 {
+    std::cout<<"FloatConst::TypeCheck() is called!"<<std::endl;
     attribute.type = new BuiltinType(BuiltinType::Float);
     attribute.ConstTag = true;
     attribute.val.FloatVal = val;
 }
 void PrimaryExp::TypeCheck() 
 {
+    std::cout<<"PrimaryExp::TypeCheck() is called!"<<std::endl;
     exp->TypeCheck();
     attribute = exp->attribute;
 }
 void AssignStmt::TypeCheck() 
 {
+    std::cout<<"AssignStmt::TypeCheck() is called!"<<std::endl;
     lval->TypeCheck();//此时is_left=false
     exp->TypeCheck();
     ((Lval*)lval)->is_left=true;
@@ -419,15 +445,18 @@ void AssignStmt::TypeCheck()
 }
 void ExprStmt::TypeCheck() 
 {
+    std::cout<<"ExprStmt::TypeCheck() is called!"<<std::endl;
     exp->TypeCheck();
     attribute = exp->attribute;
 }
 void BlockStmt::TypeCheck() 
 {
+    std::cout<<"BlockStmt::TypeCheck() is called!"<<std::endl;
     b->TypeCheck();
 }
 void IfStmt::TypeCheck() 
 {
+    std::cout<<"IfStmt::TypeCheck() is called!"<<std::endl;
     Cond->TypeCheck();
     if (Cond->attribute.type->builtinKind == BuiltinType::Void) {
         error_msgs.push_back("if cond type is invalid " + std::to_string(line) + "\n");
@@ -437,6 +466,7 @@ void IfStmt::TypeCheck()
 }
 void WhileStmt::TypeCheck() 
 {
+    std::cout<<"WhileStmt::TypeCheck() is called!"<<std::endl;
     Cond->TypeCheck();
     if (Cond->attribute.type->builtinKind == BuiltinType::Void) {
         error_msgs.push_back("while cond type is invalid " + std::to_string(line) + "\n");
@@ -447,18 +477,21 @@ void WhileStmt::TypeCheck()
 }
 void ContinueStmt::TypeCheck() 
 {
+    std::cout<<"ContinueStmt::TypeCheck() is called!"<<std::endl;
     if (!whileCount) {
         error_msgs.push_back("Continue is not in while stmt in line " + std::to_string(line) + "\n");
     }
 }
 void BreakStmt::TypeCheck() 
 {
+    std::cout<<"BreakStmt::TypeCheck() is called!"<<std::endl;
     if (!whileCount) {
         error_msgs.push_back("Break is not in while stmt in line " + std::to_string(line) + "\n");
     }
 }
 void RetStmt::TypeCheck() 
 {
+    std::cout<<"RetStmt::TypeCheck() is called!"<<std::endl;
     retExp->TypeCheck(); 
      if (retExp->attribute.type->builtinKind == BuiltinType::Void) {
         error_msgs.push_back("Return type is invalid in line " + std::to_string(line) + "\n");
@@ -466,39 +499,43 @@ void RetStmt::TypeCheck()
 }
 void ConstInitValList::TypeCheck() 
 {
+    std::cout<<"ConstInitValList::TypeCheck() is called!"<<std::endl;
     for(auto init:*initval){init->TypeCheck();}
 }
 void ConstInitVal::TypeCheck() 
 {
+    std::cout<<"ConstInitVal::TypeCheck() is called!"<<std::endl;
     if(exp==nullptr){return;}
     exp->TypeCheck();
     attribute =exp->attribute;
     if (!attribute.ConstTag) {    // exp is not const
         error_msgs.push_back("Expression is not const " + std::to_string(line) + "\n");
     }
-    if (attribute.type->builtinKind == BuiltinType::Void) {
+    if (exp!=nullptr&&attribute.type->builtinKind == BuiltinType::Void) {
         error_msgs.push_back("Initval expression can not be void in line " + std::to_string(line) + "\n");
     }
 }
 void VarInitValList::TypeCheck() 
 {
+    std::cout<<"VarInitValList::TypeCheck() is called!"<<std::endl;
     for(auto init:*initval){init->TypeCheck();}
 }
 void VarInitVal::TypeCheck() 
 {
+    std::cout<<"VarInitVal::TypeCheck() is called!"<<std::endl;
     if (exp == nullptr) {
         return;
     }
-
     exp->TypeCheck();
     attribute = exp->attribute;
 
-    if (attribute.type->builtinKind == BuiltinType::Void) {
+    if (exp!=nullptr&&attribute.type->builtinKind == BuiltinType::Void) {
         error_msgs.push_back("Initval expression can not be void in line " + std::to_string(line) + "\n");
     }
 }
 void VarDef_no_init::TypeCheck() 
 {
+    std::cout<<"VarDef_no_init::TypeCheck() is called!"<<std::endl;
     NodeAttribute val;
     val.ConstTag=false;
     val.type=attribute.type;
@@ -512,12 +549,13 @@ void VarDef_no_init::TypeCheck()
         }
     }
     semant_table.symbol_table.enter(name,val);
-    if (semant_table.symbol_table.scopesSize() == 0) {
+    if (semant_table.symbol_table.scopesSize() == 1) {
 		semant_table.GlobalTable[name] = val;
 	}
 }//do nothing
 void VarDef::TypeCheck() 
 {
+    std::cout<<"VarDef::TypeCheck() is called!"<<std::endl;
     NodeAttribute val;
     val.ConstTag=false;
     val.type=attribute.type;
@@ -537,12 +575,13 @@ void VarDef::TypeCheck()
         SolveInitVal(init,val,val.type);
     }
     semant_table.symbol_table.enter(name,val);
-    if (semant_table.symbol_table.scopesSize() == 0) {
+    if (semant_table.symbol_table.scopesSize() == 1) {
 		semant_table.GlobalTable[name] = val;
 	}
 }
 void ConstDef::TypeCheck() 
 {
+    std::cout<<"ConstDef::TypeCheck() is called!"<<std::endl;
     NodeAttribute val;
     val.ConstTag=true;
     val.type=attribute.type;
@@ -563,55 +602,65 @@ void ConstDef::TypeCheck()
     }
     semant_table.symbol_table.enter(name,val);
     //是否需要ConstGlobalMap或StaticGlobalMap?
-    if (semant_table.symbol_table.scopesSize() == 0) {
+    if (semant_table.symbol_table.scopesSize() == 1) {
 		semant_table.GlobalTable[name] = val;//已经加入global_table的还需不需要加入symbol_table?
 	}
-    if (semant_table.symbol_table.scopesSize() == 0) {
-		semant_table.GlobalTable[name] = val;
-	}
+
     
 }
 void VarDecl::TypeCheck() 
 {
+    std::cout<<"VarDecl::TypeCheck() is called!"<<std::endl;
     for(auto def:*var_def_list)//逐一处理def
     {
         //1.获取当前作用域
         def->scope=semant_table.symbol_table.scopesSize();
         //2.多重定义的错误处理(这个变量声明的最近的作用域与当前作用域相同)//新增 SySyYtree.h GetName Getdims GetInit
-        if(semant_table.symbol_table.findScope(def->name)==def->scope)
+        if(semant_table.symbol_table.findScope(def->GetSymbol())==def->scope)
         {
-            error_msgs.push_back("multiple definition for " + def->name->getName() + " in line " + std::to_string(line) + "\n");
+            error_msgs.push_back("multiple definition for " + def->GetSymbol()->getName() + " in line " + std::to_string(line) + "\n");
         }
         //也许可以这么处理:都在def中处理
         //3.处理数组部分 
         //4.处理init
+        def->attribute.type=(BuiltinType*)(type_decl);//?
         def->TypeCheck();
+        
         //5.加入符号表
      }
 }
 void ConstDecl::TypeCheck() 
 {
+    std::cout<<"ConstDecl::TypeCheck() is called!"<<std::endl;
     for(auto def:*var_def_list)//逐一处理def
     {
         def->scope=semant_table.symbol_table.scopesSize();
         //多次定义的错误处理//新增 SySyYtree.h GetName Getdims GetInit
-        if(semant_table.symbol_table.findScope(def->name)==def->scope)
+        if(semant_table.symbol_table.findScope(def->GetSymbol())==def->scope)
         {
-            error_msgs.push_back("multiple definition for " + def->name->getName() + " in line " + std::to_string(line) + "\n");
+            error_msgs.push_back("multiple definition for " + def->GetSymbol()->getName() + " in line " + std::to_string(line) + "\n");
         } 
+        //std::cout<<"before:type="<<def->attribute.type->builtinKind<<std::endl;
+        def->attribute.type=(BuiltinType*)(type_decl);//?
+        //std::cout<<"after:type="<<def->attribute.type->builtinKind<<std::endl;
+        def->TypeCheck();
     }
+    
     
 }
 void BlockItem_Decl::TypeCheck() 
 {
+    std::cout<<"BlockItem_Decl::TypeCheck() is called!"<<std::endl;
     decl->TypeCheck(); 
 }
 void BlockItem_Stmt::TypeCheck() 
 {
+    std::cout<<"BlockItem_Stmt::TypeCheck() is called!"<<std::endl;
     stmt->TypeCheck();
 }
 void __Block::TypeCheck() 
 {
+    std::cout<<"__Block::TypeCheck() is called!"<<std::endl;
     semant_table.symbol_table.beginScope();
     auto item_vector = *item_list;
     for (auto item : item_vector) {
@@ -621,6 +670,7 @@ void __Block::TypeCheck()
 }
 void __FuncFParam::TypeCheck() 
 {
+    std::cout<<"__FuncFParam::TypeCheck() is called!"<<std::endl;
     NodeAttribute val;
     val.ConstTag = false;
     val.type = (BuiltinType*)type_decl;
@@ -640,7 +690,7 @@ void __FuncFParam::TypeCheck()
             val.dims.push_back(d->attribute.val.IntVal);
         }
         
-        attribute.T->kind =BuiltinType::Pointer;//!!!!
+        //attribute.T->kind =Type::Pointer;//!!!!
     } else {
         attribute.type= (BuiltinType*)(type_decl);//?
     }
@@ -655,6 +705,7 @@ void __FuncFParam::TypeCheck()
 }
 void __FuncDef::TypeCheck() 
 {
+    std::cout<<"__FuncDef::TypeCheck() is called!"<<std::endl;
     semant_table.symbol_table.beginScope();//进入新的作用域
 
     semant_table.FunctionTable[name] = this;
@@ -676,13 +727,15 @@ void __FuncDef::TypeCheck()
 }
 void CompUnit_Decl::TypeCheck() 
 {
-   
-    BuiltinType* type_decl=(BuiltinType*)decl->type_decl ;
-    for(auto def:*decl->var_def_list)
+    std::cout<<"CompUnit_Decl::TypeCheck() is called!"<<std::endl;
+    BuiltinType* type_decl=(BuiltinType*)decl->GetTypedecl() ;
+    for(auto def:*decl->GetDefs())
     {
         def->scope=0;//这里获得的都是全局变量，因而作用域为0
-        if(semant_table.GlobalTable.find(def->name)!=semant_table.GlobalTable.end())//说明该def的name在之前就被声明过，加入过GlbalTable了
+        if(semant_table.GlobalTable.find(def->GetSymbol())!=semant_table.GlobalTable.end())//说明该def的name在之前就被声明过，加入过GlbalTable了
         { error_msgs.push_back("multilpe difinitions of vars in line " + std::to_string(line) + "\n");}
+        def->attribute.type=type_decl;
+        def->TypeCheck();
         // StaticGlobalMap[def->GetName()->get_string()]=val;//?
 
         // BasicInstruction::LLVMType lltype = Type2LLvm[type_decl];
@@ -703,5 +756,6 @@ void CompUnit_Decl::TypeCheck()
 }
 void CompUnit_FuncDef::TypeCheck() 
 {
+    std::cout<<"CompUnit_FuncDef::TypeCheck() is called!"<<std::endl;
     func_def->TypeCheck();
 }

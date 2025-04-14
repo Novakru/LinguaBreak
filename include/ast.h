@@ -29,14 +29,15 @@ typedef __Stmt *Stmt;
 class __Def : public ASTNode {
     public:
         int scope = -1;    // 在语义分析阶段填入正确的作用域
-        Symbol* name;
+        //Symbol* name;
+        virtual Symbol* GetSymbol()=0;//新增
 };
 typedef __Def *Def;
     
 class __DeclBase : public ASTNode {
-        public:
-        Type* type_decl;
-        std::vector<Def> *var_def_list{};//这样可以吗？
+    public:
+        virtual Type* GetTypedecl()=0;//新增
+        virtual std::vector<Def>* GetDefs()=0;//新增
 };
 typedef __DeclBase *DeclBase;
 
@@ -553,6 +554,7 @@ public:
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
+    Symbol* GetSymbol(){return name;}
 };
 
 class VarDef : public __Def {
@@ -565,6 +567,7 @@ public:
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
+    Symbol* GetSymbol(){return name;}
 };
 
 class ConstDef : public __Def {
@@ -578,6 +581,7 @@ public:
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
+    Symbol* GetSymbol(){return name;}
 };
 
 /************************ Decl *************************/
@@ -589,7 +593,8 @@ public:
     std::vector<Def> *var_def_list{};
     // construction
     VarDecl(Type* t, std::vector<Def> *v) : type_decl(t), var_def_list(v) {}
-
+    std::vector<Def>* GetDefs(){return var_def_list;}
+    Type* GetTypedecl(){return type_decl;}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
@@ -602,7 +607,8 @@ public:
     std::vector<Def> *var_def_list{};
     // construction
     ConstDecl(Type* t, std::vector<Def> *v) : type_decl(t), var_def_list(v) {}
-
+    std::vector<Def>* GetDefs(){return var_def_list;}
+    Type* GetTypedecl(){return type_decl;}
     void codeIR();
     void TypeCheck();
     void printAST(std::ostream &s, int pad);
