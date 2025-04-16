@@ -15,7 +15,6 @@ make parser # input: sysy_parser.y output: sysy_parser.tab.cc and sysy_parser.ta
 tree -L 3
 ```
 
-
 ```
 Your Syntax Tree Structure
 │

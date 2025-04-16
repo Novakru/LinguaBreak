@@ -88,26 +88,31 @@ class NodeAttribute {
         Type* T;
         BuiltinType* type;
         bool ConstTag;
+
+		// constValue
         union ConstVal {
             bool BoolVal;
             int IntVal;
             float FloatVal;
             double DoubleVal;
         } val;
-        std::string StrVal;
-         std::vector<int> dims{};    
-    // 对于数组的初始化值，我们将高维数组看作一维后再存储 eg.([3 x [4 x i32]] => [12 x i32])
-    std::vector<int> IntInitVals{}; 
-    std::vector<float> FloatInitVals{};
-    std::vector<int> RealInitvalPos;
-        NodeAttribute() { 
-            ConstTag = false; 
-            val.IntVal=0; 
-            StrVal="";
-            type = new BuiltinType(BuiltinType::BuiltinKind::Void);
-        }
-        std::string GetAttributeInfo();
-        std::string GetConstValueInfo();
+		std::string StrVal;
+
+		// array
+		std::vector<int> dims{};    
+		// 对于数组的初始化值，我们将高维数组看作一维后再存储 eg.([3 x [4 x i32]] => [12 x i32])
+		std::vector<int> IntInitVals{}; 
+		std::vector<float> FloatInitVals{};
+		std::vector<int> RealInitvalPos;
+
+		NodeAttribute() { 
+			ConstTag = false; 
+			val.IntVal=0; 
+			StrVal="";
+			type = new BuiltinType(BuiltinType::BuiltinKind::Void);
+		}
+		std::string GetAttributeInfo();
+		std::string GetConstValueInfo();
 };
 
 
