@@ -42,5 +42,18 @@ class IdTable {
         Symbol* add_id(std::string s);
 };
 
+class SymbolRegTable {
+private:
+    int current_scope = -1;
+    std::vector<std::unordered_map<Symbol*, int>> symbol_table;
+
+public:
+    void add_Symbol(Symbol* C, int reg);
+
+    // 返回离当前作用域最近的局部变量的alloca结果对应的寄存器编号(C为局部变量名对应的Symbol)
+    int lookup(Symbol* C);
+    void enter_scope();
+    void exit_scope();
+};
 
 #endif
