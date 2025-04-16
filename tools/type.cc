@@ -9,7 +9,7 @@
 #include <assert.h>
 #include <map>
 #include <utility>  // for std::pair
-#include<string>
+#include <string>
 std::string OpType::GetOpTypeString(){
     switch (optype) {
         case OpType::Void:
@@ -76,10 +76,10 @@ int BuiltinType::getType(){
     return builtinKind;
 }
 int PointerType::getType(){
-    return 6;
+    return this->kind;  // 6
 }
 int ArrayType::getType(){
-    return 7;
+	return this->kind;  // 7
 }
 
 std::string NodeAttribute::GetConstValueInfo() {
@@ -108,9 +108,8 @@ std::string NodeAttribute::GetAttributeInfo() {
     return "";
 }
 
+
 //semant
-
-
 
 /*实现思路如下：
 SemantBinaryNode[6][6]（a,b,opcode）
