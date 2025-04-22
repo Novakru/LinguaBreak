@@ -10,6 +10,7 @@
 #include <map>
 #include <utility>  // for std::pair
 #include <string>
+
 std::string OpType::GetOpTypeString(){
     switch (optype) {
         case OpType::Void:

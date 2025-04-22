@@ -769,4 +769,12 @@ std::ostream &operator<<(std::ostream &s, BasicInstruction::LLVMIROpcode type);
 std::ostream &operator<<(std::ostream &s, BasicInstruction::IcmpCond type);
 std::ostream &operator<<(std::ostream &s, BasicInstruction::FcmpCond type);
 std::ostream &operator<<(std::ostream &s, Operand op);
+
+// for binary irgen
+BasicInstruction::LLVMIROpcode mapToLLVMOpcodeInt(OpType::Op op);
+BasicInstruction::LLVMIROpcode mapToLLVMOpcodeFloat(OpType::Op op);
+BasicInstruction::IcmpCond mapToIcmpCond(OpType::Op op);
+BasicInstruction::FcmpCond mapToFcmpCond(OpType::Op op);
+
+
 #endif

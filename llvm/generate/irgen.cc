@@ -2,11 +2,141 @@
 #include "IRgen.h"
 #include "../include/ir.h"
 #include "semant.h"
+int max_reg = -1;
+int max_label = -1;
 
 extern SemantTable semant_table;    // 也许你会需要一些语义分析的信息
 
 IRgenTable irgen_table;    // 中间代码生成的辅助变量
 LLVMIR llvmIR;             // 我们需要在这个变量中生成中间代码
+
+std::map<Symbol,Operand> ptrmap;
+Operand currentptr;
+Operand currentop;
+int currentint;
+float currentfloat;
+Symbol currentname;
+FunctionDefineInstruction* funcdefI;
+
+enum operand_type { I32 = 1, FLOAT32 = 2, BOOL = 3, I32_PTR = 4, FLOAT32_PTR = 5};
+std::map<int,operand_type> optype_map;
+
+// 判断左值还是右值，左值的上层为AssignmentLval的左部，其余都为右值
+
+bool isLeftlval;
+bool isRightlval;
+
+// 判断是否为函数参数
+
+bool isParam;
+
+// 处理break continue
+
+std::deque<LLVMBlock> continuebbque;
+// 存储需要跳转到entrybb (continue) 的基本块
+std::deque<LLVMBlock> breakbbque;
+// 存储需要跳转到exitbb (break) 的基本块
+
+// 处理短路求值
+
+std::deque<LLVMBlock> truebbque;
+std::deque<LLVMBlock> falsebbque;
+BasicBlock* genbb;
+
+/*************************************************************************************
+ *					                数组初值处理 	
+ *************************************************************************************
+ * 	ISO_IEC_9899  p117 example9  section 6.7.9
+ *	
+ * 	除了最外围的{}以外，每次遇到嵌套的{}都会进入一个子数组(subArray)
+ * 	subArray.size() 取决于括号所处的位置，
+ * 	如q[3][5][2], As subArray begin at pos
+ * 	if(pos % (2 * 5) == 0) 开辟 q[]     这样的数组, subArray.size() = 10;
+ * 	if(pos % (2) == 0)     开辟 q[][]   这样的数组, subArray.size() = 2;
+ * 	else                   开辟 q[][][] 这样的数组, subArray.size() = 1; (线性填充)
+ * 	
+ * 	如果开辟的数组大小没有{}内的元素多，就会顺序填充，例如 e 数组
+ * 	
+ * 
+ * 	我们想要实现如下的转换，即将{}嵌套的数组初始化，转换为等效的std::vector<int> initValint
+ * 	c[3][5][2] = {{1}, 2, {3}, 4, 5, {3}, 4, 5, {6}, {7}};
+ * 	<=> c[3][5][2] = {1,0,0,0,0,0,0,0,0,0,2,3,4,5,3,0,4,5,6,0,7,0,0,0,0,0,0,0,0,0}
+ * 	
+ * 	d[3][5][2] = {{1}, 2, {3, 5}, 4};
+ * 	<=> d[3][5][2] = {1,0,0,0,0,0,0,0,0,0,2,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+ * 	
+ * 	e[3][5][2] = {{1}, {2}, {3, 5, 6, 7}};
+ * 	<=> e[3][5][2] = {1,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,3,5,6,7,0,0,0,0,0,0}
+ * 	
+ * 	f[3][5][2] = {{1}, {2, 3, {4}, 5}, 6}
+ * 	<=> e[3][5][2] = {1,0,0,0,0,0,0,0,0,0,2,3,4,0,5,0,0,0,0,0,6,0,0,0,0,0,0,0,0,0} 
+ * 
+ * 	具体数据维护可以看 handouts 中的数组初始化文档
+ *  */
+
+bool dimcount; 
+// dimconut为true时表示目前的intcount对应数组定义的下标，不需要生成立即数相加的指令
+std::set<int> paramptr; 
+// 判断一个寄存器是否是函数参数和指针
+// 函数参数的指针可以直接当数组指针作为getelementptr中的ptr使用
+// 函数参数里的其他非指针变量需要先在entrybb里alloca，并把变量store进alloca的新指针
+std::vector<int> initdim;
+// 用于描述数组定义中各维度的数值
+std::vector<int> initarrayint;
+// 用于描述数组定义中的初值
+std::vector<float> initarrayfloat;
+// 用于描述数组定义中的初值
+
+int head;
+// 数组当前初始化的起始位置
+bool isGobal;
+bool isTopVarInitVal;
+// 1 - 表示可以分配最大为数组去掉第 1 维的大小
+// 2 - 表示可以分配最大为数组去掉第 2 维的大小
+// ......
+int subArraydim;
+Operand initarrayReg;
+
+// 根据数组当前初始化起始位置和维度信息，确定当前初始化的末尾 tail
+int getTail(){
+	int allocaSpace = 1, product = 1;
+
+	// for(int i = initdim.size() - 1; i >= 1; i--) {
+	// 	product *= initdim[i];
+	// 	if(head % product == 0) {
+	// 		allocaSpace = product;
+	// 	}
+	// 	else break;
+	// }
+	// std::cerr << "subArraydim : " << subArraydim << std::endl; 
+
+	int subArraydim_copy = subArraydim;
+	for(int i = initdim.size() - 1; i >= subArraydim_copy; i--) {
+		product *= initdim[i];
+		if(head % product == 0) {
+			allocaSpace = product;
+			subArraydim = i + 1;
+		}
+		else break;
+	}
+
+	return head + allocaSpace - 1;
+}
+
+
+// 线性偏移转换为数组各个维度的索引
+std::vector<Operand> offset_to_indexs(int offset, const std::vector<int>& initdim) {
+    int dims = initdim.size();
+    std::vector<Operand> indexs(dims + 1, 0); 
+
+	indexs[0] = new ImmI32Operand(0);
+    for (int i = dims; i >= 1; --i) {
+        indexs[i] = new ImmI32Operand(offset % initdim[i - 1]);
+        offset /= initdim[i - 1];
+    }
+	
+    return indexs;
+}
 
 void AddLibFunctionDeclare();
 
@@ -58,14 +188,44 @@ void IRgenBrCond(LLVMBlock B, int cond_reg, int true_label, int false_label);
 void IRgenAlloca(LLVMBlock B, BasicInstruction::LLVMType type, int reg);
 void IRgenAllocaArray(LLVMBlock B, BasicInstruction::LLVMType type, int reg, std::vector<int> dims);
 
+void IRgenTypeConverse(LLVMBlock B, BuiltinType::BuiltinKind type_src, BuiltinType::BuiltinKind type_dst, int src);
+void IRgenGlobalVarDefineArray(std::string name, BasicInstruction::LLVMType type, VarAttribute v) {
+    auto newI = new GlobalVarDefineInstruction(name, type, v);
+    llvmIR.global_def.push_back(newI);
+    
+}
+void IRgenGlobalVarDefine(std::string name, BasicInstruction::LLVMType type, Operand init_val) {
+    auto newI = new GlobalVarDefineInstruction(name, type, init_val);
+    llvmIR.global_def.push_back(newI);
+}
 RegOperand *GetNewRegOperand(int RegNo);
 
 // generate TypeConverse Instructions from type_src to type_dst
 // eg. you can use fptosi instruction to converse float to int
 // eg. you can use zext instruction to converse bool to int
-// void IRgenTypeConverse(LLVMBlock B, Type::ty type_src, Type::ty type_dst, int src, int dst) {
-//     TODO("IRgenTypeConverse. Implement it if you need it");
-// }
+// LLVMType to_type, Operand result_receiver, LLVMType from_type, Operand value_for_cast
+void IRgenTypeConverse(LLVMBlock B, BuiltinType::BuiltinKind type_src, BuiltinType::BuiltinKind type_dst, int src, int dst) {
+    auto newresultop = GetNewRegOperand(dst);
+    if(type_src == BuiltinType::BuiltinKind::Bool && type_dst == BuiltinType::BuiltinKind::Int){
+        B->InsertInstruction(1, new ZextInstruction(BasicInstruction::LLVMType::I32, GetNewRegOperand(src), BasicInstruction::LLVMType::I1, newresultop));
+        optype_map[dst] = operand_type::I32;
+        currentop = newresultop;
+    }else if(type_src == BuiltinType::BuiltinKind::Int && type_dst == BuiltinType::BuiltinKind::Bool){
+        B->InsertInstruction(1, new ZextInstruction(BasicInstruction::LLVMType::I1, GetNewRegOperand(src), BasicInstruction::LLVMType::I32, newresultop));
+        optype_map[dst] = operand_type::BOOL;
+        currentop = newresultop;
+    }else if(type_src == BuiltinType::BuiltinKind::Int && type_dst == BuiltinType::BuiltinKind::Float){
+        B->InsertInstruction(1, new SitofpInstruction(GetNewRegOperand(src), newresultop));
+        optype_map[dst] = operand_type::FLOAT32;
+        currentop = newresultop;
+    }else if(type_src == BuiltinType::BuiltinKind::Float && type_dst == BuiltinType::BuiltinKind::Int){
+        B->InsertInstruction(1, new FptosiInstruction(GetNewRegOperand(src), newresultop));
+        optype_map[dst] = operand_type::I32;
+        currentop = newresultop;
+    }
+    
+    // DONE("IRgenTypeConverse. Implement it if you need it");
+}
 
 void BasicBlock::InsertInstruction(int pos, Instruction Ins) {
     assert(pos == 0 || pos == 1);
@@ -76,50 +236,154 @@ void BasicBlock::InsertInstruction(int pos, Instruction Ins) {
     }
 }
 
-/*
-二元运算指令生成的伪代码：
-    假设现在的语法树节点是：AddExp_plus
-    该语法树表示 addexp + mulexp
+LLVMBlock& GetCurrentBlock(){
+    return genbb == nullptr ? llvmIR.function_block_map[funcdefI][max_label] : genbb;
+}
 
-    addexp->codeIR()
-    mulexp->codeIR()
-    假设mulexp生成完后，我们应该在基本块B0继续插入指令。
-    addexp的结果存储在r0寄存器中，mulexp的结果存储在r1寄存器中
-    生成一条指令r2 = r0 + r1，并将该指令插入基本块B0末尾。
-    标注后续应该在基本块B0插入指令，当前节点的结果寄存器为r2。
-    (如果考虑支持浮点数，需要查看语法树节点的类型来判断此时是否需要隐式类型转换)
-*/
+// 二元运算符需要保证两个的寄存器都非Bool，否则需要转换
+void BinaryBoolCheckandConverse(LLVMBlock B, Operand &conversereg){
+    if(B->Instruction_list.back()->GetOpcode() == BasicInstruction::ICMP || B->Instruction_list.back()->GetOpcode() == BasicInstruction::FCMP){
+        auto newresultreg_zext = GetNewRegOperand(++max_reg);
+        IRgenTypeConverse(B,
+                BuiltinType::BuiltinKind::Bool,
+                BuiltinType::BuiltinKind::Int,
+                max_reg,
+                ((RegOperand*)conversereg)->GetRegNo());
+        optype_map[max_reg] = operand_type::I32;
+        conversereg = newresultreg_zext;
+    }else{
+        conversereg = currentop;
+    }
+}
 
-/*
-while语句指令生成的伪代码：
-    while的语法树节点为while(cond)stmt
+void BinaryFloattoIntConverse(LLVMBlock B, Operand &conversereg){
+    auto newresultreg_zext = GetNewRegOperand(++max_reg);
+    
+    IRgenTypeConverse(B,
+            BuiltinType::BuiltinKind::Float,
+            BuiltinType::BuiltinKind::Int,
+            max_reg,
+            ((RegOperand*)conversereg)->GetRegNo());
+    optype_map[max_reg] = operand_type::I32;
+    conversereg = newresultreg_zext;
+}
 
-    假设当前我们应该在B0基本块开始插入指令
-    新建三个基本块Bcond，Bbody，Bend
-    在B0基本块末尾插入一条无条件跳转指令，跳转到Bcond
-
-    设置当前我们应该在Bcond开始插入指令
-    cond->codeIR()    //在调用该函数前你可能需要设置真假值出口
-    假设cond生成完后，我们应该在B1基本块继续插入指令，Bcond的结果为r0
-    如果r0的类型不为bool，在B1末尾生成一条比较语句，比较r0是否为真。
-    在B1末尾生成一条条件跳转语句，如果为真，跳转到Bbody，如果为假，跳转到Bend
-
-    设置当前我们应该在Bbody开始插入指令
-    stmt->codeIR()
-    假设当stmt生成完后，我们应该在B2基本块继续插入指令
-    在B2末尾生成一条无条件跳转语句，跳转到Bcond
-
-    设置当前我们应该在Bend开始插入指令
-*/
+void BinaryInttoFloatConverse(LLVMBlock B, Operand &conversereg){
+    auto newresultreg_zext = GetNewRegOperand(++max_reg);
+    IRgenTypeConverse(B,
+            BuiltinType::BuiltinKind::Int,
+            BuiltinType::BuiltinKind::Float,
+            max_reg,
+            ((RegOperand*)conversereg)->GetRegNo());
+    optype_map[max_reg] = operand_type::FLOAT32;
+    conversereg = newresultreg_zext;
+}
 
 
-// ASTNode 派生类的 codeIR() 实现
-void Exp::codeIR() {}
-void ConstExp::codeIR() {}
-void AddExp::codeIR() {}
-void MulExp::codeIR() {}
-void RelExp::codeIR() {}
-void EqExp::codeIR() {}
+
+void GenArithmeticBinaryIR(NodeAttribute attribute, OpType::Op opKind, ExprBase lhs, ExprBase rhs) {
+    currentop = nullptr;
+    currentint = 0;
+    currentfloat = 0;
+
+    if (dimcount && attribute.ConstTag) {
+        currentint = attribute.val.IntVal;
+        currentfloat = attribute.val.FloatVal;
+        return;
+    }
+
+    lhs->codeIR();
+    auto leftop = currentop;
+    BinaryBoolCheckandConverse(GetCurrentBlock(), leftop);
+
+    rhs->codeIR();
+    auto rightop = currentop;
+    BinaryBoolCheckandConverse(GetCurrentBlock(), rightop);
+
+    auto &entrybb = GetCurrentBlock();
+    auto leftregno = ((RegOperand*)leftop)->GetRegNo();
+    auto rightregno = ((RegOperand*)rightop)->GetRegNo();
+    auto leftop_type = optype_map[leftregno];
+    auto rightop_type = optype_map[rightregno];
+
+    auto promoteToFloat = [&]() {
+        if (leftop_type == operand_type::I32) {
+            BinaryInttoFloatConverse(entrybb, leftop);
+            leftregno = ((RegOperand*)leftop)->GetRegNo();
+			leftop_type = optype_map[leftregno];
+        }
+        if (rightop_type == operand_type::I32) {
+            BinaryInttoFloatConverse(entrybb, rightop);
+            rightregno = ((RegOperand*)rightop)->GetRegNo();
+			rightop_type = optype_map[rightregno];
+        }
+    };
+
+    if (leftop_type == operand_type::I32 && rightop_type == operand_type::I32) {
+        auto newreg = GetNewRegOperand(++max_reg);
+        IRgenArithmeticI32(entrybb, mapToLLVMOpcodeInt(opKind), leftregno, rightregno, max_reg);
+        optype_map[max_reg] = operand_type::I32;
+        currentop = newreg;
+    } else {
+        promoteToFloat();
+        auto newreg = GetNewRegOperand(++max_reg);
+        IRgenArithmeticF32(entrybb, mapToLLVMOpcodeFloat(opKind), leftregno, rightregno, max_reg);
+        optype_map[max_reg] = operand_type::FLOAT32;
+        currentop = newreg;
+    }
+}
+
+void GenCompareBinaryIR(OpType::Op opKind, ExprBase lhs, ExprBase rhs) {
+    currentop = nullptr;
+    currentint = 0;
+    currentfloat = 0;
+
+    lhs->codeIR();
+    auto leftop = currentop;
+    BinaryBoolCheckandConverse(GetCurrentBlock(), leftop);
+
+    rhs->codeIR();
+    auto rightop = currentop;
+    BinaryBoolCheckandConverse(GetCurrentBlock(), rightop);
+
+    auto &entrybb = GetCurrentBlock();
+    auto leftregno = ((RegOperand*)leftop)->GetRegNo();
+    auto rightregno = ((RegOperand*)rightop)->GetRegNo();
+    auto leftop_type = optype_map[leftregno];
+    auto rightop_type = optype_map[rightregno];
+
+    if (leftop_type == operand_type::I32 && rightop_type == operand_type::FLOAT32) {
+        BinaryInttoFloatConverse(entrybb, leftop);
+        leftregno = ((RegOperand*)leftop)->GetRegNo();
+        leftop_type = optype_map[leftregno];
+    } else if (leftop_type == operand_type::FLOAT32 && rightop_type == operand_type::I32) {
+        BinaryInttoFloatConverse(entrybb, rightop);
+        rightregno = ((RegOperand*)rightop)->GetRegNo();
+        rightop_type = optype_map[rightregno];
+    }
+
+    auto newreg = GetNewRegOperand(++max_reg);
+
+    if (leftop_type == operand_type::FLOAT32 || rightop_type == operand_type::FLOAT32) {
+        IRgenFcmp(entrybb, mapToFcmpCond(opKind), leftregno, rightregno, max_reg);
+    } else {
+        IRgenIcmp(entrybb, mapToIcmpCond(opKind), leftregno, rightregno, max_reg);
+    }
+
+    optype_map[max_reg] = operand_type::BOOL;
+    currentop = newreg;
+}
+
+
+void Exp::codeIR() { addExp->codeIR(); }
+void ConstExp::codeIR() {TODO("ConstExp::codeIR()");}
+void AddExp::codeIR() { GenArithmeticBinaryIR(attribute, op.optype, addExp, mulExp);}
+void MulExp::codeIR() { 
+	// mod 特殊！todo
+	GenArithmeticBinaryIR(attribute, op.optype, mulExp, unaryExp);	
+}
+void RelExp::codeIR() { GenCompareBinaryIR(op.optype, relexp, addexp);}
+void EqExp::codeIR()  { GenCompareBinaryIR(op.optype, eqexp, relexp); }
 void LAndExp::codeIR() {}
 void LOrExp::codeIR() {}
 void Lval::codeIR() {}
