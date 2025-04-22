@@ -180,3 +180,53 @@ void IRgenAlloca(LLVMBlock B, BasicInstruction::LLVMType type, int reg) {
 void IRgenAllocaArray(LLVMBlock B, BasicInstruction::LLVMType type, int reg, std::vector<int> dims) {
     B->InsertInstruction(0, new AllocaInstruction(type, dims, GetNewRegOperand(reg)));
 }
+
+
+BasicInstruction::LLVMIROpcode mapToLLVMOpcodeInt(OpType::Op kind) {
+    switch (kind) {
+        case OpType::Op::Add:  return BasicInstruction::LLVMIROpcode::ADD;
+        case OpType::Op::Sub:  return BasicInstruction::LLVMIROpcode::SUB;
+        case OpType::Op::Mul:  return BasicInstruction::LLVMIROpcode::MUL;
+        case OpType::Op::Div:  return BasicInstruction::LLVMIROpcode::DIV;
+        default: throw std::runtime_error("Unknown BinaryOpKind");
+    }
+}
+
+
+BasicInstruction::LLVMIROpcode mapToLLVMOpcodeFloat(OpType::Op kind) {
+    switch (kind) {
+        case OpType::Op::Add:  return BasicInstruction::LLVMIROpcode::FADD;
+        case OpType::Op::Sub:  return BasicInstruction::LLVMIROpcode::FSUB;
+        case OpType::Op::Mul:  return BasicInstruction::LLVMIROpcode::FMUL;
+        case OpType::Op::Div:  return BasicInstruction::LLVMIROpcode::FDIV;
+        default: throw std::runtime_error("Unknown BinaryOpKind");
+    }
+}
+
+
+BasicInstruction::IcmpCond mapToIcmpCond(OpType::Op kind) {
+    switch (kind) {
+        case OpType::Op::Eq : return BasicInstruction::IcmpCond::eq;
+        case OpType::Op::Neq: return BasicInstruction::IcmpCond::ne;
+        case OpType::Op::Lt : return BasicInstruction::IcmpCond::slt;
+        case OpType::Op::Le : return BasicInstruction::IcmpCond::sle;
+        case OpType::Op::Gt : return BasicInstruction::IcmpCond::sgt;
+        case OpType::Op::Ge : return BasicInstruction::IcmpCond::sge;
+        default:
+            throw std::runtime_error("Invalid IcmpCond kind");
+    }
+}
+
+BasicInstruction::FcmpCond mapToFcmpCond(OpType::Op kind) {
+    switch (kind) {
+        case OpType::Op::Eq : return BasicInstruction::FcmpCond::OEQ;
+        case OpType::Op::Neq: return BasicInstruction::FcmpCond::ONE;
+        case OpType::Op::Lt : return BasicInstruction::FcmpCond::OLT;
+        case OpType::Op::Le : return BasicInstruction::FcmpCond::OLE;
+        case OpType::Op::Gt : return BasicInstruction::FcmpCond::OGT;
+        case OpType::Op::Ge : return BasicInstruction::FcmpCond::OGE;
+        default:
+            throw std::runtime_error("Invalid FcmpCond kind");
+    }
+}
+

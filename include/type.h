@@ -43,7 +43,7 @@ class Type {
             Array=7
         }kind;
         virtual std::string getString()=0;
-        virtual int getType()=0;
+        virtual int getType() = 0;
         virtual ~Type() = default;
 };
     
@@ -90,7 +90,7 @@ class NodeAttribute {
         bool ConstTag;
 
 		// constValue
-        union ConstVal {
+        struct ConstVal {
             bool BoolVal;
             int IntVal;
             float FloatVal;
