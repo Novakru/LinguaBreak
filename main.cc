@@ -7,12 +7,15 @@
 #include "front_end/sysy_parser.tab.hh"
 #include "include/symbol.h"
 #include "llvm/semant/semant.h"
+#include "include/ir.h"
+
 
 extern FILE *yyin;
 extern char *yytext;
 extern YYSTYPE yylval;
 extern int error_num;
 extern Program ASTroot;
+extern LLVMIR llvmIR;
 extern int yylex();
 extern void dumpTokens(FILE* output, int token, int line_number, char *yytext, YYSTYPE yylval);
 extern std::vector<std::string> error_msgs;//新增
@@ -21,11 +24,11 @@ int line = 1;
 
 // option table 
 #define nr_options 5 
-const char *valid_options[] = {"-lexer", "-parser", "-semant", "-llvm", "-target"};
+const char *valid_options[] = {"-lexer", "-parser", "-semant", "-llvm", "-target", "-O1"};
 
 int main(int argc, char** argv) {
-	/* argc = 4 : ./bin/SysYc input_file -lexer output_file */ 
-    if (argc != 4) return 1;
+	/* argc = 4 or 5 : ./bin/SysYc input_file -llvm output_file [-O1] */
+    if (argc != 4 && argc != 5) return 1;
 
     FILE* input = fopen(argv[1], "r");
     FILE* output = stdout;
@@ -90,6 +93,21 @@ int main(int argc, char** argv) {
 		ASTroot->printAST(fout,0);
 		return 0;
 	}
+
+	/* 【4】 irgen */
+	ASTroot->codeIR();
+    if (strcmp(argv[2], "-llvm") == 0) {
+        llvmIR.printIR(fout);
+        fout.close();
+        return 0;
+    }
+
+	/* 【5】 opt */
+    if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
+        
+    }
+
+
 
 	/* parser and so on */
 	// if (strcmp(argv[2], "-parser") == 0) {

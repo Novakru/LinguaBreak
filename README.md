@@ -7,7 +7,7 @@ make parser # input: sysy_parser.y output: sysy_parser.tab.cc and sysy_parser.ta
 ### How to run LiguaBreak
 ```bash 
 ./bin/SysYc [input_file] -option [output_file]
-./bin/SysYc ./test/example/temp.sy -lexer ./test/example/lexer_out.txt 
+./bin/SysYc ./testcase/example/temp.sy -lexer ./testcase/example/lexer_out.txt 
 ```
 
 ### How to output file struct
