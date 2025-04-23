@@ -10,12 +10,12 @@ extern SemantTable semant_table;    // 也许你会需要一些语义分析的�
 IRgenTable irgen_table;    // 中间代码生成的辅助变量
 LLVMIR llvmIR;             // 我们需要在这个变量中生成中间代码
 
-std::map<Symbol,Operand> ptrmap;
+std::map<Symbol*,Operand> ptrmap;
 Operand currentptr;
 Operand currentop;
 int currentint;
 float currentfloat;
-Symbol currentname;
+Symbol* currentname;
 FunctionDefineInstruction* funcdefI;
 
 enum operand_type { I32 = 1, FLOAT32 = 2, BOOL = 3, I32_PTR = 4, FLOAT32_PTR = 5};
@@ -204,21 +204,21 @@ RegOperand *GetNewRegOperand(int RegNo);
 // eg. you can use fptosi instruction to converse float to int
 // eg. you can use zext instruction to converse bool to int
 // LLVMType to_type, Operand result_receiver, LLVMType from_type, Operand value_for_cast
-void IRgenTypeConverse(LLVMBlock B, BuiltinType::BuiltinKind type_src, BuiltinType::BuiltinKind type_dst, int src, int dst) {
+void IRgenTypeConverse(LLVMBlock B, Type::TypeKind type_src, Type::TypeKind type_dst, int src, int dst) {
     auto newresultop = GetNewRegOperand(dst);
-    if(type_src == BuiltinType::BuiltinKind::Bool && type_dst == BuiltinType::BuiltinKind::Int){
+    if(type_src == Type::TypeKind::Bool && type_dst == Type::TypeKind::Int){
         B->InsertInstruction(1, new ZextInstruction(BasicInstruction::LLVMType::I32, GetNewRegOperand(src), BasicInstruction::LLVMType::I1, newresultop));
         optype_map[dst] = operand_type::I32;
         currentop = newresultop;
-    }else if(type_src == BuiltinType::BuiltinKind::Int && type_dst == BuiltinType::BuiltinKind::Bool){
+    }else if(type_src == Type::TypeKind::Int && type_dst == Type::TypeKind::Bool){
         B->InsertInstruction(1, new ZextInstruction(BasicInstruction::LLVMType::I1, GetNewRegOperand(src), BasicInstruction::LLVMType::I32, newresultop));
         optype_map[dst] = operand_type::BOOL;
         currentop = newresultop;
-    }else if(type_src == BuiltinType::BuiltinKind::Int && type_dst == BuiltinType::BuiltinKind::Float){
+    }else if(type_src == Type::TypeKind::Int && type_dst == Type::TypeKind::Float){
         B->InsertInstruction(1, new SitofpInstruction(GetNewRegOperand(src), newresultop));
         optype_map[dst] = operand_type::FLOAT32;
         currentop = newresultop;
-    }else if(type_src == BuiltinType::BuiltinKind::Float && type_dst == BuiltinType::BuiltinKind::Int){
+    }else if(type_src == Type::TypeKind::Float && type_dst == Type::TypeKind::Int){
         B->InsertInstruction(1, new FptosiInstruction(GetNewRegOperand(src), newresultop));
         optype_map[dst] = operand_type::I32;
         currentop = newresultop;
@@ -245,8 +245,8 @@ void BinaryBoolCheckandConverse(LLVMBlock B, Operand &conversereg){
     if(B->Instruction_list.back()->GetOpcode() == BasicInstruction::ICMP || B->Instruction_list.back()->GetOpcode() == BasicInstruction::FCMP){
         auto newresultreg_zext = GetNewRegOperand(++max_reg);
         IRgenTypeConverse(B,
-                BuiltinType::BuiltinKind::Bool,
-                BuiltinType::BuiltinKind::Int,
+                Type::TypeKind::Bool,
+                Type::TypeKind::Int,
                 max_reg,
                 ((RegOperand*)conversereg)->GetRegNo());
         optype_map[max_reg] = operand_type::I32;
@@ -260,8 +260,8 @@ void BinaryFloattoIntConverse(LLVMBlock B, Operand &conversereg){
     auto newresultreg_zext = GetNewRegOperand(++max_reg);
     
     IRgenTypeConverse(B,
-            BuiltinType::BuiltinKind::Float,
-            BuiltinType::BuiltinKind::Int,
+            Type::TypeKind::Float,
+            Type::TypeKind::Int,
             max_reg,
             ((RegOperand*)conversereg)->GetRegNo());
     optype_map[max_reg] = operand_type::I32;
@@ -271,8 +271,8 @@ void BinaryFloattoIntConverse(LLVMBlock B, Operand &conversereg){
 void BinaryInttoFloatConverse(LLVMBlock B, Operand &conversereg){
     auto newresultreg_zext = GetNewRegOperand(++max_reg);
     IRgenTypeConverse(B,
-            BuiltinType::BuiltinKind::Int,
-            BuiltinType::BuiltinKind::Float,
+            Type::TypeKind::Int,
+            Type::TypeKind::Float,
             max_reg,
             ((RegOperand*)conversereg)->GetRegNo());
     optype_map[max_reg] = operand_type::FLOAT32;
@@ -410,9 +410,93 @@ void GenCompareBinaryIR(OpType::Op opKind, ExprBase lhs, ExprBase rhs) {
 }
 
 
+void GenUnaryAddSubIR(OpType::Op kind, NodeAttribute attribute, ExprBase unaryExp){
+	auto instTypeInt = (kind == OpType::Op::Add) ? BasicInstruction::LLVMIROpcode::ADD : BasicInstruction::LLVMIROpcode::SUB;
+	auto instTypeFloat = (kind == OpType::Op::Add) ? BasicInstruction::LLVMIROpcode::FADD : BasicInstruction::LLVMIROpcode::FSUB;
+
+	currentop = nullptr;
+    unaryExp->codeIR();
+    auto &entrybb = GetCurrentBlock();
+	auto unaryExpType = unaryExp->attribute.T->getType();
+    if(unaryExpType == Type::TypeKind::Int || unaryExpType == Type::TypeKind::Bool){
+        
+        if(optype_map[((RegOperand*)currentop)->GetRegNo()] == operand_type::I32){
+            
+        }else if(optype_map[((RegOperand*)currentop)->GetRegNo()] == operand_type::BOOL){
+            BinaryBoolCheckandConverse(entrybb, currentop);
+        }else{
+            BinaryFloattoIntConverse(entrybb, currentop);
+        }
+        auto newresultreg = GetNewRegOperand(++max_reg);
+        IRgenArithmeticI32ImmLeft(entrybb,
+            instTypeInt, 
+            0,
+            ((RegOperand*)currentop)->GetRegNo(),max_reg);
+        optype_map[max_reg] = operand_type::I32;
+        currentop = newresultreg;
+    }else if(unaryExpType == Type::TypeKind::Float){
+        if(optype_map[((RegOperand*)currentop)->GetRegNo()] == operand_type::FLOAT32){
+            
+        }else if(optype_map[((RegOperand*)currentop)->GetRegNo()] == operand_type::BOOL){
+            BinaryBoolCheckandConverse(entrybb, currentop);
+            BinaryInttoFloatConverse(entrybb, currentop);
+        }else{
+            BinaryInttoFloatConverse(entrybb, currentop);
+        }
+        auto newresultreg = GetNewRegOperand(++max_reg);
+        IRgenArithmeticF32ImmLeft(entrybb,
+            instTypeFloat, 
+            0,
+            ((RegOperand*)currentop)->GetRegNo(),max_reg);
+        optype_map[max_reg] = operand_type::FLOAT32;
+        currentop = newresultreg;
+    }
+}
+
+void GenUnaryNotIR(NodeAttribute attribute, ExprBase unaryExp){
+   	currentop = nullptr;
+    auto unaryExpType = unaryExp->attribute.T->getType();
+
+    if(!unaryExp->attribute.ConstTag){
+        unaryExp->codeIR();
+        auto &entrybb = GetCurrentBlock();
+        auto addop = currentop;
+        auto newresultreg = GetNewRegOperand(++max_reg);
+        IRgenIcmpImmRight(entrybb,
+                    BasicInstruction::IcmpCond::eq, 
+                    ((RegOperand*)addop)->GetRegNo(),
+                    0,max_reg);
+        optype_map[max_reg] = operand_type::BOOL;
+        auto newresultreg_zext = GetNewRegOperand(++max_reg);
+        IRgenTypeConverse(entrybb,
+                Type::TypeKind::Bool,
+                Type::TypeKind::Int,
+                max_reg,
+                max_reg-1);
+        optype_map[max_reg] = operand_type::I32;
+        currentop = newresultreg_zext;
+    }else{
+        auto newresultreg = GetNewRegOperand(++max_reg);
+        auto &entrybb = GetCurrentBlock();
+        if(unaryExpType == Type::TypeKind::Float){
+            BinaryInttoFloatConverse(entrybb, currentop);
+        }
+        IRgenArithmeticI32ImmAll(entrybb,
+                BasicInstruction::LLVMIROpcode::ADD, 
+                0,
+                attribute.val.IntVal,max_reg);
+        optype_map[max_reg] = operand_type::I32;
+        currentop = newresultreg;
+    }
+}
+
+
 void Exp::codeIR() { addExp->codeIR(); }
-void ConstExp::codeIR() {TODO("ConstExp::codeIR()");}
+
+void ConstExp::codeIR() { addExp->codeIR();}
+
 void AddExp::codeIR() { GenArithmeticBinaryIR(attribute, op.optype, addExp, mulExp);}
+
 void MulExp::codeIR() { 
 	if(op.optype != OpType::Op::Mod){
 		GenArithmeticBinaryIR(attribute, op.optype, mulExp, unaryExp);	
@@ -420,41 +504,1333 @@ void MulExp::codeIR() {
 		GenArithmeticModIR(attribute, mulExp, unaryExp);
 	}
 }
+
 void RelExp::codeIR() { GenCompareBinaryIR(op.optype, relExp, addExp);}
+
 void EqExp::codeIR()  { GenCompareBinaryIR(op.optype, eqExp, relExp); }
-void LAndExp::codeIR() {}
-void LOrExp::codeIR() {}
-void Lval::codeIR() {}
-void FuncRParams::codeIR() {}
-void FuncCall::codeIR() {}
-void UnaryExp::codeIR() {}
-void IntConst::codeIR() {}
-void FloatConst::codeIR() {}
-void PrimaryExp::codeIR() {}
-void AssignStmt::codeIR() {}
-void ExprStmt::codeIR() {}
-void BlockStmt::codeIR() {}
-void IfStmt::codeIR() {}
-void WhileStmt::codeIR() {}
-void ContinueStmt::codeIR() {}
-void BreakStmt::codeIR() {}
-void RetStmt::codeIR() {}
-void ConstInitValList::codeIR() {}
-void ConstInitVal::codeIR() {}
-void VarInitValList::codeIR() {}
-void VarInitVal::codeIR() {}
-void VarDef_no_init::codeIR() {}
-void VarDef::codeIR() {}
-void ConstDef::codeIR() {}
-void VarDecl::codeIR() {}
-void ConstDecl::codeIR() {}
-void BlockItem_Decl::codeIR() {}
-void BlockItem_Stmt::codeIR() {}
-void __Block::codeIR() {}
-void __FuncFParam::codeIR() {}
-void __FuncDef::codeIR() {}
-void CompUnit_Decl::codeIR() {}
-void CompUnit_FuncDef::codeIR() {}
+
+void LAndExp::codeIR() {
+    currentop = nullptr;
+    max_label++;
+    auto newtruebb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+    truebbque.push_back(newtruebb);
+    lAndExp->codeIR();
+
+    
+    auto &entrybb = GetCurrentBlock();
+    if(entrybb->Instruction_list.back()->GetOpcode() != BasicInstruction::ICMP && entrybb->Instruction_list.back()->GetOpcode() != BasicInstruction::FCMP){
+        auto currentopno = ((RegOperand*)currentop)->GetRegNo();
+        auto currentoptype = optype_map[currentopno];
+        auto newreg = GetNewRegOperand(++max_reg);
+        if(currentoptype == operand_type::I32){
+            IRgenIcmpImmRight(entrybb, 
+                    BasicInstruction::ne,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    0,
+                    ((RegOperand*)newreg)->GetRegNo());
+        }else{
+            IRgenFcmpImmRight(entrybb, 
+                    BasicInstruction::ONE,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    0,
+                    ((RegOperand*)newreg)->GetRegNo());
+        }
+        optype_map[max_reg] = operand_type::BOOL;
+        currentop = newreg;
+    }
+    IRgenBrCond(genbb, 
+        ((RegOperand*)currentop)->GetRegNo(), 
+        truebbque.back()->block_id, 
+        falsebbque.back()->block_id);
+    genbb = newtruebb;
+    truebbque.pop_back();
+    eqExp->codeIR();
+
+    if(genbb->Instruction_list.back()->GetOpcode() != BasicInstruction::ICMP && genbb->Instruction_list.back()->GetOpcode() != BasicInstruction::FCMP){
+        auto currentopno = ((RegOperand*)currentop)->GetRegNo();
+        auto currentoptype = optype_map[currentopno];
+        auto newreg = GetNewRegOperand(++max_reg);
+        if(currentoptype == operand_type::I32){
+            IRgenIcmpImmRight(entrybb, 
+                    BasicInstruction::ne,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    0,
+                    ((RegOperand*)newreg)->GetRegNo());
+        }else{
+            IRgenFcmpImmRight(entrybb, 
+                    BasicInstruction::ONE,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    0,
+                    ((RegOperand*)newreg)->GetRegNo());
+        }
+        optype_map[max_reg] = operand_type::BOOL;
+        currentop = newreg;
+    }
+    IRgenBrCond(genbb, 
+        ((RegOperand*)currentop)->GetRegNo(), 
+        truebbque.back()->block_id, 
+        falsebbque.back()->block_id);
+}
+
+void LOrExp::codeIR() {
+    currentop = nullptr;
+    max_label++;
+    auto newfalsebb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+    falsebbque.push_back(newfalsebb);
+    lOrExp->codeIR();
+    auto &entrybb = GetCurrentBlock();
+    if(entrybb->Instruction_list.back()->GetOpcode() != BasicInstruction::ICMP && entrybb->Instruction_list.back()->GetOpcode() != BasicInstruction::FCMP){
+        auto currentopno = ((RegOperand*)currentop)->GetRegNo();
+        auto currentoptype = optype_map[currentopno];
+        auto newreg = GetNewRegOperand(++max_reg);
+        if(currentoptype == operand_type::I32){
+            IRgenIcmpImmRight(entrybb, 
+                    BasicInstruction::ne,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    0,
+                    ((RegOperand*)newreg)->GetRegNo());
+        }else{
+            IRgenFcmpImmRight(entrybb, 
+                    BasicInstruction::ONE,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    0,
+                    ((RegOperand*)newreg)->GetRegNo());
+        }
+        optype_map[max_reg] = operand_type::BOOL;
+        currentop = newreg;
+    }
+    
+    IRgenBrCond(genbb, 
+        ((RegOperand*)currentop)->GetRegNo(), 
+        truebbque.back()->block_id, 
+        falsebbque.back()->block_id);
+    genbb = newfalsebb;falsebbque.pop_back();
+    lAndExp->codeIR();
+    
+    if(genbb->Instruction_list.back()->GetOpcode() != BasicInstruction::ICMP && genbb->Instruction_list.back()->GetOpcode() != BasicInstruction::FCMP){
+        auto currentopno = ((RegOperand*)currentop)->GetRegNo();
+        auto currentoptype = optype_map[currentopno];
+        auto newreg = GetNewRegOperand(++max_reg);
+        if(currentoptype == operand_type::I32){
+            IRgenIcmpImmRight(entrybb, 
+                    BasicInstruction::ne,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    0,
+                    ((RegOperand*)newreg)->GetRegNo());
+        }else{
+            IRgenFcmpImmRight(entrybb, 
+                    BasicInstruction::ONE,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    0,
+                    ((RegOperand*)newreg)->GetRegNo());
+        }
+        optype_map[max_reg] = operand_type::BOOL;
+        currentop = newreg;
+    }
+    IRgenBrCond(genbb, 
+        ((RegOperand*)currentop)->GetRegNo(), 
+        truebbque.back()->block_id, 
+        falsebbque.back()->block_id);
+}
+
+void Lval::codeIR() {
+    isRightlval = 1;
+
+    if(dims == nullptr && attribute.T->getType() != Type::Pointer){  
+        if(isParam || (isRightlval && !isLeftlval)){
+            if(ptrmap.find(name) == ptrmap.end()){
+                assert("returnop is not define in Lval::codeIR");
+            }else{
+                if(attribute.ConstTag){
+                    if(attribute.type->getType() == Type::TypeKind::Int){
+                        currentint = attribute.val.IntVal;
+                        currentop = new ImmI32Operand(currentint);
+                    }else if(attribute.type->getType() == Type::TypeKind::Float){
+                        currentfloat = attribute.val.FloatVal;
+                        currentop = new ImmF32Operand(currentfloat);
+                    }
+                    if(max_label == -1){
+                        return;
+                    }
+                }
+                auto &entrybb = GetCurrentBlock(); 
+                auto newresultreg = GetNewRegOperand(++max_reg);
+				Operand localReg = GetNewRegOperand(irgen_table.symbol_table.look(name));
+				Operand globalSymbol = GetNewGlobalOperand(name->getName());
+				Operand loadVar = (irgen_table.symbol_table.look(name) == -1) ? globalSymbol : localReg;
+
+                if(attribute.type->getType() == Type::TypeKind::Int){
+                    IRgenLoad(entrybb, 
+                            BasicInstruction::LLVMType::I32, 
+                            max_reg, 
+                            loadVar);
+                    optype_map[max_reg] = operand_type::I32;
+                }else if(attribute.type->getType() == Type::TypeKind::Float){
+                    IRgenLoad(entrybb, 
+                            BasicInstruction::LLVMType::FLOAT32,
+                            max_reg, 
+                           	loadVar);
+                    optype_map[max_reg] = operand_type::FLOAT32;
+                }
+                currentop = newresultreg;
+            }
+        }
+        if(ptrmap.find(name) == ptrmap.end()){
+            assert("Lvalptr is not define in Lval::codeIR");
+        }else{
+			Operand localReg = GetNewRegOperand(irgen_table.symbol_table.look(name));
+			Operand globalSymbol = GetNewGlobalOperand(name->getName());
+			currentptr = (irgen_table.symbol_table.look(name) == -1) ? globalSymbol :localReg;
+        }
+        currentname = name;
+    }else{
+        // dimcount = 1;
+        std::vector<Operand> dim;
+        isLeftlval = 0;
+        isRightlval = 1;
+
+        if(ptrmap[name]->GetOperandType() != BasicOperand::REG || ((RegOperand*)ptrmap[name])->GetRegNo() >= funcdefI->formals_reg.size()){
+            // gep不加一个零的情况: 函数参数生成的 ptr
+            dim.push_back(new ImmI32Operand(0));
+        }
+        if(dims != nullptr){
+            for(auto exp : *dims){
+				currentop = nullptr;
+                exp->codeIR();
+				if(currentop == nullptr) {  // intconst or floatconst
+					auto constReg = GetNewRegOperand(++max_reg);
+					auto &entrybb = GetCurrentBlock();
+					if (attribute.type->getType() == Type::TypeKind::Int) {
+						IRgenArithmeticI32ImmAll(entrybb,
+								BasicInstruction::LLVMIROpcode::ADD, 
+								0,
+								exp->attribute.val.IntVal, max_reg);
+						optype_map[max_reg] = operand_type::I32;
+					} else if (attribute.type->getType() == Type::TypeKind::Float) {
+						IRgenArithmeticF32ImmAll(entrybb,
+								BasicInstruction::LLVMIROpcode::FADD, 
+								0,
+								exp->attribute.val.FloatVal, max_reg);
+						optype_map[max_reg] = operand_type::FLOAT32;
+					}
+					dim.push_back(constReg);
+				}
+				else {
+					dim.push_back(currentop);
+				}
+            }
+        }
+        
+        auto ptrreg = GetNewRegOperand(++max_reg);
+        auto &entrybb = GetCurrentBlock(); 
+
+		// ptr类型新增了类型(INT_PTR 和 FLOAT_PTR)，但是不需要load
+		Operand localReg = GetNewRegOperand(irgen_table.symbol_table.look(name));
+		Operand globalSymbol = GetNewGlobalOperand(name->getName());
+		Operand loadVar = (irgen_table.symbol_table.look(name) == -1) ? globalSymbol : localReg;
+		std::vector<int> localDim = irgen_table.symboldim_table.look(name);
+		std::vector<int> globalDim = semant_table.GlobalTable[name].dims;
+		std::vector<int> loadDim = (irgen_table.symboldim_table.look(name) == std::vector<int> ({-1})) ? globalDim : localDim;
+		if(attribute.type->getType() == Type::TypeKind::Int || attribute.T->getType() == Type::TypeKind::Pointer){
+			auto ty = (PointerType*) attribute.T;
+			if(ty->pointeeType->getType() == Type::TypeKind::Int) {
+				IRgenGetElementptrIndexI32(entrybb, 
+					BasicInstruction::LLVMType::I32, 
+					max_reg,
+					loadVar,
+					loadDim,
+					dim);
+				optype_map[max_reg] = operand_type::I32_PTR;
+			} else if(ty->pointeeType->getType() == Type::TypeKind::Float) {
+				IRgenGetElementptrIndexI32(entrybb, 
+					BasicInstruction::LLVMType::FLOAT32, 
+					max_reg,
+					loadVar,
+					loadDim,
+					dim);
+				optype_map[max_reg] = operand_type::FLOAT32_PTR;
+			}
+   		}
+
+		currentptr = ptrreg;
+        if(attribute.type->getType() == Type::TypeKind::Int){
+			auto resultreg = GetNewRegOperand(++max_reg);
+            IRgenLoad(entrybb, 
+                    BasicInstruction::LLVMType::I32, 
+                    max_reg, 
+                    currentptr);
+            optype_map[max_reg] = operand_type::I32;
+            currentop = resultreg;
+        }else if(attribute.type->getType() == Type::TypeKind::Float){
+            auto resultreg = GetNewRegOperand(++max_reg);
+            IRgenLoad(entrybb, 
+                    BasicInstruction::LLVMType::FLOAT32,
+                    max_reg, 
+                    currentptr);
+            optype_map[max_reg] = operand_type::FLOAT32;
+            currentop = resultreg;
+        }else{
+            currentop = currentptr;
+        }
+    }
+}
+void FuncRParams::codeIR() {
+    isParam = 1;
+	rParamsVec& paramsvec = irgen_table.FuncRParamsStack.top();
+	std::vector<FuncFParam> fparamsvec = irgen_table.FuncFParamsStack.top();
+	int paramsSz = fparamsvec.size();
+
+	for(int i = 0; i < paramsSz; i++){
+		ExprBase exp = rParams->at(i);
+		auto fparam = fparamsvec[i];
+		
+		Type::TypeKind expType = exp->attribute.T->getType();
+		Type::TypeKind fparamsType = fparam->type_decl->getType();
+
+		exp->codeIR();
+
+		if (expType == Type::TypeKind::Float) {
+			if (fparamsType == Type::TypeKind::Int) {
+				BinaryFloattoIntConverse(GetCurrentBlock(), currentop);
+				paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::I32, currentop));
+			} else if (fparamsType == Type::TypeKind::Float) {
+				paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::FLOAT32, currentop));
+			}
+		} else if (expType == Type::TypeKind::Int || expType == Type::TypeKind::Bool) {
+			if (fparamsType == Type::TypeKind::Int || fparamsType == Type::TypeKind::Bool) {
+				paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::I32, currentop));
+			} else if (fparamsType == Type::TypeKind::Float) {
+				BinaryInttoFloatConverse(GetCurrentBlock(), currentop);
+				paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::FLOAT32, currentop));
+			}
+		} else {
+			paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::PTR, currentop));
+		}
+
+	}
+
+    isParam = 0;
+}
+void FuncCall::codeIR() {
+	rParamsVec args;
+	irgen_table.FuncRParamsStack.push(args);
+	irgen_table.FuncFParamsStack.push(*semant_table.FunctionTable[name->getName()]->formals);
+    if(funcRParams != nullptr){
+        funcRParams->codeIR();
+    }
+    auto &entrybb = GetCurrentBlock(); 
+	rParamsVec paramsvec = irgen_table.FuncRParamsStack.top();
+    if(attribute.T->getType() == Type::TypeKind::Void){
+        IRgenCallVoid(entrybb, 
+        BasicInstruction::LLVMType::VOID, paramsvec, name->getName());
+    }else if(attribute.T->getType() == Type::TypeKind::Int){
+        currentop = GetNewRegOperand(++max_reg);
+        if(paramsvec.empty()){
+            IRgenCallNoArgs(entrybb,
+                    BasicInstruction::LLVMType::I32,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    name->getName());
+            optype_map[max_reg] = operand_type::I32;
+        }else{
+            IRgenCall(entrybb,
+                    BasicInstruction::LLVMType::I32,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    paramsvec,
+                    name->getName());
+            optype_map[max_reg] = operand_type::I32;
+        }
+    }else{
+        currentop = GetNewRegOperand(++max_reg);
+        if(paramsvec.empty()){
+            IRgenCallNoArgs(entrybb,
+                    BasicInstruction::LLVMType::FLOAT32,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    name->getName());
+            optype_map[max_reg] = operand_type::FLOAT32;
+        }else{
+            IRgenCall(entrybb,
+                    BasicInstruction::LLVMType::FLOAT32,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    paramsvec,
+                    name->getName());
+            optype_map[max_reg] = operand_type::FLOAT32;
+        }
+    }
+	irgen_table.FuncRParamsStack.pop();
+	irgen_table.FuncFParamsStack.pop();;
+}
+
+void UnaryExp::codeIR() {
+	if(unaryOp.optype == OpType::Op::Sub || unaryOp.optype == OpType::Op::Add){
+		GenUnaryAddSubIR(unaryOp.optype, attribute, unaryExp);
+    } else {
+		GenUnaryNotIR(attribute, unaryExp);
+	}
+}
+
+void IntConst::codeIR() {
+    currentint = val;
+    if(!dimcount){
+        auto newresultreg = GetNewRegOperand(++max_reg);
+        auto &entrybb = GetCurrentBlock();
+        IRgenArithmeticI32ImmAll(entrybb,
+            BasicInstruction::LLVMIROpcode::ADD,
+            val,
+            0,
+            max_reg);
+        optype_map[max_reg] = operand_type::I32;
+        currentop = newresultreg;
+	}
+}
+
+void FloatConst::codeIR() {
+    currentfloat = val;
+    if(!dimcount){
+        auto newresultreg = GetNewRegOperand(++max_reg);
+        auto &entrybb = GetCurrentBlock();
+        IRgenArithmeticF32ImmAll(entrybb,
+            BasicInstruction::LLVMIROpcode::FADD,
+            val,
+            0,
+            max_reg);
+        optype_map[max_reg] = operand_type::FLOAT32;
+        currentop = newresultreg;
+    } 
+}
+
+void PrimaryExp::codeIR() {exp->codeIR();}
+
+void AssignStmt::codeIR() {
+    isRightlval = 0;
+    exp->codeIR();
+    auto tempop = currentop;
+    isLeftlval = 1;
+    lval->codeIR();
+    
+    isLeftlval = 0;
+    isRightlval = 1;
+    auto &entrybb = GetCurrentBlock();
+	auto lvalType = lval->attribute.T->getType();
+	auto expType = exp->attribute.T->getType();
+	auto instType = (lvalType == Type::TypeKind::Float) ? BasicInstruction::LLVMType::FLOAT32 : BasicInstruction::LLVMType::I32;
+    if(expType != lvalType && currentptr->GetOperandType() == BasicOperand::REG) {
+		auto newresultreg_zext = GetNewRegOperand(++max_reg);
+		IRgenTypeConverse(entrybb,
+		expType,
+		lvalType,
+		max_reg,
+		((RegOperand*)tempop)->GetRegNo());
+		optype_map[max_reg] = operand_type::I32;
+		tempop = newresultreg_zext;
+	}
+	IRgenStore(entrybb, instType, tempop, currentptr);
+}
+
+void ExprStmt::codeIR() {exp->codeIR();}
+
+void BlockStmt::codeIR() {
+	irgen_table.symbol_table.beginScope();
+	irgen_table.symboldim_table.beginScope();
+    b->codeIR();
+	irgen_table.symbol_table.endScope();
+	irgen_table.symboldim_table.endScope();
+}
+
+void IfStmt::codeIR() {
+    max_label++;
+    auto entrybb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+    IRgenBRUnCond(llvmIR.function_block_map[funcdefI][max_label-1], entrybb->block_id);
+
+    max_label++;
+    auto truebb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+    max_label++;
+    auto falsebb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+    truebbque.push_back(truebb);
+    falsebbque.push_back(falsebb);
+    
+    genbb = entrybb;
+    Cond->codeIR();
+    genbb = nullptr;
+    
+    truebbque.pop_back();
+    falsebbque.pop_back();
+
+    auto icmpop = currentop;
+    if(entrybb->Instruction_list.back()->GetOpcode() != BasicInstruction::ICMP && entrybb->Instruction_list.back()->GetOpcode() != BasicInstruction::FCMP){
+        auto currentopno = ((RegOperand*)currentop)->GetRegNo();
+        auto currentoptype = optype_map[currentopno];
+        if(currentoptype == operand_type::I32){
+            icmpop = GetNewRegOperand(++max_reg);
+            IRgenIcmpImmRight(entrybb, 
+                    BasicInstruction::ne,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    0,
+                    ((RegOperand*)icmpop)->GetRegNo());
+        }else{
+            icmpop = GetNewRegOperand(++max_reg);
+            IRgenFcmpImmRight(entrybb, 
+                    BasicInstruction::ONE,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    0,
+                    ((RegOperand*)icmpop)->GetRegNo());
+        }
+        
+        optype_map[max_reg] = operand_type::BOOL;
+    }
+	if(elseStmt != nullptr) { // if else
+		max_label++;
+		auto ifstmtstartbb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+		ifStmt->codeIR();
+		auto ifstmtendbb = llvmIR.function_block_map[funcdefI][max_label];
+
+		max_label++;
+		auto elsestmtstartbb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+		elseStmt->codeIR();
+		auto elsestmtendbb = llvmIR.function_block_map[funcdefI][max_label];
+
+		max_label++;
+		auto exitbb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+
+		IRgenBrCond(entrybb, ((RegOperand*)icmpop)->GetRegNo(), truebb->block_id, falsebb->block_id);
+		IRgenBRUnCond(ifstmtendbb, exitbb->block_id);
+		IRgenBRUnCond(elsestmtendbb, exitbb->block_id);
+
+
+		if(truebb->Instruction_list.empty() || truebb->Instruction_list.back()->GetOpcode() != BasicInstruction::BR_UNCOND){
+			IRgenBRUnCond(truebb, ifstmtstartbb->block_id);
+		}   
+		if(falsebb->Instruction_list.empty() || falsebb->Instruction_list.back()->GetOpcode() != BasicInstruction::BR_UNCOND){
+			IRgenBRUnCond(falsebb, elsestmtstartbb->block_id);
+		}
+	} else { // if no else
+		IRgenBrCond(entrybb, ((RegOperand*)icmpop)->GetRegNo(), truebb->block_id, falsebb->block_id);
+
+		max_label++;
+		auto stmtstartbb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+		ifStmt->codeIR();
+		auto stmtendbb = llvmIR.function_block_map[funcdefI][max_label];
+		
+		max_label++;
+		auto exitbb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+		
+		if(truebb->Instruction_list.empty() || truebb->Instruction_list.back()->GetOpcode() != BasicInstruction::BR_UNCOND){
+			IRgenBRUnCond(truebb, stmtstartbb->block_id);
+		}
+		if(falsebb->Instruction_list.empty() || falsebb->Instruction_list.back()->GetOpcode() != BasicInstruction::BR_UNCOND){
+			IRgenBRUnCond(falsebb, exitbb->block_id);
+		}
+		
+		IRgenBRUnCond(stmtendbb, exitbb->block_id);
+	}
+}
+
+void WhileStmt::codeIR() {
+	max_label++;
+    auto entrybb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+    IRgenBRUnCond(llvmIR.function_block_map[funcdefI][max_label-1], entrybb->block_id);
+    max_label++;
+    auto truebb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+    max_label++;
+    auto falsebb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+    truebbque.push_back(truebb);
+    falsebbque.push_back(falsebb);
+    genbb = entrybb;
+    Cond->codeIR();
+    genbb = nullptr;
+
+    truebbque.pop_back();
+    falsebbque.pop_back();
+    
+    auto icmpop = currentop;
+    if(entrybb->Instruction_list.back()->GetOpcode() != BasicInstruction::ICMP && entrybb->Instruction_list.back()->GetOpcode() != BasicInstruction::FCMP){
+        auto currentopno = ((RegOperand*)currentop)->GetRegNo();
+        auto currentoptype = optype_map[currentopno];
+        if(currentoptype == operand_type::I32){
+            icmpop = GetNewRegOperand(++max_reg);
+            IRgenIcmpImmRight(entrybb, 
+                    BasicInstruction::ne,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    0,
+                    ((RegOperand*)icmpop)->GetRegNo());
+        }else{
+            icmpop = GetNewRegOperand(++max_reg);
+            IRgenFcmpImmRight(entrybb, 
+                    BasicInstruction::ONE,
+                    ((RegOperand*)currentop)->GetRegNo(),
+                    0,
+                    ((RegOperand*)icmpop)->GetRegNo());
+        }
+        
+        optype_map[max_reg] = operand_type::BOOL;
+    }
+    IRgenBrCond(entrybb, ((RegOperand*)icmpop)->GetRegNo(), truebb->block_id, falsebb->block_id);
+    
+    auto nowcontinueque_size = continuebbque.size();
+    auto nowbreakque_size = breakbbque.size();
+    max_label++;
+    auto bodystartbb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+    loopBody->codeIR();
+    auto bodyendbb = llvmIR.function_block_map[funcdefI][max_label];
+
+    max_label++;
+    auto exitbb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+    while(continuebbque.size() != nowcontinueque_size){
+        auto nowbb = continuebbque.back();
+        IRgenBRUnCond(nowbb, entrybb->block_id);
+        continuebbque.pop_back();
+    }
+    while(breakbbque.size() != nowbreakque_size){
+        auto nowbb = breakbbque.back();
+        IRgenBRUnCond(nowbb, exitbb->block_id);
+        breakbbque.pop_back();
+    }
+    if(!bodyendbb->Instruction_list.empty() && bodyendbb->Instruction_list.back()->GetOpcode() != BasicInstruction::RET){
+        IRgenBRUnCond(bodyendbb, entrybb->block_id);
+    }else if(!llvmIR.function_block_map[funcdefI][bodyendbb->block_id-1]->Instruction_list.empty() 
+            && llvmIR.function_block_map[funcdefI][bodyendbb->block_id-1]->Instruction_list.back()->GetOpcode() != BasicInstruction::RET){
+        IRgenBRUnCond(bodyendbb, entrybb->block_id);
+    }
+    if(truebb->Instruction_list.empty() || truebb->Instruction_list.back()->GetOpcode() != BasicInstruction::BR_UNCOND){
+        IRgenBRUnCond(truebb, bodystartbb->block_id);
+    }
+    if(falsebb->Instruction_list.empty() || falsebb->Instruction_list.back()->GetOpcode() != BasicInstruction::BR_UNCOND){
+        IRgenBRUnCond(falsebb, exitbb->block_id);
+    }
+}
+
+void ContinueStmt::codeIR() {
+	auto &entrybb = GetCurrentBlock();
+    continuebbque.push_back(entrybb);
+    max_label++;
+    llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+}
+
+void BreakStmt::codeIR() {
+	auto &entrybb = GetCurrentBlock();
+    breakbbque.push_back(entrybb);
+    max_label++;
+    llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+}
+
+void RetStmt::codeIR() {
+	if(retExp == nullptr) {
+		auto &entrybb = GetCurrentBlock();
+    	IRgenRetVoid(entrybb);
+		return;
+	}
+
+    retExp->codeIR();
+    auto &retbb = GetCurrentBlock();
+	
+	auto ty = attribute.T->getType();
+    if(ty == Type::TypeKind::Void){
+        IRgenRetVoid(retbb);
+    }else if(ty == Type::TypeKind::Int){
+        auto currentopno = ((RegOperand*)currentop)->GetRegNo();
+        if(optype_map[currentopno] == operand_type::BOOL){
+            BinaryBoolCheckandConverse(retbb, currentop);
+            currentopno = ((RegOperand*)currentop)->GetRegNo();
+        }else if(optype_map[currentopno] == operand_type::FLOAT32){
+            BinaryFloattoIntConverse(retbb, currentop);
+            currentopno = ((RegOperand*)currentop)->GetRegNo();
+        }
+        IRgenRetReg(retbb, BasicInstruction::LLVMType::I32, currentopno);
+    }else{
+        auto currentopno = ((RegOperand*)currentop)->GetRegNo();
+        if(optype_map[currentopno] == operand_type::BOOL){
+            BinaryBoolCheckandConverse(retbb, currentop);
+            BinaryInttoFloatConverse(retbb, currentop);
+            currentopno = ((RegOperand*)currentop)->GetRegNo();
+        }else if(optype_map[currentopno] == operand_type::I32){
+            BinaryInttoFloatConverse(retbb, currentop);
+            currentopno = ((RegOperand*)currentop)->GetRegNo();
+        }
+        IRgenRetReg(retbb, BasicInstruction::LLVMType::FLOAT32, currentopno);
+    }
+}
+
+void ConstInitValList::codeIR() {
+	int tail = 1;
+	int subArraydim_copy;
+	if(isTopVarInitVal) {
+		isTopVarInitVal = false;
+		for(int i = initdim.size() - 1; i >= 0; i--) {
+			tail *= initdim[i];
+		}
+		tail--;
+		subArraydim_copy = subArraydim = 1;
+	} else {
+		tail = getTail();
+		subArraydim_copy = subArraydim;
+	}
+
+	if(initval != nullptr){
+		for(auto init : *initval){
+			if(head >= tail + 1) {
+				break;
+			}
+			subArraydim = subArraydim_copy;
+			init->codeIR();
+		}
+	}
+
+	while(head <= tail) {
+		head++;
+		initarrayint.push_back(0);
+		initarrayfloat.push_back(0.0);
+	}
+}
+
+void ConstInitVal::codeIR() {
+	if(dimcount && isGobal) {
+		initarrayint.push_back(exp->attribute.val.IntVal);
+		initarrayfloat.push_back(exp->attribute.val.FloatVal);
+		head++;
+		return;
+	}
+
+	exp->codeIR();
+
+	if(dimcount && exp->attribute.ConstTag){  // constVal
+		auto ty = attribute.T->getType();
+		if (ty == Type::TypeKind::Int) {
+			std::vector<Operand> indexs = offset_to_indexs(head, initdim);
+			Operand elementPtrReg = GetNewRegOperand(++max_reg);
+			IRgenGetElementptrIndexI32(GetCurrentBlock(), 
+			BasicInstruction::LLVMType::I32, 
+			max_reg,
+			initarrayReg,
+			initdim,
+			indexs);
+			optype_map[max_reg] = operand_type::I32_PTR;
+
+			Operand storeValReg = GetNewRegOperand(++max_reg); 
+			IRgenArithmeticI32ImmAll(GetCurrentBlock(),
+			BasicInstruction::LLVMIROpcode::ADD,
+			exp->attribute.val.IntVal,
+			0,
+			max_reg);
+			optype_map[max_reg] = operand_type::I32;
+
+			IRgenStore(GetCurrentBlock(), BasicInstruction::LLVMType::I32, storeValReg, elementPtrReg);	
+		} else if (ty == Type::TypeKind::Float) {
+			std::vector<Operand> indexs = offset_to_indexs(head, initdim);
+			Operand elementPtrReg = GetNewRegOperand(++max_reg);
+			IRgenGetElementptrIndexI32(GetCurrentBlock(), 
+			BasicInstruction::LLVMType::FLOAT32, 
+			max_reg,
+			initarrayReg,
+			initdim,
+			indexs);
+			optype_map[max_reg] = operand_type::FLOAT32_PTR;
+
+			Operand storeValReg = GetNewRegOperand(++max_reg); 
+			IRgenArithmeticF32ImmAll(GetCurrentBlock(),
+			BasicInstruction::LLVMIROpcode::FADD,
+			exp->attribute.val.FloatVal,
+			0,
+			max_reg);
+			optype_map[max_reg] = operand_type::FLOAT32;
+
+			IRgenStore(GetCurrentBlock(), BasicInstruction::LLVMType::FLOAT32, storeValReg, elementPtrReg);	
+		}
+
+		head++;
+	}
+}
+
+void VarInitValList::codeIR() {
+	int tail = 1;
+	int subArraydim_copy;
+	if(isTopVarInitVal) {
+		isTopVarInitVal = false;
+		for(int i = initdim.size() - 1; i >= 0; i--) {
+			tail *= initdim[i];
+		}
+		tail--;
+		subArraydim_copy = subArraydim = 1;
+	} else {
+		tail = getTail();
+		subArraydim_copy = subArraydim;
+	}
+	
+	if(initval != nullptr){
+		for(auto init : *initval){
+			if(head >= tail + 1) {
+				break;
+			}
+			subArraydim = subArraydim_copy;
+			init->codeIR();
+		}
+	}
+
+	while(head <= tail) {
+		head++;
+		initarrayint.push_back(0);
+		initarrayfloat.push_back(0.0);
+	}
+}
+
+void VarInitVal::codeIR() {
+	if(dimcount && isGobal) {
+		initarrayint.push_back(exp->attribute.val.IntVal);
+		initarrayfloat.push_back(exp->attribute.val.FloatVal);
+		head++;
+		return;
+	}
+
+	exp->codeIR();
+
+	auto ty = attribute.T->getType();
+	if(dimcount && exp->attribute.ConstTag){  // constVal (维护数组的常量 by semant.cc)
+		if (ty == Type::TypeKind::Int) {
+			std::vector<Operand> indexs = offset_to_indexs(head, initdim);
+			Operand elementPtrReg = GetNewRegOperand(++max_reg);
+			IRgenGetElementptrIndexI32(GetCurrentBlock(), 
+			BasicInstruction::LLVMType::I32, 
+			max_reg,
+			initarrayReg,
+			initdim,
+			indexs);
+			optype_map[max_reg] = operand_type::I32_PTR;
+
+			Operand storeValReg = GetNewRegOperand(++max_reg); 
+			IRgenArithmeticI32ImmAll(GetCurrentBlock(),
+			BasicInstruction::LLVMIROpcode::ADD,
+			exp->attribute.val.IntVal,
+			0,
+			max_reg);
+			optype_map[max_reg] = operand_type::I32;
+
+			IRgenStore(GetCurrentBlock(), BasicInstruction::LLVMType::I32, storeValReg, elementPtrReg);
+		} else if (ty == Type::TypeKind::Float) {
+			std::vector<Operand> indexs = offset_to_indexs(head, initdim);
+			Operand elementPtrReg = GetNewRegOperand(++max_reg);
+			IRgenGetElementptrIndexI32(GetCurrentBlock(), 
+			BasicInstruction::LLVMType::FLOAT32, 
+			max_reg,
+			initarrayReg,
+			initdim,
+			indexs);
+			optype_map[max_reg] = operand_type::FLOAT32_PTR;
+
+			Operand storeValReg = GetNewRegOperand(++max_reg); 
+			IRgenArithmeticF32ImmAll(GetCurrentBlock(),
+			BasicInstruction::LLVMIROpcode::FADD,
+			exp->attribute.val.FloatVal,
+			0,
+			max_reg);
+			optype_map[max_reg] = operand_type::FLOAT32;
+
+			IRgenStore(GetCurrentBlock(), BasicInstruction::LLVMType::FLOAT32, storeValReg, elementPtrReg);
+		}
+		
+		head++;
+
+	} else if(dimcount) { // Lval
+
+		if (ty == Type::TypeKind::Int) {
+			Operand storeValReg = GetNewRegOperand(max_reg); 
+
+			std::vector<Operand> indexs = offset_to_indexs(head, initdim);
+			Operand elementPtrReg = GetNewRegOperand(++max_reg);
+			IRgenGetElementptrIndexI32(GetCurrentBlock(), 
+			BasicInstruction::LLVMType::I32, 
+			max_reg,
+			initarrayReg,
+			initdim,
+			indexs);
+			optype_map[max_reg] = operand_type::I32_PTR;
+
+			IRgenStore(GetCurrentBlock(), BasicInstruction::LLVMType::I32, storeValReg, elementPtrReg);
+		} else if (ty == Type::TypeKind::Float) {
+			Operand storeValReg = GetNewRegOperand(max_reg); 
+
+			std::vector<Operand> indexs = offset_to_indexs(head, initdim);
+			Operand elementPtrReg = GetNewRegOperand(++max_reg);
+			IRgenGetElementptrIndexI32(GetCurrentBlock(), 
+			BasicInstruction::LLVMType::FLOAT32, 
+			max_reg,
+			initarrayReg,
+			initdim,
+			indexs);
+			optype_map[max_reg] = operand_type::FLOAT32_PTR;
+
+			IRgenStore(GetCurrentBlock(), BasicInstruction::LLVMType::FLOAT32, storeValReg, elementPtrReg);
+		} 
+
+        head++;
+	}
+}
+void VarDef_no_init::codeIR() {
+	// global var
+	auto ty = attribute.T->getType();
+    if(irgen_table.symbol_table.get_current_scope() == 0)
+	{
+        auto varinfo = semant_table.GlobalTable[name];
+
+        if(dims == nullptr){
+
+            ptrmap[name] = GetNewGlobalOperand(name->getName());
+            if(ty == Type::TypeKind::Int){
+                IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(0));
+            }else{
+                IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(0));
+            }
+        }else{
+            ptrmap[name] = GetNewGlobalOperand(name->getName());
+            dimcount = 1;
+            std::vector<int> dim;
+            std::vector<int> noinitarrayint;
+            std::vector<float> noinitarrayfloat;
+            for(auto exp : *dims){
+                exp->codeIR();
+                dim.push_back(currentint);
+                if(ty == Type::TypeKind::Int){
+                    noinitarrayint.push_back(0);
+                }else{
+                    noinitarrayfloat.push_back(0.0);
+                }
+            }
+			irgen_table.symboldim_table.enter(name, dim);
+            dimcount = 0; 
+            if(ty == Type::TypeKind::Int){
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::I32, VarAttribute(dim,noinitarrayint));
+            }else{
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::FLOAT32, VarAttribute(dim,noinitarrayfloat));
+            }
+        
+        }
+
+    } else {
+        auto entrybb = llvmIR.function_block_map[funcdefI][0];
+        auto type = ty;
+        ptrmap[name] = GetNewRegOperand(++max_reg);
+		irgen_table.symbol_table.enter(name, max_reg);
+
+        if(dims == nullptr){
+            if(ty == Type::TypeKind::Int){
+                IRgenAlloca(entrybb, BasicInstruction::I32, max_reg);
+                optype_map[max_reg] = operand_type::I32_PTR;
+            }else{
+                IRgenAlloca(entrybb, BasicInstruction::FLOAT32, max_reg);
+                optype_map[max_reg] = operand_type::FLOAT32_PTR;
+            }
+        }else{
+            dimcount = 1;
+            std::vector<int> dim;
+            for(auto exp : *dims){
+				dim.push_back(exp->attribute.val.IntVal);
+            }
+            if(type == Type::TypeKind::Float){
+                optype_map[max_reg] = operand_type::FLOAT32_PTR;
+                IRgenAllocaArray(entrybb, BasicInstruction::LLVMType::FLOAT32, ((RegOperand*)ptrmap[name])->GetRegNo(), dim);
+            }else{
+                optype_map[max_reg] = operand_type::I32_PTR;
+                IRgenAllocaArray(entrybb, BasicInstruction::LLVMType::I32, ((RegOperand*)ptrmap[name])->GetRegNo(), dim);
+            }
+            dimcount = 0;
+
+			irgen_table.symboldim_table.enter(name, dim);
+        }
+    }	
+}
+void VarDef::codeIR() {
+
+    auto ty = attribute.T->getType();
+	auto instType = (ty == Type::TypeKind::Int) ? BasicInstruction::LLVMType::I32 : BasicInstruction::LLVMType::FLOAT32;
+
+	// global var
+    if (irgen_table.symbol_table.get_current_scope() == 0)
+	{	
+        
+		auto varinfo = semant_table.GlobalTable[name];
+        ptrmap[name] = GetNewGlobalOperand(name->getName());
+		
+        if(dims == nullptr){
+            if(ty == Type::TypeKind::Int){
+                if(varinfo.IntInitVals.empty()){
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(varinfo.FloatInitVals.front()));
+                }else{
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(varinfo.IntInitVals.front()));
+                }
+            }else{
+                if(varinfo.FloatInitVals.empty()){
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(varinfo.IntInitVals.front()));
+                }else{
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(varinfo.FloatInitVals.front()));
+                }
+            }
+        }else{
+            dimcount = 1;
+			isGobal = true;
+
+			initdim.clear();
+			int arraySize = 1;
+            for(auto exp : *dims){
+                exp->codeIR();
+				initdim.push_back(currentint);
+				arraySize *= currentint;
+            }
+			irgen_table.symboldim_table.enter(name, initdim);
+
+			if(ty == Type::TypeKind::Int){
+                initarrayint.clear();
+            }else{
+                initarrayfloat.clear();
+            }
+
+			head = 0;
+			isTopVarInitVal = true;
+            init->codeIR();
+			
+            dimcount = 0;
+			isGobal = false;
+
+            if(ty == Type::TypeKind::Int){
+				while(initarrayint.size() < arraySize) initarrayint.push_back(0);
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::I32, VarAttribute(initdim,initarrayint));
+            }else{
+				while(initarrayfloat.size() < arraySize) initarrayfloat.push_back(0.0);
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::FLOAT32, VarAttribute(initdim,initarrayfloat));
+            }
+
+        }        
+        
+    } else {
+        if(dims == nullptr){
+			auto entrybb = llvmIR.function_block_map[funcdefI][0];
+			ptrmap[name] = GetNewRegOperand(++max_reg);
+			irgen_table.symbol_table.enter(name, max_reg);
+			IRgenAlloca(entrybb, instType, max_reg);
+			if(ty == Type::TypeKind::Float){
+                optype_map[max_reg] = operand_type::FLOAT32_PTR;
+            }else{
+                optype_map[max_reg] = operand_type::I32_PTR;
+            }
+            init->codeIR();
+            auto &gbb = GetCurrentBlock();
+
+            if(ty == Type::TypeKind::Int){
+                bool PtrisFloat = 0;
+                if(ptrmap[name]->GetOperandType() != BasicOperand::REG){}
+				else{
+                    PtrisFloat = optype_map[((RegOperand*)currentop)->GetRegNo()] == operand_type::FLOAT32;
+                }
+                if(PtrisFloat){
+                    BinaryFloattoIntConverse(gbb, currentop);
+                }
+                IRgenStore(gbb, BasicInstruction::LLVMType::I32, currentop, ptrmap[name]);
+            }else{
+                bool PtrisINT = 0;
+                if(ptrmap[name]->GetOperandType() != BasicOperand::REG){}
+				else{
+                    
+                    PtrisINT = optype_map[((RegOperand*)currentop)->GetRegNo()] == operand_type::I32;
+                }
+                if(PtrisINT){
+                    BinaryInttoFloatConverse(gbb, currentop);
+                }
+                IRgenStore(gbb, BasicInstruction::LLVMType::FLOAT32, currentop, ptrmap[name]);
+            }
+
+        } else {
+			dimcount = 1;
+			initdim.clear();
+			int arraySize = 1;
+            for(auto exp : *dims){
+                exp->codeIR();
+                initdim.push_back(currentint);
+				arraySize *= currentint;
+            }
+			
+			irgen_table.symboldim_table.enter(name, initdim);
+			
+			if(ty == Type::TypeKind::Int){
+                initarrayint.clear();
+            }else{
+                initarrayfloat.clear();
+            }
+
+			auto entrybb = llvmIR.function_block_map[funcdefI][0];
+			ptrmap[name] = GetNewRegOperand(++max_reg);
+			initarrayReg = ptrmap[name];
+			irgen_table.symbol_table.enter(name, max_reg);
+            if(ty == Type::TypeKind::Int){
+                optype_map[max_reg] = operand_type::I32_PTR;
+                IRgenAllocaArray(entrybb, BasicInstruction::LLVMType::I32, max_reg, initdim);
+            }else{
+                optype_map[max_reg] = operand_type::FLOAT32_PTR;
+                IRgenAllocaArray(entrybb, BasicInstruction::LLVMType::FLOAT32, max_reg, initdim);
+            }
+			
+			// args: addr, fillVal, fillLen, isvolatile
+			std::vector<std::pair<enum BasicInstruction::LLVMType, Operand>> args;
+			args.push_back(std::pair<enum BasicInstruction::LLVMType, Operand>(BasicInstruction::LLVMType::PTR, GetNewRegOperand(max_reg))); 
+			args.push_back(std::pair<enum BasicInstruction::LLVMType, Operand>(BasicInstruction::LLVMType::I8, new ImmI32Operand(0))); 
+			args.push_back(std::pair<enum BasicInstruction::LLVMType, Operand>(BasicInstruction::LLVMType::I32, new ImmI32Operand(arraySize * sizeof(int)))); 
+			args.push_back(std::pair<enum BasicInstruction::LLVMType, Operand>(BasicInstruction::LLVMType::I1, new ImmI32Operand(0)));   
+			CallInstruction *memsetCall = new CallInstruction(BasicInstruction::LLVMType::VOID, nullptr, std::string("llvm.memset.p0.i32"), args);
+			llvmIR.function_block_map[funcdefI][max_label]->InsertInstruction(1, memsetCall);
+
+			head = 0;
+			isTopVarInitVal = true;
+            init->codeIR();
+			dimcount = 0;
+        }        
+    }
+}
+void ConstDef::codeIR() {
+    auto ty = attribute.T->getType();
+	auto instType = (ty == Type::TypeKind::Int) ? BasicInstruction::LLVMType::I32 : BasicInstruction::LLVMType::FLOAT32;
+	
+	// global var
+    if (irgen_table.symbol_table.get_current_scope() == 0)
+	{
+		auto varinfo = semant_table.GlobalTable[name];
+        ptrmap[name] = GetNewGlobalOperand(name->getName());
+		
+        if(dims == nullptr){
+            if(ty == Type::TypeKind::Int){
+                if(varinfo.IntInitVals.empty()){
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(varinfo.FloatInitVals.front()));
+                }else{
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(varinfo.IntInitVals.front()));
+                }
+                
+            }else{
+                if(varinfo.FloatInitVals.empty()){
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(varinfo.IntInitVals.front()));
+                }else{
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(varinfo.FloatInitVals.front()));
+                }
+            }
+        }else{
+			isGobal = true;
+			isTopVarInitVal = true;
+            dimcount = 1;
+			head = 0;
+			initdim.clear();
+			int arraySize = 1;
+            for(auto exp : *dims){
+                exp->codeIR();
+				initdim.push_back(currentint);
+				arraySize *= currentint;
+            }
+			irgen_table.symboldim_table.enter(name, initdim);
+
+			if(ty == Type::TypeKind::Int){
+                initarrayint.clear();
+            }else{
+                initarrayfloat.clear();
+            }
+		
+            init->codeIR();
+            dimcount = 0;
+			isGobal = false;
+            if(ty == Type::TypeKind::Int){
+				while(initarrayint.size() < arraySize) initarrayint.push_back(0);
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::I32, VarAttribute(initdim,initarrayint));
+            }else{
+				while(initarrayfloat.size() < arraySize) initarrayfloat.push_back(0.0);
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::FLOAT32, VarAttribute(initdim,initarrayfloat));
+            }
+        }        
+        
+    } else {
+        if(dims == nullptr){
+			auto entrybb = llvmIR.function_block_map[funcdefI][0];
+			ptrmap[name] = GetNewRegOperand(++max_reg);
+			irgen_table.symbol_table.enter(name, max_reg);
+			IRgenAlloca(entrybb, instType, max_reg);
+            if(ty == Type::TypeKind::Int){
+                optype_map[max_reg] = operand_type::I32_PTR;
+            }else{
+                optype_map[max_reg] = operand_type::FLOAT32_PTR;
+            }
+			init->codeIR();
+			if(ty == Type::TypeKind::Int){
+                optype_map[max_reg] = operand_type::I32;
+				IRgenStore(llvmIR.function_block_map[funcdefI][max_label], BasicInstruction::LLVMType::I32, currentop, ptrmap[name]);
+			}else{
+				IRgenStore(llvmIR.function_block_map[funcdefI][max_label], BasicInstruction::LLVMType::FLOAT32, currentop, ptrmap[name]);
+			}
+        }else{
+			dimcount = 1;
+			initdim.clear();
+			int arraySize = 1;
+            for(auto exp : *dims){
+                exp->codeIR();
+                initdim.push_back(currentint);
+				arraySize *= currentint;
+            }
+
+			irgen_table.symboldim_table.enter(name, initdim);
+			
+			if(ty == Type::TypeKind::Int){
+                initarrayint.clear();
+            }else{
+                initarrayfloat.clear();
+            }
+
+			auto entrybb = llvmIR.function_block_map[funcdefI][0];
+			ptrmap[name] = GetNewRegOperand(++max_reg);
+			initarrayReg = ptrmap[name];
+			irgen_table.symbol_table.enter(name, max_reg);
+			IRgenAllocaArray(entrybb, instType, max_reg, initdim);
+
+			// 局部变量初始化为 0
+			std::vector<std::pair<enum BasicInstruction::LLVMType, Operand>> args;
+			args.push_back(std::pair<enum BasicInstruction::LLVMType, Operand>(BasicInstruction::LLVMType::PTR, GetNewRegOperand(max_reg))); 
+			args.push_back(std::pair<enum BasicInstruction::LLVMType, Operand>(BasicInstruction::LLVMType::I8, new ImmI32Operand(0))); 
+			args.push_back(std::pair<enum BasicInstruction::LLVMType, Operand>(BasicInstruction::LLVMType::I32, new ImmI32Operand(arraySize * sizeof(int)))); 
+			args.push_back(std::pair<enum BasicInstruction::LLVMType, Operand>(BasicInstruction::LLVMType::I1, new ImmI32Operand(0)));   
+			CallInstruction *memsetCall = new CallInstruction(BasicInstruction::LLVMType::VOID, nullptr, std::string("llvm.memset.p0.i32"), args);
+			llvmIR.function_block_map[funcdefI][max_label]->InsertInstruction(1, memsetCall);
+
+			head = 0;
+			isTopVarInitVal = true;
+            init->codeIR();
+			dimcount = 0;
+        }        
+    }
+
+}
+void VarDecl::codeIR() {
+	for(auto def : *var_def_list){
+        def->codeIR();
+    }
+}
+
+void ConstDecl::codeIR() {
+    for(auto def : *var_def_list){
+        def->codeIR();
+    }
+}
+
+void BlockItem_Decl::codeIR() { decl->codeIR();}
+void BlockItem_Stmt::codeIR() { stmt->codeIR();}
+void __Block::codeIR() {
+	irgen_table.symbol_table.beginScope();
+	irgen_table.symboldim_table.beginScope();
+    int caaa = 0;
+    for(auto blockitem : *item_list){
+        blockitem->codeIR();
+    }
+	irgen_table.symbol_table.endScope();
+	irgen_table.symboldim_table.endScope();
+}
+void __FuncFParam::codeIR() {
+	initdim.clear();
+    dimcount = 1;
+    
+	for(auto exp : *dims){
+        if(exp != nullptr){
+            exp->codeIR();
+            initdim.push_back(currentint);
+        }
+    }
+	irgen_table.symboldim_table.enter(name, initdim);
+    dimcount = 0;
+}
+void __FuncDef::codeIR() {
+	irgen_table.symbol_table.beginScope();
+	irgen_table.symboldim_table.beginScope();
+    if(return_type->getType() == Type::TypeKind::Int){
+        funcdefI = new FunctionDefineInstruction(BasicInstruction::I32,name->getName());
+    }else if(return_type->getType() == Type::TypeKind::Float){
+        funcdefI = new FunctionDefineInstruction(BasicInstruction::FLOAT32,name->getName());
+    }else{
+        funcdefI = new FunctionDefineInstruction(BasicInstruction::VOID,name->getName());
+    }
+    
+    max_reg = -1;
+    max_label = -1;
+    paramptr.clear();
+    optype_map.clear();
+
+    std::deque<Instruction> allocaIque;
+    std::deque<Instruction> storeIque;
+    for(auto para : *formals){
+        auto parareg = GetNewRegOperand(++max_reg);
+        ptrmap[para->name] = parareg;
+    }
+    for(auto para : *formals){
+        auto parareg = ptrmap[para->name];
+        if(para->attribute.T->getType() == Type::TypeKind::Int){
+            funcdefI->InsertFormal(BasicInstruction::I32);
+            auto allocaptr = GetNewRegOperand(++max_reg);
+            allocaIque.push_back(new AllocaInstruction(BasicInstruction::I32,allocaptr));
+            storeIque.push_back(new StoreInstruction(BasicInstruction::I32, allocaptr, parareg));
+            ptrmap[para->name] = allocaptr;
+		    irgen_table.symbol_table.enter(para->name, max_reg);
+        }else if(para->attribute.T->getType() == Type::TypeKind::Float){
+            funcdefI->InsertFormal(BasicInstruction::FLOAT32);
+            auto allocaptr = GetNewRegOperand(++max_reg);
+            allocaIque.push_back(new AllocaInstruction(BasicInstruction::FLOAT32,allocaptr));
+            storeIque.push_back(new StoreInstruction(BasicInstruction::FLOAT32, allocaptr, parareg));
+            ptrmap[para->name] = allocaptr;
+            irgen_table.symbol_table.enter(para->name, max_reg);
+        }else{
+            funcdefI->InsertFormal(BasicInstruction::PTR);
+            irgen_table.symbol_table.enter(para->name, ((RegOperand*)parareg)->GetRegNo());
+            para->codeIR();
+        }
+    }
+    llvmIR.NewFunction(funcdefI);
+    
+    ++max_label;
+    auto entrybb = llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+    while(!allocaIque.empty()){
+        entrybb->InsertInstruction(1,allocaIque.back());
+        allocaIque.pop_back();
+    }
+    while(!storeIque.empty()){
+        entrybb->InsertInstruction(1,storeIque.back());
+        storeIque.pop_back();
+    }
+    ++max_label;
+    llvmIR.function_block_map[funcdefI][max_label] = llvmIR.NewBlock(funcdefI,max_label);
+    IRgenBRUnCond(llvmIR.function_block_map[funcdefI][max_label-1], max_label);
+    
+    genbb = llvmIR.function_block_map[funcdefI][max_label];
+    block->codeIR();
+    auto &exitbb = llvmIR.function_block_map[funcdefI][max_label];
+    if(return_type->getType() == Type::TypeKind::Void){
+        IRgenRetVoid(exitbb);
+    }else if(return_type->getType() == Type::TypeKind::Int){
+        auto newresultreg = GetNewRegOperand(++max_reg);
+        IRgenArithmeticI32ImmAll(exitbb,
+                BasicInstruction::LLVMIROpcode::ADD, 
+                0,
+                0,max_reg);
+        optype_map[max_reg] = operand_type::I32;
+        IRgenRetReg(exitbb, BasicInstruction::LLVMType::I32, ((RegOperand*)newresultreg)->GetRegNo());
+    }else{
+        auto newresultreg = GetNewRegOperand(++max_reg);
+        IRgenArithmeticF32ImmAll(exitbb,
+                BasicInstruction::LLVMIROpcode::FADD, 
+                0,
+                0,max_reg);
+        optype_map[max_reg] = operand_type::FLOAT32;
+        IRgenRetReg(exitbb, BasicInstruction::LLVMType::FLOAT32, ((RegOperand*)newresultreg)->GetRegNo());
+
+    }
+    
+    for(int i = 0; i <= max_label; ++i){
+        if(llvmIR.function_block_map[funcdefI].find(i) !=  llvmIR.function_block_map[funcdefI].end() && llvmIR.function_block_map[funcdefI][i]->Instruction_list.empty()){
+            llvmIR.function_block_map[funcdefI].erase(i);
+        }
+    }
+    
+    llvmIR.function_max_reg[funcdefI] = max_reg;
+    llvmIR.function_max_label[funcdefI] = max_label;
+
+    irgen_table.symbol_table.endScope();
+    irgen_table.symboldim_table.endScope();
+}
+void CompUnit_Decl::codeIR() { decl->codeIR();}
+void CompUnit_FuncDef::codeIR() { func_def->codeIR();}
 void __Program::codeIR() {
     AddLibFunctionDeclare();
     auto comp_vector = *comp_list;
