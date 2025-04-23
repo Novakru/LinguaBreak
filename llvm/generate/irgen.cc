@@ -333,6 +333,41 @@ void GenArithmeticBinaryIR(NodeAttribute attribute, OpType::Op opKind, ExprBase 
     }
 }
 
+void GenArithmeticModIR(NodeAttribute attribute, ExprBase lhs, ExprBase rhs){
+    currentop = nullptr;
+
+    if(dimcount && attribute.ConstTag){
+        currentint = attribute.val.IntVal;
+        currentfloat = attribute.val.FloatVal;
+        return;
+    }
+	
+    lhs->codeIR();
+    auto leftop = currentop;
+    BinaryBoolCheckandConverse(GetCurrentBlock(), leftop);
+
+    rhs->codeIR();
+    auto rightop = currentop;
+    BinaryBoolCheckandConverse( GetCurrentBlock(),rightop);
+    auto &entrybb = GetCurrentBlock();
+
+    auto leftregno = ((RegOperand*)leftop)->GetRegNo();
+    auto rightregno = ((RegOperand*)rightop)->GetRegNo();
+    auto leftop_type = optype_map[leftregno];
+    auto rightop_type = optype_map[rightregno];
+
+	// 不支持浮点数运算以及对应的类型转换
+	assert(leftop_type != operand_type::I32 || rightop_type == operand_type::I32);
+
+    auto newresultreg = GetNewRegOperand(++max_reg);
+    IRgenArithmeticI32(entrybb,
+        BasicInstruction::LLVMIROpcode::MOD, 
+        ((RegOperand*)leftop)->GetRegNo(),
+        ((RegOperand*)rightop)->GetRegNo(),max_reg);
+    optype_map[max_reg] = operand_type::I32;
+    currentop = newresultreg;
+}
+
 void GenCompareBinaryIR(OpType::Op opKind, ExprBase lhs, ExprBase rhs) {
     currentop = nullptr;
     currentint = 0;
@@ -379,11 +414,14 @@ void Exp::codeIR() { addExp->codeIR(); }
 void ConstExp::codeIR() {TODO("ConstExp::codeIR()");}
 void AddExp::codeIR() { GenArithmeticBinaryIR(attribute, op.optype, addExp, mulExp);}
 void MulExp::codeIR() { 
-	// mod 特殊！todo
-	GenArithmeticBinaryIR(attribute, op.optype, mulExp, unaryExp);	
+	if(op.optype != OpType::Op::Mod){
+		GenArithmeticBinaryIR(attribute, op.optype, mulExp, unaryExp);	
+	} else { // mod 操作只支持整数
+		GenArithmeticModIR(attribute, mulExp, unaryExp);
+	}
 }
-void RelExp::codeIR() { GenCompareBinaryIR(op.optype, relexp, addexp);}
-void EqExp::codeIR()  { GenCompareBinaryIR(op.optype, eqexp, relexp); }
+void RelExp::codeIR() { GenCompareBinaryIR(op.optype, relExp, addExp);}
+void EqExp::codeIR()  { GenCompareBinaryIR(op.optype, eqExp, relExp); }
 void LAndExp::codeIR() {}
 void LOrExp::codeIR() {}
 void Lval::codeIR() {}
