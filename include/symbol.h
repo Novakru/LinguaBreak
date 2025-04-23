@@ -48,12 +48,30 @@ private:
     std::vector<std::unordered_map<Symbol*, int>> symbol_table;
 
 public:
-    void add_Symbol(Symbol* C, int reg);
+    void enter(Symbol* C, int reg);
+	int get_current_scope() { return current_scope; }
 
     // 返回离当前作用域最近的局部变量的alloca结果对应的寄存器编号(C为局部变量名对应的Symbol)
-    int lookup(Symbol* C);
-    void enter_scope();
-    void exit_scope();
+    int look(Symbol* C);
+    void beginScope();
+    void endScope();
+	void display();
+};
+
+class SymbolDimTable {
+private:
+    int current_scope = -1;
+    std::vector<std::unordered_map<Symbol*, std::vector<int>>> symbol_table;
+
+public:
+    void enter(Symbol* C, std::vector<int> dim);
+	int get_current_scope() { return current_scope; }
+
+    // 返回离当前作用域最近的局部变量的alloca结果对应的寄存器编号(C为局部变量名对应的Symbol)
+    std::vector<int> look(Symbol* C);
+    void beginScope();
+    void endScope();
+	void display();
 };
 
 #endif

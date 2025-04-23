@@ -367,7 +367,7 @@ void recursive_print(std::ostream &s, BasicInstruction::LLVMType type, VarAttrib
                      int endPos) {
     if (dimDph == 0) {
         int allzero = 1;
-        if (v.type->getType() == BuiltinType::BuiltinKind::Int) {
+        if (v.type->getType() == Type::TypeKind::Int) {
             for (auto x : v.IntInitVals) {
                 if (x != 0) {
                     allzero = 0;

@@ -5,6 +5,9 @@
 
 class LLVMIR {
 public:
+    std::map<FuncDefInstruction, int> function_max_reg;
+    std::map<FuncDefInstruction, int> function_max_label;
+
     // 全局变量定义指令
     std::vector<Instruction> global_def{};
     // 函数声明指令

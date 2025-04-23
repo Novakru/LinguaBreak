@@ -77,6 +77,7 @@ size_t SymbolTable::scopesSize() const
     return scopes.size();
 }
 
+/* IdTable */
 Symbol* IdTable::add_id(std::string s) {
     auto it = id_table.find(s);
     if (it == id_table.end()) {
@@ -85,5 +86,77 @@ Symbol* IdTable::add_id(std::string s) {
         return new_symbol;
     } else {
         return id_table[s];
+    }
+}
+
+/* SymbolRegTable */
+void SymbolRegTable::enter(Symbol* C, int reg){
+	symbol_table[current_scope][C] = reg; 
+}
+int SymbolRegTable::look(Symbol* C){
+    for (int i = current_scope; i >= 0; --i) {
+        auto it = symbol_table[i].find(C);
+        if (it != symbol_table[i].end()) {
+            return it->second;
+        }
+    }
+    return -1;
+}
+void SymbolRegTable::beginScope(){
+    ++current_scope;
+    symbol_table.push_back(std::unordered_map<Symbol*, int>());
+}
+void SymbolRegTable::endScope(){
+    --current_scope;
+    symbol_table.pop_back();
+}
+void SymbolRegTable::display() {
+	std::cerr << "SymbolRegTable::display()\n";
+    for (int i = current_scope; i >= 0; --i) {
+		std::cerr << "current_scope = " << i << " : ";
+		for(auto it :symbol_table[i]){
+			std::cerr << "<" <<it.first->getName() + "," << it.second << "> ";
+		}
+		std::cerr << "\n";
+    }
+}
+
+
+/* SymbolDimTable */
+std::vector<int> SymbolDimTable::look(Symbol* C) {
+    for (int i = current_scope; i >= 0; --i) {
+        auto it = symbol_table[i].find(C);
+        if (it != symbol_table[i].end()) {
+            return it->second;
+        }
+    }
+    return std::vector<int>({-1}); // not found
+}
+void SymbolDimTable::enter(Symbol* C, std::vector<int> dim) { 
+	symbol_table[current_scope][C] = dim; 
+}
+
+void SymbolDimTable::beginScope() {
+    ++current_scope;
+    symbol_table.push_back(std::unordered_map<Symbol*, std::vector<int>>());
+}
+
+void SymbolDimTable::endScope() {
+    --current_scope;
+    symbol_table.pop_back();
+}
+
+void SymbolDimTable::display() {
+	std::cerr << "SymbolDimTable::display()\n";
+    for (int i = current_scope; i >= 0; --i) {
+		std::cerr << "current_scope = " << i << " : ";
+		for(auto it :symbol_table[i]){
+			std::cerr << "<" <<it.first->getName();
+			for(int d : it.second) {
+				std::cerr << d << " ";
+			}
+			std::cerr << ">";
+		}
+		std::cerr << "\n";
     }
 }

@@ -39,11 +39,16 @@ class Type {
     public:
         enum TypeKind {
             Builtin=0,
+			Int =1, 
+			Float=2, 
+			String=3 , 
+			Bool=4, 
+			Void=5,
             Pointer=6,
             Array=7
         }kind;
         virtual std::string getString()=0;
-        virtual int getType() = 0;
+        virtual Type::TypeKind getType() = 0;
         virtual ~Type() = default;
 };
     
@@ -55,7 +60,7 @@ class BuiltinType : public Type {
             this->kind = Type::Builtin;
         }
         std::string getString();
-        int getType();
+        Type::TypeKind getType();
 };
 
 class PointerType : public Type {
@@ -65,7 +70,7 @@ class PointerType : public Type {
             this->kind = Type::Pointer;
         }
         std::string getString();
-        int getType();
+        Type::TypeKind getType();
 };
     
 class ArrayType : public Type {
@@ -78,7 +83,7 @@ class ArrayType : public Type {
             this->kind = Type::Array;
         }
         std::string getString();
-        int getType();
+        Type::TypeKind getType();
         bool isFixedSize() const { return length >= 0; }
 };
 
@@ -124,9 +129,20 @@ public:
     std::vector<int> IntInitVals{}; 
     std::vector<float> FloatInitVals{};
 
-    // TODO():也许你需要添加更多变量
     VarAttribute() {
         type = new BuiltinType(BuiltinType::BuiltinKind::Void);
+        ConstTag = false;
+    }
+	    VarAttribute(std::vector<int> Dims, std::vector<int> InitVals) 
+    : dims(Dims), IntInitVals(InitVals)
+    {
+        type = new BuiltinType(BuiltinType::BuiltinKind::Int);
+        ConstTag = false;
+    }
+    VarAttribute(std::vector<int> Dims, std::vector<float> InitVals) 
+    : dims(Dims), FloatInitVals(InitVals)
+    {
+        type = new BuiltinType(BuiltinType::BuiltinKind::Float);
         ConstTag = false;
     }
 };
