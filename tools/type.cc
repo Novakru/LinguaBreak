@@ -73,13 +73,13 @@ std::string ArrayType::getString(){
     return ("Array:"+elementType->getString());
 }
 
-int BuiltinType::getType(){
-    return builtinKind;
+Type::TypeKind BuiltinType::getType(){
+    return (Type::TypeKind)builtinKind;
 }
-int PointerType::getType(){
+Type::TypeKind PointerType::getType(){
     return this->kind;  // 6
 }
-int ArrayType::getType(){
+Type::TypeKind ArrayType::getType(){
 	return this->kind;  // 7
 }
 
