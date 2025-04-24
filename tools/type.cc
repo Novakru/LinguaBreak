@@ -66,22 +66,12 @@ std::string BuiltinType::getString(){
         }
     return "";
 }
-std::string PointerType::getString(){
-    return ("Pointer:"+pointeeType->getString());
-}
-std::string ArrayType::getString(){
-    return ("Array:"+elementType->getString());
+
+
+int BuiltinType::getType(){
+    return builtinKind;
 }
 
-Type::TypeKind BuiltinType::getType(){
-    return (Type::TypeKind)builtinKind;
-}
-Type::TypeKind PointerType::getType(){
-    return this->kind;  // 6
-}
-Type::TypeKind ArrayType::getType(){
-	return this->kind;  // 7
-}
 
 std::string NodeAttribute::GetConstValueInfo() {
     if (!ConstTag) {
@@ -147,7 +137,7 @@ NodeAttribute BinarySemantOperation(NodeAttribute a, NodeAttribute b,OP op,Built
     //但是还需要判断result用哪个val类型来赋值，这取决于resultType
         if constexpr(std::is_same<T,int>::value)
         {
-            std::cout<<"BinarySemantOperation:int\n";
+            //std::cout<<"BinarySemantOperation:int\n";
             if(resultType==BuiltinType::BuiltinKind::Bool){result.val.BoolVal=op(a.val.IntVal,b.val.IntVal);}
             else{result.val.IntVal=op(a.val.IntVal,b.val.IntVal);}
         }
