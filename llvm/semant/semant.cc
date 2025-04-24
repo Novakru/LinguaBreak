@@ -133,10 +133,12 @@ void InitializeSingleValue(InitValBase init, NodeAttribute &val, BuiltinType* in
              (init->getExp()->attribute.type->builtinKind == BuiltinType::Float) ?
              val.IntInitVals.push_back (int(init->getExp()->attribute.val.FloatVal) ):
              val.IntInitVals.push_back (init->getExp()->attribute.val.IntVal);
+             val.val.IntVal=val.IntInitVals[0];
         } else if (initval_type->builtinKind == BuiltinType::Float) {
            (init->getExp()->attribute.type->builtinKind == BuiltinType::Float) ? 
-           val.IntInitVals.push_back( init->getExp()->attribute.val.FloatVal ): 
-           val.IntInitVals.push_back(     float(init->getExp()->attribute.val.IntVal));
+           val.FloatInitVals.push_back( init->getExp()->attribute.val.FloatVal ): 
+           val.FloatInitVals.push_back(     float(init->getExp()->attribute.val.IntVal));
+           val.val.FloatVal=val.FloatInitVals[0];
         }
     }
 }
@@ -228,6 +230,7 @@ void ConstExp::TypeCheck()
 void AddExp::TypeCheck() 
 {
     //std::cout<<"AddExp::TypeCheck() is called!"<<std::endl;
+    //std::cout<<"addExp->attribute.val.IntVal="<<addExp->attribute.val.IntVal<<", mulExp->attribute.val.IntVal="<<mulExp->attribute.val.IntVal<<std::endl;
     addExp->TypeCheck();
     mulExp->TypeCheck();
     if(addExp->attribute.type->isPointer||mulExp->attribute.type->isPointer)
@@ -345,6 +348,7 @@ void Lval::TypeCheck()
     if(val.type->builtinKind!=BuiltinType::Void)//说明是局部变量，找到了val(因为如果没有在局部变量的表symbol_table中找到，会返回NodeAttribute()，默认参数type为void）
     {
         scope=semant_table.symbol_table.findScope(name);// 返回离当前作用域最近的局部变量的作用域
+        //std::cout<<"val.val.IntVal="<<val.val.IntVal<<std::endl;
     }
     else if(semant_table.GlobalTable.find(name)!=semant_table.GlobalTable.end())//在全局变量表中找到了
     {
@@ -370,25 +374,23 @@ void Lval::TypeCheck()
             arrayIndexes.push_back(d->attribute.val.IntVal);
             arrayindexConstTag &=d->attribute.ConstTag;//需要数组元素都有效，arrayIndexes才有效
         }
-         //3.判断数组使用规范
-        if(arrayIndexes.size()==val.dims.size()){//使用维度与定义维度相同，比如定义a[2][3]，使用a[0][1]
-            
-            if(attribute.ConstTag)
-            {
-                if(attribute.type->builtinKind==BuiltinType::Int){attribute.val.IntVal=GetArrayVal(val,arrayIndexes,BuiltinType::Int);}
-                else if(attribute.type->builtinKind==BuiltinType::Float){attribute.val.FloatVal=GetArrayVal(val,arrayIndexes,BuiltinType::Float);}
-            }
-        }
-        else if(arrayIndexes.size()<val.dims.size())//使用维度小于定义维度，比如定义a[2][3]，使用a[0]
+    }
+     //3.判断数组使用规范
+     if(arrayIndexes.size()==val.dims.size()){//使用维度与定义维度相同，比如定义a[2][3]，使用a[0][1]
+        if(attribute.ConstTag)
         {
-            attribute.ConstTag=false;
-            attribute.type->isPointer=true;
-        }
-        else{
-            error_msgs.push_back("Array size is larger than defined size in line " + std::to_string(line) + "\n");
+            if(attribute.type->builtinKind==BuiltinType::Int){attribute.val.IntVal=GetArrayVal(val,arrayIndexes,BuiltinType::Int);}
+            else if(attribute.type->builtinKind==BuiltinType::Float){attribute.val.FloatVal=GetArrayVal(val,arrayIndexes,BuiltinType::Float);}
         }
     }
-
+    else if(arrayIndexes.size()<val.dims.size())//使用维度小于定义维度，比如定义a[2][3]，使用a[0]
+    {
+        attribute.ConstTag=false;
+        attribute.type->isPointer=true;
+    }
+    else{
+        error_msgs.push_back("Array size is larger than defined size in line " + std::to_string(line) + "\n");
+    }
    
 }
 void FuncRParams::TypeCheck() 
@@ -433,6 +435,7 @@ void UnaryExp::TypeCheck()
 {
     //std::cout<<"UnaryExp::TypeCheck() is called!"<<std::endl;
     unaryExp->TypeCheck();
+    //std::cout<<"unaryExp->attribute.val.IntVal="<<unaryExp->attribute.val.IntVal<<std::endl;
     if(unaryExp->attribute.type->isPointer||unaryExp->attribute.type->builtinKind==BuiltinType::Void)
     {
         error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
@@ -447,6 +450,7 @@ void IntConst::TypeCheck()
     attribute.type = new BuiltinType(BuiltinType::Int);
     attribute.ConstTag = true;
     attribute.val.IntVal = val;
+    //std::cout<<"attribute.val.IntVal="<<attribute.val.IntVal<<", val="<<val<<std::endl;
 }
 void FloatConst::TypeCheck() 
 {
@@ -474,6 +478,7 @@ void AssignStmt::TypeCheck()
 void ExprStmt::TypeCheck() 
 {
     //std::cout<<"ExprStmt::TypeCheck() is called!"<<std::endl;
+    if(exp==nullptr){return;}
     exp->TypeCheck();
     attribute = exp->attribute;
 }
@@ -541,6 +546,8 @@ void ConstInitVal::TypeCheck()
     if(exp==nullptr){return;}
     exp->TypeCheck();
     attribute =exp->attribute;
+    //值正确
+    //std::cout<<"attribute.val.IntVal="<<attribute.val.IntVal<<", exp->attribute.val.IntVal="<<exp->attribute.val.IntVal<<std::endl;
     if (!attribute.ConstTag) {    // exp is not const
         error_msgs.push_back("Expression is not const " + std::to_string(line) + "\n");
     }
