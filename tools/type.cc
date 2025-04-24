@@ -193,7 +193,36 @@ NodeAttribute BinarySemantOperation_Div(NodeAttribute a, NodeAttribute b,Builtin
     }
     return result;
 }
-
+template<typename T>
+NodeAttribute BinarySemantOperation_Mod(NodeAttribute a, NodeAttribute b,BuiltinType::BuiltinKind resultType)
+{
+    //std::cout<<"BinarySemantOperation_Mod is called\n";
+    NodeAttribute result;
+    result.type=new BuiltinType(resultType);
+    result.ConstTag=a.ConstTag&b.ConstTag;
+    if(b.ConstTag)
+    {
+        if constexpr(std::is_same<T,int>::value)
+        {
+            std::cout<<"b.val.IntVal"<<b.val.IntVal<<"\n";
+            if(b.val.IntVal==0)
+            {
+                error_msgs.push_back("Divisor cannot be zero " + std::to_string(a.line_number) + "\n");
+                return result;
+            }
+        }
+        
+    }
+    if(result.ConstTag)
+    {
+        if constexpr(std::is_same<T,int>::value)
+        {
+            if(resultType==BuiltinType::BuiltinKind::Bool){result.val.BoolVal=a.val.IntVal/b.val.IntVal;}
+            else{result.val.IntVal=a.val.IntVal%b.val.IntVal;}
+        }
+    }
+    return result;
+}
 //通过两个子节点exp的attribute，操作数类型跳转到这
 NodeAttribute SemantIntInt(NodeAttribute a, NodeAttribute b, OpType::Op opcode) {
     static std::function<NodeAttribute(NodeAttribute, NodeAttribute)> ops[] = {
@@ -203,7 +232,7 @@ NodeAttribute SemantIntInt(NodeAttribute a, NodeAttribute b, OpType::Op opcode) 
         [](NodeAttribute a, NodeAttribute b){ return BinarySemantOperation<int>(a, b, std::minus<>(), BuiltinType::Int); },
         [](NodeAttribute a, NodeAttribute b){ return BinarySemantOperation<int>(a, b, std::multiplies<>(), BuiltinType::Int); },
         [](NodeAttribute a, NodeAttribute b){ return BinarySemantOperation_Div<int>(a, b, BuiltinType::Int); },
-        [](NodeAttribute a, NodeAttribute b){ return BinarySemantOperation<int>(a, b, std::modulus<>(), BuiltinType::Int); },
+        [](NodeAttribute a, NodeAttribute b){ return BinarySemantOperation_Mod<int>(a, b,  BuiltinType::Int); },
         //and or not
         [](NodeAttribute a, NodeAttribute b){ return BinarySemantOperation<int>(a, b, std::logical_and<>(), BuiltinType::Bool); },
         [](NodeAttribute a, NodeAttribute b){ return BinarySemantOperation<int>(a, b, std::logical_or<>(), BuiltinType::Bool); },
