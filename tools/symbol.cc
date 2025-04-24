@@ -31,16 +31,26 @@ void SymbolTable::enter(Symbol* sym, NodeAttribute value) {
 
 NodeAttribute SymbolTable::look(Symbol* sym) {//获取当前作用域下，该symbol对应的node(比如name,type)
     int cur_scope=scopes.size();
-    if(cur_scope!=0)
+    // for(int i=0;i<cur_scope;++i)
+    // {
+    //     std::cout<<"第"<<i<<"层 symbol_table: ";
+    //     for(auto [s,n]:scopes[i])
+    //     {
+    //         std::cout<<s->getName()<<" ";
+    //     }
+    //     std::cout<<std::endl;
+    // }
+    for(int i=cur_scope-1;i>=0;--i)
     {
-        auto it=scopes[cur_scope-1].find(sym);
+        auto it=scopes[i].find(sym);
         //return (it != scopes[cur_scope-1].end()) ? it->second : NodeAttribute();  
-        if(it != scopes[cur_scope-1].end())
+        if(it != scopes[i].end())
         {
             //std::cout<<"Find symbol "<<sym->getName()<<std::endl;
             return it->second;
         }
     }
+  
     //std::cout<<"Not Find symbol "<<sym->getName()<<std::endl;
     return NodeAttribute();  
 }
