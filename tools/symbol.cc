@@ -46,7 +46,7 @@ NodeAttribute SymbolTable::look(Symbol* sym) {//获取当前作用域下，该sy
         //return (it != scopes[cur_scope-1].end()) ? it->second : NodeAttribute();  
         if(it != scopes[i].end())
         {
-            //std::cout<<"Find symbol "<<sym->getName()<<std::endl;
+            //std::cout<<"Find symbol "<<sym->getName()<<",the int value="<<scopes[i][sym].val.IntVal<<std::endl;
             return it->second;
         }
     }
