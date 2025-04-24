@@ -11,8 +11,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument('lab', type=int, default=1)
 parser.add_argument('is_advance', type=int, default=1)
 args = parser.parse_args()
-if(args.lab == 1 or args.lab == 2):
+if(args.lab == 1):
     print("lab1和lab2不支持自动评测, 请自行检查输入和输出")
+elif(args.lab == 2):
+    os.system("rm -rf test_output/functional_testIR/*.ll")
+    if(args.is_advance==False):
+        os.system("python3 test.py testcase/functional_test/Basic test_output/functional_testIR 0 semant")
+    else:
+        os.system("python3 test.py testcase/functional_test/Advanced test_output/functional_testIR 0 semant")
 elif(args.lab == 3):
     os.system("rm -rf test_output/functional_testIR/*.ll")
     if(args.is_advance==False):

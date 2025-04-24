@@ -112,10 +112,10 @@ for file in os.listdir(input_folder):
             ac += execute_llvm(input_path, output_file, stdin, stdout_file, testout, opt_level)
         else:
             if execute_compilation(input_path, output_path, f"-{step}", opt_level):
-                print(f"\033[92mAccept (Compilation) \033[0m{file}")
+                print(f"\033[92mAccept (Compilation) \033[0m{input_path}")
                 ac += 1
             else:
-                print(f"\033[93mCompile Error on \033[0m{file}")
+                print(f"\033[93mCompile Error on \033[0m{input_path}")
 
 print(f"{step.upper()}Test-Grade:{ac}/{total}")
 
