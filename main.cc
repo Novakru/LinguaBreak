@@ -7,7 +7,7 @@
 #include "front_end/sysy_parser.tab.hh"
 #include "include/symbol.h"
 #include "llvm/semant/semant.h"
-#include "include/ir.h"
+//#include "include/ir.h"
 
 
 extern FILE *yyin;
@@ -15,7 +15,7 @@ extern char *yytext;
 extern YYSTYPE yylval;
 extern int error_num;
 extern Program ASTroot;
-extern LLVMIR llvmIR;
+//extern LLVMIR llvmIR;
 extern int yylex();
 extern void dumpTokens(FILE* output, int token, int line_number, char *yytext, YYSTYPE yylval);
 extern std::vector<std::string> error_msgs;//新增
@@ -95,12 +95,12 @@ int main(int argc, char** argv) {
 	}
 
 	/* 【4】 irgen */
-	ASTroot->codeIR();
-    if (strcmp(argv[2], "-llvm") == 0) {
-        llvmIR.printIR(fout);
-        fout.close();
-        return 0;
-    }
+	// ASTroot->codeIR();
+    // if (strcmp(argv[2], "-llvm") == 0) {
+    //     llvmIR.printIR(fout);
+    //     fout.close();
+    //     return 0;
+    // }
 
 	/* 【5】 opt */
     if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
