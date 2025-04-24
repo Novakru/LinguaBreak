@@ -39,63 +39,37 @@ class Type {
     public:
         enum TypeKind {
             Builtin=0,
-			Int =1, 
-			Float=2, 
-			String=3 , 
-			Bool=4, 
-			Void=5,
             Pointer=6,
             Array=7
         }kind;
         virtual std::string getString()=0;
-        virtual Type::TypeKind getType() = 0;
+        virtual int getType()=0;
         virtual ~Type() = default;
 };
     
 class BuiltinType : public Type {
     public:
         enum BuiltinKind { Int =1, Float=2, String=3 , Bool=4, Void=5 }builtinKind;
-        BuiltinType() { builtinKind = BuiltinKind::Void; }
+        bool isPointer;
+        BuiltinType() { builtinKind = BuiltinKind::Void;kind=Type::Builtin;isPointer=false; }
         BuiltinType(BuiltinKind kind) : builtinKind(kind) {
             this->kind = Type::Builtin;
+            isPointer=false;
         }
         std::string getString();
-        Type::TypeKind getType();
+        int getType();
 };
 
-class PointerType : public Type {
-    public:
-        Type* pointeeType;  // the type ptr point to 
-        PointerType(Type* pointee) : pointeeType(pointee) {
-            this->kind = Type::Pointer;
-        }
-        std::string getString();
-        Type::TypeKind getType();
-};
-    
-class ArrayType : public Type {
-    public:
-        Type* elementType;
-        int length;         
-            
-        ArrayType(Type* elementType, int length)
-            : elementType(elementType), length(length) {
-            this->kind = Type::Array;
-        }
-        std::string getString();
-        Type::TypeKind getType();
-        bool isFixedSize() const { return length >= 0; }
-};
 
 class NodeAttribute {
     public:
         int line_number = -1;
-        Type* T;
+        //Type* T;
         BuiltinType* type;
         bool ConstTag;
 
 		// constValue
-        struct ConstVal {
+        union ConstVal {
             bool BoolVal;
             int IntVal;
             float FloatVal;
@@ -129,20 +103,9 @@ public:
     std::vector<int> IntInitVals{}; 
     std::vector<float> FloatInitVals{};
 
+    // TODO():也许你需要添加更多变量
     VarAttribute() {
         type = new BuiltinType(BuiltinType::BuiltinKind::Void);
-        ConstTag = false;
-    }
-	    VarAttribute(std::vector<int> Dims, std::vector<int> InitVals) 
-    : dims(Dims), IntInitVals(InitVals)
-    {
-        type = new BuiltinType(BuiltinType::BuiltinKind::Int);
-        ConstTag = false;
-    }
-    VarAttribute(std::vector<int> Dims, std::vector<float> InitVals) 
-    : dims(Dims), FloatInitVals(InitVals)
-    {
-        type = new BuiltinType(BuiltinType::BuiltinKind::Float);
         ConstTag = false;
     }
 };
