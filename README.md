@@ -15,6 +15,12 @@ make parser # input: sysy_parser.y output: sysy_parser.tab.cc and sysy_parser.ta
 tree -L 3
 ```
 
+### 使用自动测试脚本
+```bash
+mkdir -p test_output/functional_testIR/
+python grade.py 3 0 
+```
+
 ```
 Your Syntax Tree Structure
 │
