@@ -525,7 +525,8 @@ void RetStmt::TypeCheck()
 {
     //std::cout<<"RetStmt::TypeCheck() is called!"<<std::endl;
     retExp->TypeCheck(); 
-     if (retExp->attribute.type->builtinKind == BuiltinType::Void) {
+	attribute.type->builtinKind = retExp->attribute.type->builtinKind; // ret_type
+	if (retExp->attribute.type->builtinKind == BuiltinType::Void) {
         error_msgs.push_back("Return type is invalid in line " + std::to_string(line) + "\n");
     }
 }

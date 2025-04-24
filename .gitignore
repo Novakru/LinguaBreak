@@ -6,3 +6,4 @@ testcase/
 debug.sy
 output.txt
 semant_output.txt
+test_output/
