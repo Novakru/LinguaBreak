@@ -21,6 +21,21 @@ mkdir -p test_output/functional_testIR/
 python grade.py 3 0 
 ```
 
+### 使用gdb调试
+```bash
+# 1. 确保你编译时加了 -g 开启调试信息
+make clean && make CXXFLAGS="-g"
+
+# 2. 使用 gdb 启动程序
+gdb --args ./bin/SysYc ./testcase/example/temp.sy -semant ./testcase/example/lexer_out.txt
+
+# 3. 在 gdb 中运行程序
+(gdb) run
+
+# 4. 程序崩溃后输入：
+(gdb) bt
+```
+
 ```
 Your Syntax Tree Structure
 │

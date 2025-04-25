@@ -235,7 +235,7 @@ void AddExp::TypeCheck()
     mulExp->TypeCheck();
     if(addExp->attribute.type->isPointer||mulExp->attribute.type->isPointer)
     {
-        error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
+        error_msgs.push_back("AddExp invalid operators in line " + std::to_string(line) + "\n");
     }
     auto key = std::make_pair(addExp->attribute.type->builtinKind, mulExp->attribute.type->builtinKind);
     auto it = SemantBinaryNodeMap.find(key);
@@ -363,8 +363,7 @@ void Lval::TypeCheck()
     //2.处理数组[]部分
     std::vector<int> arrayIndexes;
     bool arrayindexConstTag=true;//有效位
-    attribute.ConstTag=val.ConstTag&arrayindexConstTag;
-    attribute.type=val.type;
+    
     if(dims!=nullptr)
     {
         for(auto d:*dims)
@@ -377,6 +376,10 @@ void Lval::TypeCheck()
     }
      //3.判断数组使用规范
      if(arrayIndexes.size()==val.dims.size()){//使用维度与定义维度相同，比如定义a[2][3]，使用a[0][1]
+        //std::cout<<"arrayIndexes.size()==val.dims.size()! "<<arrayIndexes.size()<<","<<val.dims.size()<<std::endl;
+        attribute.ConstTag=val.ConstTag&arrayindexConstTag;
+        attribute.type=val.type;
+        attribute.type->isPointer=false;
         if(attribute.ConstTag)
         {
             if(attribute.type->builtinKind==BuiltinType::Int){attribute.val.IntVal=GetArrayVal(val,arrayIndexes,BuiltinType::Int);}
@@ -385,6 +388,8 @@ void Lval::TypeCheck()
     }
     else if(arrayIndexes.size()<val.dims.size())//使用维度小于定义维度，比如定义a[2][3]，使用a[0]
     {
+        //std::cout<<"arrayIndexes.size()<val.dims.size()! "<<arrayIndexes.size()<<","<<val.dims.size()<<std::endl;
+        attribute.type=val.type;
         attribute.ConstTag=false;
         attribute.type->isPointer=true;
     }
@@ -398,6 +403,7 @@ void FuncRParams::TypeCheck()
     //std::cout<<"FuncRParams::TypeCheck() is called!"<<std::endl;
     for (auto param : *rParams) {
         param->TypeCheck();
+        //std::cout<<"param->attribute.type->builtinKind="<<param->attribute.type->builtinKind<<std::endl;
         if (param->attribute.type->builtinKind == BuiltinType::Void) {
             error_msgs.push_back("FuncRParam is void in line " + std::to_string(line) + "\n");
         }
@@ -408,7 +414,7 @@ void FuncCall::TypeCheck()
     //std::cout<<"FuncCall::TypeCheck() is called!"<<std::endl;
      //1.查找函数是否存在
      auto it = semant_table.FunctionTable.find(name->getName());
-    ////std::cout<<"func_call name="<<name->getName()<<std::endl;
+   // std::cout<<"func_call name="<<name->getName()<<std::endl;
      if (it == semant_table.FunctionTable.end()) {
          error_msgs.push_back("Function is undefined in line " + std::to_string(line) + "\n");
          return;
@@ -529,11 +535,15 @@ void BreakStmt::TypeCheck()
 void RetStmt::TypeCheck() 
 {
     //std::cout<<"RetStmt::TypeCheck() is called!"<<std::endl;
-    retExp->TypeCheck(); 
-	attribute.type->builtinKind = retExp->attribute.type->builtinKind; // ret_type
-	if (retExp->attribute.type->builtinKind == BuiltinType::Void) {
-        error_msgs.push_back("Return type is invalid in line " + std::to_string(line) + "\n");
+    if(retExp!=nullptr)
+    {
+        retExp->TypeCheck(); 
+        attribute.type->builtinKind = retExp->attribute.type->builtinKind; // ret_type
+        if (retExp->attribute.type->builtinKind == BuiltinType::Void) {
+            error_msgs.push_back("Return type is invalid in line " + std::to_string(line) + "\n");
+        }
     }
+	
 }
 void ConstInitValList::TypeCheck() 
 {
@@ -714,6 +724,7 @@ void __FuncFParam::TypeCheck()
     NodeAttribute val;
     val.ConstTag = false;
     val.type = (BuiltinType*)type_decl;
+   // std::cout<<"val.type->builtinKind="<<val.type->builtinKind<<std::endl;//此处type没有问题
     scope = 1;
 
     // 如果dims为nullptr, 表示该变量不含数组下标, 如果你在语法分析中采用了其他方式处理，这里也需要更改
@@ -736,7 +747,7 @@ void __FuncFParam::TypeCheck()
     }
 
     if (name != nullptr) {
-        if (semant_table.symbol_table.findScope(name) != -1) {
+        if (semant_table.symbol_table.findScope(name) >0) {//全局变量不算
             error_msgs.push_back("multiple difinitions of formals in function " + name->getName() + " in line " +
                                  std::to_string(line) + "\n");
         }

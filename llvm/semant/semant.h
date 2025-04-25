@@ -34,15 +34,15 @@
          Symbol* getfloat = id_table.add_id("getfloat");
          FunctionTable["getfloat"] = new __FuncDef(new BuiltinType(BuiltinType::Float), getfloat, new std::vector<FuncFParam>{}, nullptr);
  
-        //  Symbol* getarray = id_table.add_id("getarray");
-        //  FunctionTable["getarray"] = new __FuncDef(
-        //  new BuiltinType(BuiltinType::Int), getarray,
-        //  new std::vector<FuncFParam>{new __FuncFParam(new BuiltinType(BuiltinType::Int), new std::vector<ExprBase>(1, nullptr))}, nullptr);
+         Symbol* getarray = id_table.add_id("getarray");
+         FunctionTable["getarray"] = new __FuncDef(
+         new BuiltinType(BuiltinType::Int), getarray,
+         new std::vector<FuncFParam>{new __FuncFParam(new BuiltinType(BuiltinType::Int), new std::vector<ExprBase>(1, nullptr))}, nullptr);
  
-        //  Symbol* getfarray = id_table.add_id("getfarray");
-        //  FunctionTable["getfarray"] = new __FuncDef(
-        //  new BuiltinType(BuiltinType::Int), getfarray,
-        //  new std::vector<FuncFParam>{new __FuncFParam(new BuiltinType(BuiltinType::Float), new std::vector<ExprBase>(1, nullptr))}, nullptr);
+         Symbol* getfarray = id_table.add_id("getfarray");
+         FunctionTable["getfarray"] = new __FuncDef(
+         new BuiltinType(BuiltinType::Int), getfarray,
+         new std::vector<FuncFParam>{new __FuncFParam(new BuiltinType(BuiltinType::Float), new std::vector<ExprBase>(1, nullptr))}, nullptr);
  
          Symbol* putint = id_table.add_id("putint");
          FunctionTable["putint"] =

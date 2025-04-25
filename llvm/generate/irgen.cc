@@ -1831,6 +1831,8 @@ void __FuncDef::codeIR() {
 void CompUnit_Decl::codeIR() { decl->codeIR();}
 void CompUnit_FuncDef::codeIR() { func_def->codeIR();}
 void __Program::codeIR() {
+	irgen_table.symbol_table.beginScope();
+	irgen_table.symboldim_table.beginScope();
     AddLibFunctionDeclare();
     auto comp_vector = *comp_list;
     for (auto comp : comp_vector) {
