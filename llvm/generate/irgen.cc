@@ -925,7 +925,10 @@ void AssignStmt::codeIR() {
 	IRgenStore(entrybb, instType, tempop, currentptr);
 }
 
-void ExprStmt::codeIR() {exp->codeIR();}
+void ExprStmt::codeIR() {
+	if(exp != nullptr) 
+		exp->codeIR();
+}
 
 void BlockStmt::codeIR() {
 	irgen_table.symbol_table.beginScope();

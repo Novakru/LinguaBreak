@@ -9,6 +9,8 @@
 #include "llvm/semant/semant.h"
 #include "include/ir.h"
 
+#include "llvm/optimize/transform/simplify_cfg.h"
+
 
 extern FILE *yyin;
 extern char *yytext;
@@ -96,7 +98,9 @@ int main(int argc, char** argv) {
 
 	/* 【4】 irgen */
 	ASTroot->codeIR();
-    if (strcmp(argv[2], "-llvm") == 0) {
+	llvmIR.CFGInit();
+	SimplifyCFGPass(&llvmIR).Execute();
+	if (strcmp(argv[2], "-llvm") == 0) {
         llvmIR.printIR(fout);
         fout.close();
         return 0;
@@ -106,8 +110,6 @@ int main(int argc, char** argv) {
     if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
         
     }
-
-
 
 	/* parser and so on */
 	// if (strcmp(argv[2], "-parser") == 0) {

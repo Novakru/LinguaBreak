@@ -21,6 +21,14 @@ mkdir -p test_output/functional_testIR/
 python grade.py 3 0 
 ```
 
+### 测试自己的中间代码
+```bash
+./bin/SysYc ./test_output/example/temp.sy -llvm ./test_output/example/temp.out.ll
+clang test_output/example/temp.out.ll -c -o test_output/example/temp.o -w
+clang -static  test_output/example/temp.o ./lib/libsysy_x86.a -o test_output/example/temp
+./test_output/example/temp (< ./testcase/functional_test/Advanced/lisp2.in)
+```
+
 ### 使用gdb调试
 ```bash
 # 1. 确保你编译时加了 -g 开启调试信息
