@@ -49,16 +49,17 @@ std::string OpType::GetOpTypeString(){
 }
 
 std::string BuiltinType::getString(){
+	std::string pointerTag = (this->isPointer) ? "(Ptr)" : "";
     std::string str="Builtin:";
         switch(builtinKind){
             case Int:
-                return str+"Int";
+                return str+"Int"+pointerTag;
             case Float:
-                return str+"Float";
+                return str+"Float"+pointerTag;
             case String:
-                return str+"String";
+                return str+"String"+pointerTag;
             case Bool:
-                return str+"Bool";
+                return str+"Bool"+pointerTag;
             case Void:
                 return str+"Void";
             default:

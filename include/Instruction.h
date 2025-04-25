@@ -113,6 +113,7 @@ public:
     BasicOperand() {}
     operand_type GetOperandType() { return operandType; }
     virtual std::string GetFullName() = 0;
+    virtual Operand CopyOperand() = 0;
 };
 
 // @register operand;%r+register No
@@ -128,6 +129,7 @@ public:
 
     friend RegOperand *GetNewRegOperand(int RegNo);
     virtual std::string GetFullName();
+    virtual Operand CopyOperand();
 };
 RegOperand *GetNewRegOperand(int RegNo);
 
@@ -143,6 +145,7 @@ public:
         this->immVal = immVal;
     }
     virtual std::string GetFullName();
+    virtual Operand CopyOperand();
 };
 
 // @integer64 immediate
@@ -157,6 +160,7 @@ public:
         this->immVal = immVal;
     }
     virtual std::string GetFullName();
+    virtual Operand CopyOperand();
 };
 
 // @float32 immediate
@@ -173,6 +177,7 @@ public:
         this->immVal = immVal;
     }
     virtual std::string GetFullName();
+    virtual Operand CopyOperand();
 };
 
 // @label %L+label No
@@ -188,6 +193,7 @@ public:
 
     friend LabelOperand *GetNewLabelOperand(int LabelNo);
     virtual std::string GetFullName();
+    virtual Operand CopyOperand();
 };
 
 LabelOperand *GetNewLabelOperand(int RegNo);
@@ -205,6 +211,7 @@ public:
 
     friend GlobalOperand *GetNewGlobalOperand(std::string name);
     virtual std::string GetFullName();
+    virtual Operand CopyOperand();
 };
 
 GlobalOperand *GetNewGlobalOperand(std::string name);
@@ -267,7 +274,7 @@ public:
 
     enum FcmpCond {
         FALSE = 1,    //: no comparison, always returns false
-        OEQ = 2,      // ordered and equal
+        OEQ = 2,      //: ordered and equal
         OGT = 3,      //: ordered and greater than
         OGE = 4,      //: ordered and greater than or equal
         OLT = 5,      //: ordered and less than
@@ -285,14 +292,23 @@ public:
     };
 
 private:
+    int BlockID = 0;
 
 protected:
     LLVMIROpcode opcode;
 
 public:
     int GetOpcode() { return opcode; }    // one solution: convert to pointer of subclasses
+    int GetBlockID(){ return BlockID; }
+    void SetBlockID(int id){ BlockID = id; }
 
     virtual void PrintIR(std::ostream &s) = 0;
+    virtual void ReplaceRegByMap(const std::map<int, int> &Rule) = 0;
+    virtual void ReplaceLabelByMap(const std::map<int, int> &Rule) = 0;
+    virtual Operand GetResult() = 0;
+    virtual std::vector<Operand> GetNonResultOperands() = 0;
+    virtual Instruction CopyInstruction() = 0;
+    virtual void SetNonResultOperands(std::vector<Operand> opvec) = 0;
 };
 
 // load
@@ -315,14 +331,19 @@ public:
         this->pointer = pointer;
     }
     void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
 };
 
 // store
 // Syntax: store <ty> <value>, ptr<pointer>
 class StoreInstruction : public BasicInstruction {
     enum LLVMType type;
-    Operand pointer;
-    Operand value;
+    Operand pointer;		// the address want to be store
+    Operand value;			// the value want to be store
 
 public:
     enum LLVMType GetDataType() { return type; }
@@ -339,6 +360,12 @@ public:
     }
 
     virtual void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    Operand GetResult(){ return nullptr; };
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
 };
 
 //<result>=add <ty> <op1>,<op2>
@@ -370,6 +397,11 @@ public:
     }
 
     virtual void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
 };
 
 //<result>=icmp <cond> <ty> <op1>,<op2>
@@ -399,6 +431,11 @@ public:
         this->result = result;
     }
     virtual void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
 };
 
 //<result>=fcmp <cond> <ty> <op1>,<op2>
@@ -425,10 +462,16 @@ public:
         this->result = result;
     }
     virtual void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
 };
 
 // phi syntax:
 //<result>=phi <ty> [val1,label1],[val2,label2],……
+// pair.first -> label ; pair.second -> val
 class PhiInstruction : public BasicInstruction {
 private:
     enum LLVMType type;
@@ -448,6 +491,18 @@ public:
         this->result = result;
     }
     virtual void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule);
+    void SetNewLabelFrom(int old_id, int new_id);
+    Operand GetResult(){ return result; };
+    LLVMType GetResultType(){ return type; };
+    void SetResult(Operand op){ result = op; }
+    std::vector<std::pair<Operand, Operand>> GetPhiList(){ return phi_list; }
+    void SetPhiList(std::vector<std::pair<Operand, Operand>> pairlist){ phi_list = pairlist; }
+    std::vector<Operand> GetNonResultOperands();
+    void AddNewPhiPair(std::pair<Operand, Operand> new_pair){ phi_list.push_back(new_pair);}
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
 };
 
 // alloca
@@ -475,6 +530,11 @@ public:
     }
 
     virtual void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec) {};
 };
 
 // Conditional branch
@@ -495,8 +555,17 @@ public:
         this->trueLabel = trueLabel;
         this->falseLabel = falseLabel;
     }
+    void SetCond(Operand op){ cond = op; }
+    void SetTrueLabel(Operand op){ trueLabel = op; }
+    void SetFalseLabel(Operand op){ falseLabel = op; }
 
     virtual void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule);
+    Operand GetResult(){ return nullptr; };
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
 };
 
 // Unconditional branch
@@ -511,7 +580,14 @@ public:
         this->opcode = BR_UNCOND;
         this->destLabel = destLabel;
     }
+    void SetTarget(Operand op){ destLabel = op; }
     virtual void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule){};
+    void ReplaceLabelByMap(const std::map<int, int> &Rule);
+    Operand GetResult(){ return nullptr; };
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec) {};
 };
 
 /*
@@ -540,6 +616,12 @@ public:
         this->opcode = LLVMIROpcode::GLOBAL_VAR;
     }
     virtual void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    Operand GetResult(){ return nullptr; };
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction() { return nullptr; }
+    void SetNonResultOperands(std::vector<Operand> opvec) {};
 };
 
 class GlobalStringConstInstruction : public BasicInstruction {
@@ -551,6 +633,12 @@ public:
     }
 
     virtual void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule){};
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    Operand GetResult(){ return nullptr; };
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction() { return nullptr; }
+    void SetNonResultOperands(std::vector<Operand> opvec) {};
 };
 
 /*
@@ -598,6 +686,13 @@ public:
     void push_back_Parameter(std::pair<enum LLVMType, Operand> newPara) { args.push_back(newPara); }
     void push_back_Parameter(enum LLVMType type, Operand val) { args.push_back(std::make_pair(type, val)); }
     virtual void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    Operand GetResult(){ return result; };
+    LLVMType GetRetType(){ return ret_type; };
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
 };
 
 /*
@@ -625,6 +720,12 @@ public:
     Operand GetRetVal() { return ret_val; }
 
     virtual void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    Operand GetResult(){ return nullptr; };
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
 };
 
 /*
@@ -670,6 +771,11 @@ public:
     std::vector<Operand> GetIndexes() { return indexes; }
 
     void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
 };
 
 class FunctionDefineInstruction : public BasicInstruction {
@@ -692,6 +798,12 @@ public:
     std::string GetFunctionName() { return Func_name; }
 
     void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    Operand GetResult(){ return nullptr; };
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction() { return nullptr; }
+    void SetNonResultOperands(std::vector<Operand> opvec) {};
 };
 typedef FunctionDefineInstruction *FuncDefInstruction;
 
@@ -711,6 +823,12 @@ public:
     std::string GetFunctionName() { return Func_name; }
 
     void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule){};
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    Operand GetResult(){ return nullptr; };
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction() { return nullptr; }
+    void SetNonResultOperands(std::vector<Operand> opvec) {};
 };
 
 // 这条指令目前只支持float和i32的转换，如果你需要double, i64等类型，需要自己添加更多变量
@@ -727,6 +845,11 @@ public:
     Operand GetResult() { return result; }
     Operand GetSrc() { return value; }
     void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
 };
 
 // 这条指令目前只支持float和i32的转换，如果你需要double, i64等类型，需要自己添加更多变量
@@ -744,6 +867,11 @@ public:
     Operand GetResult() { return result; }
     Operand GetSrc() { return value; }
     void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
 };
 
 // 无符号扩展，你大概率需要它来将i1无符号扩展至i32(即对应c语言bool类型转int)
@@ -762,6 +890,13 @@ public:
         this->opcode = ZEXT;
     }
     void PrintIR(std::ostream &s);
+    void ReplaceRegByMap(const std::map<int, int> &Rule);
+    void ReplaceLabelByMap(const std::map<int, int> &Rule){};
+    std::vector<Operand> GetNonResultOperands();
+    virtual Instruction CopyInstruction();
+    void SetNonResultOperands(std::vector<Operand> opvec);
+    LLVMType GetFromType(){ return from_type; }
+    LLVMType GetToType(){ return to_type; }
 };
 
 std::ostream &operator<<(std::ostream &s, BasicInstruction::LLVMType type);
@@ -769,7 +904,6 @@ std::ostream &operator<<(std::ostream &s, BasicInstruction::LLVMIROpcode type);
 std::ostream &operator<<(std::ostream &s, BasicInstruction::IcmpCond type);
 std::ostream &operator<<(std::ostream &s, BasicInstruction::FcmpCond type);
 std::ostream &operator<<(std::ostream &s, Operand op);
-
 // for binary irgen
 BasicInstruction::LLVMIROpcode mapToLLVMOpcodeInt(OpType::Op op);
 BasicInstruction::LLVMIROpcode mapToLLVMOpcodeFloat(OpType::Op op);

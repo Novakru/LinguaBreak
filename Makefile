@@ -3,7 +3,8 @@ SRCDIR += .
 SRCDIR += ./tools
 SRCDIR += ./llvm/generate
 SRCDIR += ./llvm/semant
-# SRCDIR += ./front_end  # 取消注释(multi defined)
+SRCDIR += ./llvm/optimize/analysis
+SRCDIR += ./llvm/optimize/transform
 
 # 显式列出所有源文件（确保包含实现文件）
 SRCS := $(wildcard *.cc)
