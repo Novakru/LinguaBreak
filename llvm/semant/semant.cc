@@ -388,7 +388,7 @@ void Lval::TypeCheck()
     }
     else if(arrayIndexes.size()<val.dims.size())//使用维度小于定义维度，比如定义a[2][3]，使用a[0]
     {
-        //std::cout<<"arrayIndexes.size()<val.dims.size()! "<<arrayIndexes.size()<<","<<val.dims.size()<<std::endl;
+        std::cout<<name->getName()<<" arrayIndexes.size()<val.dims.size()! "<<arrayIndexes.size()<<","<<val.dims.size()<<std::endl;
         attribute.type=val.type;
         attribute.ConstTag=false;
         attribute.type->isPointer=true;
