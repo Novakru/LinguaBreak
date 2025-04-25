@@ -786,9 +786,12 @@ void FuncRParams::codeIR() {
 		auto expType = exp->attribute.type->getType();
 		auto fparamsType = fparam->type_decl->getType();
 
+		// std::cerr << exp->attribute.type->isPointer << std::endl;
 		exp->codeIR();
 
-		if (expType == BuiltinType::BuiltinKind::Float) {
+		if(exp->attribute.type->isPointer){
+			paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::PTR, currentop));
+		} else if (expType == BuiltinType::BuiltinKind::Float) {
 			if (fparamsType == BuiltinType::BuiltinKind::Int) {
 				BinaryFloattoIntConverse(GetCurrentBlock(), currentop);
 				paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::I32, currentop));
@@ -802,9 +805,7 @@ void FuncRParams::codeIR() {
 				BinaryInttoFloatConverse(GetCurrentBlock(), currentop);
 				paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::FLOAT32, currentop));
 			}
-		} else {
-			paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::PTR, currentop));
-		}
+		} 
 
 	}
 
