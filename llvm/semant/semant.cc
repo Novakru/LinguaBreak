@@ -19,6 +19,8 @@ static int GlobalStrCnt = 0;
 //std::map<std::string, NodeAttribute> StaticGlobalMap;
 static int whileCount = 0;
 
+BuiltinType::BuiltinKind func_rettype;  // 记录当前函数的返回值类型，方便返回值的类型转换
+
 
 //数组声明时，根据初始化列表收集初始化值
 /*
@@ -388,7 +390,7 @@ void Lval::TypeCheck()
     }
     else if(arrayIndexes.size()<val.dims.size())//使用维度小于定义维度，比如定义a[2][3]，使用a[0]
     {
-        //std::cout<<name->getName()<<" arrayIndexes.size()<val.dims.size()! "<<arrayIndexes.size()<<","<<val.dims.size()<<std::endl;
+        // std::cout<<name->getName()<<" arrayIndexes.size()<val.dims.size()! "<<arrayIndexes.size()<<","<<val.dims.size()<<std::endl;
         //attribute.type=val.type;
         attribute.ConstTag=false;
         //attribute.type->isPointer=true;
@@ -544,10 +546,12 @@ void BreakStmt::TypeCheck()
 void RetStmt::TypeCheck() 
 {
     //std::cout<<"RetStmt::TypeCheck() is called!"<<std::endl;
+	attribute.type->builtinKind = func_rettype;
+	// std::cout << attribute.type->getString() << std::endl;
     if(retExp!=nullptr)
     {
         retExp->TypeCheck(); 
-        attribute.type->builtinKind = retExp->attribute.type->builtinKind; // ret_type
+        // attribute.type->builtinKind = retExp->attribute.type->builtinKind; // ret_type
         if (retExp->attribute.type->builtinKind == BuiltinType::Void) {
             error_msgs.push_back("Return type is invalid in line " + std::to_string(line) + "\n");
         }
@@ -751,7 +755,7 @@ void __FuncFParam::TypeCheck()
         }
         
        // attribute.type->isPointer=true;
-	   if(attribute.type->getType() == BuiltinType::Float) {
+	   if(type_decl->getType() == (int)BuiltinType::Float) {
 			attribute.type->builtinKind=BuiltinType::FloatPtr;
 	   } else {
 			attribute.type->builtinKind=BuiltinType::IntPtr;
@@ -780,6 +784,7 @@ void __FuncDef::TypeCheck()
         formal->TypeCheck();//逐一检查函数参数
     }
 
+	func_rettype = (BuiltinType::BuiltinKind)return_type->getType();
     // block TypeCheck
     if (block != nullptr) {
         auto item_vector = *(block->item_list);

@@ -636,6 +636,10 @@ void LOrExp::codeIR() {
 void Lval::codeIR() {
     isRightlval = 1;
 
+	// if(isParam){
+	// 	std::cout << attribute.type->getString() << std::endl;
+	// }
+
     if(dims == nullptr && !attribute.type->checkPointer()){  
         if(isParam || (isRightlval && !isLeftlval)){
             if(ptrmap.find(name) == ptrmap.end()){
@@ -731,7 +735,9 @@ void Lval::codeIR() {
 		std::vector<int> localDim = irgen_table.symboldim_table.look(name);
 		std::vector<int> globalDim = semant_table.GlobalTable[name].dims;
 		std::vector<int> loadDim = (irgen_table.symboldim_table.look(name) == std::vector<int> ({-1})) ? globalDim : localDim;
-		// std::cout << attribute.type->getString() << std::endl;
+		// if(isParam){
+		// 	std::cout << attribute.type->getString() << " loadDim.size()=" << loadDim.size() << std::endl;
+		// }
 		if(attribute.type->getType() == BuiltinType::BuiltinKind::Int || attribute.type->getType() == BuiltinType::BuiltinKind::IntPtr){
 			IRgenGetElementptrIndexI32(entrybb, 
 				BasicInstruction::LLVMType::I32, 
@@ -1127,6 +1133,7 @@ void RetStmt::codeIR() {
     auto &retbb = GetCurrentBlock();
 	
 	auto ty = attribute.type->getType();
+	// std::cout << attribute.type->getString() << std::endl;
     if(ty == BuiltinType::BuiltinKind::Void){
         IRgenRetVoid(retbb);
     }else if(ty == BuiltinType::BuiltinKind::Int){

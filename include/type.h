@@ -59,7 +59,7 @@ class BuiltinType : public Type {
         std::string getString();
         int getType();
 		bool checkPointer(){
-			return (builtinKind == BuiltinKind::FloatPtr || builtinKind == BuiltinKind::FloatPtr);
+			return (builtinKind == BuiltinKind::FloatPtr || builtinKind == BuiltinKind::IntPtr);
 		}
 };
 
