@@ -636,7 +636,7 @@ void LOrExp::codeIR() {
 void Lval::codeIR() {
     isRightlval = 1;
 
-    if(dims == nullptr && attribute.type->getType() != Type::Pointer){  
+    if(dims == nullptr && !attribute.type->checkPointer()){  
         if(isParam || (isRightlval && !isLeftlval)){
             if(ptrmap.find(name) == ptrmap.end()){
                 assert("returnop is not define in Lval::codeIR");
@@ -731,25 +731,25 @@ void Lval::codeIR() {
 		std::vector<int> localDim = irgen_table.symboldim_table.look(name);
 		std::vector<int> globalDim = semant_table.GlobalTable[name].dims;
 		std::vector<int> loadDim = (irgen_table.symboldim_table.look(name) == std::vector<int> ({-1})) ? globalDim : localDim;
-		if(attribute.type->getType() == BuiltinType::BuiltinKind::Int || attribute.type->isPointer){
-			if(attribute.type->getType() == BuiltinType::BuiltinKind::Int) {
-				IRgenGetElementptrIndexI32(entrybb, 
-					BasicInstruction::LLVMType::I32, 
-					max_reg,
-					loadVar,
-					loadDim,
-					dim);
-				optype_map[max_reg] = operand_type::I32_PTR;
-			} else if(attribute.type->getType() == BuiltinType::BuiltinKind::Float) {
-				IRgenGetElementptrIndexI32(entrybb, 
-					BasicInstruction::LLVMType::FLOAT32, 
-					max_reg,
-					loadVar,
-					loadDim,
-					dim);
-				optype_map[max_reg] = operand_type::FLOAT32_PTR;
-			}
-   		}
+		// std::cout << attribute.type->getString() << std::endl;
+		if(attribute.type->getType() == BuiltinType::BuiltinKind::Int || attribute.type->getType() == BuiltinType::BuiltinKind::IntPtr){
+			IRgenGetElementptrIndexI32(entrybb, 
+				BasicInstruction::LLVMType::I32, 
+				max_reg,
+				loadVar,
+				loadDim,
+				dim);
+			optype_map[max_reg] = operand_type::I32_PTR;
+		} else if(attribute.type->getType() == BuiltinType::BuiltinKind::Float ||  attribute.type->getType() == BuiltinType::BuiltinKind::FloatPtr) {
+			IRgenGetElementptrIndexI32(entrybb, 
+				BasicInstruction::LLVMType::FLOAT32, 
+				max_reg,
+				loadVar,
+				loadDim,
+				dim);
+			optype_map[max_reg] = operand_type::FLOAT32_PTR;
+		}
+   		
 
 		currentptr = ptrreg;
         if(attribute.type->getType() == BuiltinType::BuiltinKind::Int){
@@ -786,12 +786,11 @@ void FuncRParams::codeIR() {
 		auto expType = exp->attribute.type->getType();
 		auto fparamsType = fparam->type_decl->getType();
 
-		// std::cerr << exp->attribute.type->isPointer << std::endl;
 		exp->codeIR();
 
-		if(exp->attribute.type->isPointer){
-			paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::PTR, currentop));
-		} else if (expType == BuiltinType::BuiltinKind::Float) {
+		// std::cerr << exp->attribute.type->checkPointer() << std::endl;
+		// std::cerr << exp->attribute.type->getString() << std::endl;
+		if (expType == BuiltinType::BuiltinKind::Float) {
 			if (fparamsType == BuiltinType::BuiltinKind::Int) {
 				BinaryFloattoIntConverse(GetCurrentBlock(), currentop);
 				paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::I32, currentop));
@@ -805,7 +804,9 @@ void FuncRParams::codeIR() {
 				BinaryInttoFloatConverse(GetCurrentBlock(), currentop);
 				paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::FLOAT32, currentop));
 			}
-		} 
+		} else {
+			paramsvec.push_back(std::make_pair(BasicInstruction::LLVMType::PTR, currentop));
+		}
 
 	}
 

@@ -239,6 +239,7 @@ void LOrExp::printAST(std::ostream &s, int pad) {
 
 
 void Lval::printAST(std::ostream &s, int pad) {
+   // s<<"isp="<<attribute.type->isPointer;
     s << std::string(pad, ' ') << "Lval   " << attribute.GetAttributeInfo() << "   name:" << name->getName() << "   "
        << "scope:" << scope << "\n";
     if (dims != nullptr) {

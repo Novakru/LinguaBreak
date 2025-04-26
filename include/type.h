@@ -49,7 +49,7 @@ class Type {
     
 class BuiltinType : public Type {
     public:
-        enum BuiltinKind { Int =1, Float=2, String=3 , Bool=4, Void=5 }builtinKind;
+        enum BuiltinKind { Int =1, Float=2, String=3 , Bool=4, Void=5 , IntPtr=6, FloatPtr=7}builtinKind;
         bool isPointer;
         BuiltinType() { builtinKind = BuiltinKind::Void;kind=Type::Builtin;isPointer=false; }
         BuiltinType(BuiltinKind kind) : builtinKind(kind) {
@@ -58,6 +58,9 @@ class BuiltinType : public Type {
         }
         std::string getString();
         int getType();
+		bool checkPointer(){
+			return (builtinKind == BuiltinKind::FloatPtr || builtinKind == BuiltinKind::FloatPtr);
+		}
 };
 
 

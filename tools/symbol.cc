@@ -23,6 +23,7 @@ std::string Symbol::getName() const {
 
 void SymbolTable::enter(Symbol* sym, NodeAttribute value) {
     //std::cout<<"ADD symbol "<<sym->getName()<<" in scope"<<scopes.size()-1<<std::endl;
+    //std::cout<<"ADD symbol "<<sym->getName()<<" ,val.isptr="<<value.type->isPointer<<std::endl;
     if (!scopes.empty()&&sym!=nullptr) {
         int cur_scope=scopes.size();
         scopes[cur_scope-1][sym]=value;
@@ -36,7 +37,7 @@ NodeAttribute SymbolTable::look(Symbol* sym) {//获取当前作用域下，该sy
     //     std::cout<<"第"<<i<<"层 symbol_table: ";
     //     for(auto [s,n]:scopes[i])
     //     {
-    //         std::cout<<s->getName()<<" ";
+    //         std::cout<<s->getName()<<" "<<n.type->isPointer<<",";
     //     }
     //     std::cout<<std::endl;
     // }
@@ -47,6 +48,7 @@ NodeAttribute SymbolTable::look(Symbol* sym) {//获取当前作用域下，该sy
         if(it != scopes[i].end())
         {
             //std::cout<<"Find symbol "<<sym->getName()<<",the int value="<<scopes[i][sym].val.IntVal<<std::endl;
+            // std::cout<<"Find symbol "<<sym->getName()<<",ptr="<<it->second.type->isPointer<<std::endl;
             return it->second;
         }
     }
