@@ -233,10 +233,10 @@ void AddExp::TypeCheck()
     //std::cout<<"addExp->attribute.val.IntVal="<<addExp->attribute.val.IntVal<<", mulExp->attribute.val.IntVal="<<mulExp->attribute.val.IntVal<<std::endl;
     addExp->TypeCheck();
     mulExp->TypeCheck();
-    if(addExp->attribute.type->isPointer||mulExp->attribute.type->isPointer)
-    {
-        error_msgs.push_back("AddExp invalid operators in line " + std::to_string(line) + "\n");
-    }
+    // if(addExp->attribute.type->isPointer||mulExp->attribute.type->isPointer)
+    // {
+    //     error_msgs.push_back("AddExp invalid operators in line " + std::to_string(line) + "\n");
+    // }
     auto key = std::make_pair(addExp->attribute.type->builtinKind, mulExp->attribute.type->builtinKind);
     auto it = SemantBinaryNodeMap.find(key);
     if (it != SemantBinaryNodeMap.end()) {
@@ -252,10 +252,10 @@ void MulExp::TypeCheck()
     //std::cout<<"MulExp::TypeCheck() is called!"<<std::endl;
     mulExp->TypeCheck();
     unaryExp->TypeCheck();
-    if(unaryExp->attribute.type->isPointer||mulExp->attribute.type->isPointer)
-    {
-        error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
-    }
+    // if(unaryExp->attribute.type->isPointer||mulExp->attribute.type->isPointer)
+    // {
+    //     error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
+    // }
     auto key = std::make_pair(mulExp->attribute.type->builtinKind,unaryExp->attribute.type->builtinKind);
     auto it = SemantBinaryNodeMap.find(key);
     if (it != SemantBinaryNodeMap.end()) {
@@ -270,10 +270,10 @@ void RelExp::TypeCheck()
     //std::cout<<"RelExp::TypeCheck() is called!"<<std::endl;
     relExp->TypeCheck();
     addExp->TypeCheck();
-    if(relExp->attribute.type->isPointer||addExp->attribute.type->isPointer)
-    {
-        error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
-    }
+    // if(relExp->attribute.type->isPointer||addExp->attribute.type->isPointer)
+    // {
+    //     error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
+    // }
     auto key = std::make_pair(relExp->attribute.type->builtinKind,addExp->attribute.type->builtinKind);
     auto it = SemantBinaryNodeMap.find(key);
     if (it != SemantBinaryNodeMap.end()) {
@@ -289,10 +289,10 @@ void EqExp::TypeCheck()
     //std::cout<<"EqExp::TypeCheck() is called!"<<std::endl;
     eqExp->TypeCheck();
     relExp->TypeCheck();
-    if(eqExp->attribute.type->isPointer||relExp->attribute.type->isPointer)
-    {
-        error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
-    }
+    // if(eqExp->attribute.type->isPointer||relExp->attribute.type->isPointer)
+    // {
+    //     error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
+    // }
     auto key = std::make_pair(eqExp->attribute.type->builtinKind,relExp->attribute.type->builtinKind);
     auto it = SemantBinaryNodeMap.find(key);
     if (it != SemantBinaryNodeMap.end()) {
@@ -308,10 +308,10 @@ void LAndExp::TypeCheck()
     //std::cout<<"LAndExp::TypeCheck() is called!"<<std::endl;
     lAndExp->TypeCheck();
     eqExp->TypeCheck();
-    if(lAndExp->attribute.type->isPointer||eqExp->attribute.type->isPointer)
-    {
-        error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
-    }
+    // if(lAndExp->attribute.type->isPointer||eqExp->attribute.type->isPointer)
+    // {
+    //     error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
+    // }
     auto key = std::make_pair(lAndExp->attribute.type->builtinKind,eqExp->attribute.type->builtinKind);
     auto it = SemantBinaryNodeMap.find(key);
     if (it != SemantBinaryNodeMap.end()) {
@@ -326,10 +326,10 @@ void LOrExp::TypeCheck()
     //std::cout<<"LOrExp::TypeCheck() is called!"<<std::endl;
     lOrExp->TypeCheck();
     lAndExp->TypeCheck();
-    if(lOrExp->attribute.type->isPointer||lAndExp->attribute.type->isPointer)
-    {
-        error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
-    }
+    // if(lOrExp->attribute.type->isPointer||lAndExp->attribute.type->isPointer)
+    // {
+    //     error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
+    // }
     auto key = std::make_pair(lOrExp->attribute.type->builtinKind,lAndExp->attribute.type->builtinKind);
     auto it = SemantBinaryNodeMap.find(key);
     if (it != SemantBinaryNodeMap.end()) {
@@ -379,7 +379,7 @@ void Lval::TypeCheck()
         //std::cout<<"arrayIndexes.size()==val.dims.size()! "<<arrayIndexes.size()<<","<<val.dims.size()<<std::endl;
         attribute.ConstTag=val.ConstTag&arrayindexConstTag;
         attribute.type=val.type;
-        attribute.type->isPointer=false;
+       // attribute.type->isPointer=false;
         if(attribute.ConstTag)
         {
             if(attribute.type->builtinKind==BuiltinType::Int){attribute.val.IntVal=GetArrayVal(val,arrayIndexes,BuiltinType::Int);}
@@ -388,10 +388,11 @@ void Lval::TypeCheck()
     }
     else if(arrayIndexes.size()<val.dims.size())//使用维度小于定义维度，比如定义a[2][3]，使用a[0]
     {
-        std::cout<<name->getName()<<" arrayIndexes.size()<val.dims.size()! "<<arrayIndexes.size()<<","<<val.dims.size()<<std::endl;
-        attribute.type=val.type;
+        //std::cout<<name->getName()<<" arrayIndexes.size()<val.dims.size()! "<<arrayIndexes.size()<<","<<val.dims.size()<<std::endl;
+        //attribute.type=val.type;
         attribute.ConstTag=false;
-        attribute.type->isPointer=true;
+        //attribute.type->isPointer=true;
+        attribute.type->builtinKind=BuiltinType::PTR;
     }
     else{
         error_msgs.push_back("Array size is larger than defined size in line " + std::to_string(line) + "\n");
@@ -442,7 +443,11 @@ void UnaryExp::TypeCheck()
     //std::cout<<"UnaryExp::TypeCheck() is called!"<<std::endl;
     unaryExp->TypeCheck();
     //std::cout<<"unaryExp->attribute.val.IntVal="<<unaryExp->attribute.val.IntVal<<std::endl;
-    if(unaryExp->attribute.type->isPointer||unaryExp->attribute.type->builtinKind==BuiltinType::Void)
+    // if(unaryExp->attribute.type->isPointer||unaryExp->attribute.type->builtinKind==BuiltinType::Void)
+    // {
+    //     error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
+    // }
+    if(unaryExp->attribute.type->builtinKind==BuiltinType::Void)
     {
         error_msgs.push_back("invalid operators in line " + std::to_string(line) + "\n");
     }
@@ -741,7 +746,8 @@ void __FuncFParam::TypeCheck()
             val.dims.push_back(d->attribute.val.IntVal);
         }
         
-        attribute.type->isPointer=true;
+       // attribute.type->isPointer=true;
+       attribute.type->builtinKind=BuiltinType::PTR;
     } else {
         attribute.type= (BuiltinType*)(type_decl);
     }

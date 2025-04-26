@@ -62,6 +62,8 @@ std::string BuiltinType::getString(){
                 return str+"Bool"+pointerTag;
             case Void:
                 return str+"Void";
+            case PTR:
+                return str+"PTR";
             default:
                 break;
         }
@@ -419,7 +421,7 @@ NodeAttribute SemantBool(NodeAttribute a, OpType::Op opcode) {
     return SemantInt(tmp_a,opcode);
 }
 NodeAttribute SemantError(NodeAttribute a, OpType::Op opcode) {
-    error_msgs.push_back("invalid operators in line " + std::to_string(a.line_number) + "\n");
+    error_msgs.push_back("SemantError invalid operators in line " + std::to_string(a.line_number) + "\n");
     NodeAttribute result;
     return result;
 }

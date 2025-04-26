@@ -97,14 +97,14 @@ int main(int argc, char** argv) {
 	}
 
 	/* 【4】 irgen */
-	ASTroot->codeIR();
-	llvmIR.CFGInit();
-	SimplifyCFGPass(&llvmIR).Execute();
-	if (strcmp(argv[2], "-llvm") == 0) {
-        llvmIR.printIR(fout);
-        fout.close();
-        return 0;
-    }
+	// ASTroot->codeIR();
+	// llvmIR.CFGInit();
+	// SimplifyCFGPass(&llvmIR).Execute();
+	// if (strcmp(argv[2], "-llvm") == 0) {
+    //     llvmIR.printIR(fout);
+    //     fout.close();
+    //     return 0;
+    // }
 
 	/* 【5】 opt */
     if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
