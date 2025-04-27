@@ -32,10 +32,10 @@ clang -static  test_output/example/temp.o ./lib/libsysy_x86.a -o test_output/exa
 ### 使用gdb调试
 ```bash
 # 1. 确保你编译时加了 -g 开启调试信息
-make clean && make CXXFLAGS="-g"
+make clean-all && make CXXFLAGS="-g"
 
 # 2. 使用 gdb 启动程序
-gdb --args ./bin/SysYc ./testcase/example/temp.sy -semant ./testcase/example/lexer_out.txt
+gdb --args ./bin/SysYc ./test_output/example/temp.sy -llvm ./test_output/example/temp.out.ll -O1
 
 # 3. 在 gdb 中运行程序
 (gdb) run

@@ -10,6 +10,8 @@
 #include "include/ir.h"
 
 #include "llvm/optimize/transform/simplify_cfg.h"
+#include "llvm/optimize/analysis/dominator_tree.h"
+#include "llvm/optimize/transform/weaken_mem2reg.h"
 
 
 extern FILE *yyin;
@@ -100,15 +102,25 @@ int main(int argc, char** argv) {
 	ASTroot->codeIR();
 	llvmIR.CFGInit();
 	SimplifyCFGPass(&llvmIR).Execute();
+
+	/* 【5】 opt */
+    if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
+        // PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();
+        WeakenMem2RegPass(&llvmIR).Execute();
+        
+        // TailRecursiveEliminatePass(&llvmIR).Execute();
+        // SimplifyCFGPass(&llvmIR).Execute();
+        // SimpleFunctionOptPass(&llvmIR).Execute();
+        DomAnalysis dom(&llvmIR);
+
+        dom.Execute();   // 完成支配树建立后，取消该行代码的注释
+        // (Mem2RegPass(&llvmIR, &dom)).Execute();
+    }
+
 	if (strcmp(argv[2], "-llvm") == 0) {
         llvmIR.printIR(fout);
         fout.close();
         return 0;
-    }
-
-	/* 【5】 opt */
-    if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
-        
     }
 
 	/* parser and so on */

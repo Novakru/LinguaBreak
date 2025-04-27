@@ -184,6 +184,13 @@ void DominatorTree::BuildDominatorTree(bool reverse) { // default reverse = fals
 	auto const G    = (reverse) ? C->invG : C->G ;
 	auto const invG = (reverse) ? C->G 	: C->invG;
 	LLVMBlock blockSrc = (reverse) ? C->ret_block : (*C->block_map)[0];
+	
+	if(blockSrc == nullptr) {
+		Log("Error: blockSrc is nullptr.");
+		Log("C->ret_block is nullptr ?%s", ((C->ret_block) ? " No" : " Yes"));
+		Log("(*C->block_map)[0] is nullptr ?%s", ((*C->block_map)[0]) ? " No" : " Yes");
+	}
+
     idom.clear();
 	dom_tree.clear();
 	dom_tree.resize(C->max_label + 2, std::vector<LLVMBlock>{});
