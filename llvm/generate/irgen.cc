@@ -1420,12 +1420,19 @@ void VarDef_no_init::codeIR() {
 		irgen_table.symbol_table.enter(name, max_reg);
 
         if(dims == nullptr){
+			auto &gbb = GetCurrentBlock();
+ 			ptrmap[name] = GetNewRegOperand(++max_reg);//result reg
+ 			irgen_table.symbol_table.enter(name, max_reg);
             if(ty == BuiltinType::BuiltinKind::Int){
                 IRgenAlloca(entrybb, BasicInstruction::I32, max_reg);
                 optype_map[max_reg] = operand_type::I32_PTR;
+				IRgenArithmeticI32ImmAll(gbb,BasicInstruction::LLVMIROpcode::ADD,0,0,++max_reg);
+				IRgenStore(gbb, BasicInstruction::LLVMType::I32, GetNewRegOperand(max_reg),ptrmap[name]);
             }else{
                 IRgenAlloca(entrybb, BasicInstruction::FLOAT32, max_reg);
                 optype_map[max_reg] = operand_type::FLOAT32_PTR;
+				IRgenArithmeticF32ImmAll(gbb,BasicInstruction::LLVMIROpcode::FADD,0,0,++max_reg);
+				IRgenStore(gbb, BasicInstruction::LLVMType::FLOAT32, GetNewRegOperand(max_reg), ptrmap[name]);
             }
         }else{
             dimcount = 1;
