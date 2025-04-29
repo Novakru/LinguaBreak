@@ -7,11 +7,11 @@
 #include <set>
 #include <vector>
 
-// 请注意代码中的typedef，为了方便书写，将一些类的指针进行了重命名, 如果不习惯该种风格，可以自行修改
 class BasicBlock {
 public:
     std::string comment;    // used for debug
     int block_id = 0;
+    int dfs_id = 0; // 标志是否已经dfs过了，数值代表序号
     std::deque<Instruction> Instruction_list{};
 
     /*

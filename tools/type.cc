@@ -209,7 +209,7 @@ NodeAttribute BinarySemantOperation_Mod(NodeAttribute a, NodeAttribute b,Builtin
     {
         if constexpr(std::is_same<T,int>::value)
         {
-            std::cout<<"b.val.IntVal"<<b.val.IntVal<<"\n";
+            // std::cout<<"b.val.IntVal"<<b.val.IntVal<<"\n";
             if(b.val.IntVal==0)
             {
                 error_msgs.push_back("Divisor cannot be zero " + std::to_string(a.line_number) + "\n");

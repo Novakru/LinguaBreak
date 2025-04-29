@@ -11,8 +11,8 @@
 
 #include "llvm/optimize/transform/simplify_cfg.h"
 #include "llvm/optimize/analysis/dominator_tree.h"
-#include "llvm/optimize/transform/weaken_mem2reg.h"
-
+#include "llvm/optimize/transform/mem2reg.h"
+#include "llvm/optimize/transform/adce.h"
 
 extern FILE *yyin;
 extern char *yytext;
@@ -105,16 +105,14 @@ int main(int argc, char** argv) {
 
 	/* 【5】 opt */
     if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
-        // PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();
-        WeakenMem2RegPass(&llvmIR).Execute();
-        
-        // TailRecursiveEliminatePass(&llvmIR).Execute();
-        // SimplifyCFGPass(&llvmIR).Execute();
-        // SimpleFunctionOptPass(&llvmIR).Execute();
+        // mem2reg
         DomAnalysis dom(&llvmIR);
-
-        dom.Execute();   // 完成支配树建立后，取消该行代码的注释
-        // (Mem2RegPass(&llvmIR, &dom)).Execute();
+        dom.Execute();   
+        (Mem2RegPass(&llvmIR, &dom)).Execute();
+        // adce
+        DomAnalysis inv_dom(&llvmIR);
+        inv_dom.invExecute();
+        (ADCEPass(&llvmIR, &inv_dom)).Execute();
     }
 
 	if (strcmp(argv[2], "-llvm") == 0) {

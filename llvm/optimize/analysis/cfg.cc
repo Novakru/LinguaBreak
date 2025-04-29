@@ -2,18 +2,20 @@
 #include "../../include/ir.h"
 #include <assert.h>
 
-std::map<std::string, CFG*> CFGMap;
+int dfs_num = 0;
 
 void LLVMIR::CFGInit() {
     for (auto &[defI, bb_map] : function_block_map) {
         CFG *cfg = new CFG();
         cfg->block_map = &bb_map;
         cfg->function_def = defI;
-        cfg->max_reg = function_max_reg[defI];
-        cfg->max_label = function_max_label[defI];
+
+        // 初始化邻接表大小
+        int block_num = bb_map.size();
+        cfg->G.resize(block_num);
+        cfg->invG.resize(block_num);
+
         cfg->BuildCFG();
-        CFGMap[defI->GetFunctionName()] = cfg;
-        
         llvm_cfg[defI] = cfg;
     }
 }
@@ -24,66 +26,70 @@ void LLVMIR::BuildCFG() {
     }
 }
 
-void CFG::BuildCFG() { 
-    G.clear();
-    invG.clear();
-    G.resize(max_label + 2);
-    invG.resize(max_label + 2);
-    for(auto [id,bb] : *block_map){
-        if(bb->Instruction_list.empty()){
-            continue;
+void CFG::SearchB(LLVMBlock B){
+    if(B->dfs_id!=0)return;
+    B->dfs_id = ++dfs_num;//全局
+    //遍历此基本块的所有指令
+    for(auto it = B->Instruction_list.begin(); it != B->Instruction_list.end(); ++it){
+        auto &intr = *it;
+        //【1】无条件跳转指令
+        if(intr->GetOpcode()==BasicInstruction::LLVMIROpcode::BR_UNCOND){
+            //（1）取出跳转指令的目标标签
+            Operand operand = ((BrUncondInstruction*)intr)->GetDestLabel();
+            int next_label = ((LabelOperand*)operand)->GetLabelNo();
+            LLVMBlock next_block = (*block_map)[next_label];
+            //（2）维护G/invG
+            G[B->block_id].push_back(next_block);
+            invG[next_label].push_back(B);
+            next_block->comment += ("L" + std::to_string(B->block_id) + ", ");
+            //（3）递归调用，搜索它的目标块
+            SearchB(next_block);
+            //（4）删除当前块中跳转指令之后的所有指令
+            if(std::next(it) != B->Instruction_list.end())
+                B->Instruction_list.erase(std::next(it), B->Instruction_list.end());
+            return;
         }
-        for(auto I : bb->Instruction_list){
-            if(I->GetOpcode() == BasicInstruction::BR_COND 
-                    || I->GetOpcode() == BasicInstruction::BR_UNCOND
-                    || I->GetOpcode() == BasicInstruction::RET){
-                while(bb->Instruction_list.back() != I){
-                    bb->Instruction_list.pop_back();
-                }
-                break;
-            }
+        //【2】条件跳转指令（与【1】类似，但是有两个目标块，都要维护）
+        else if(intr->GetOpcode()==BasicInstruction::LLVMIROpcode::BR_COND){
+            Operand operand1 = ((BrCondInstruction*)intr)->GetTrueLabel();
+            Operand operand2 = ((BrCondInstruction*)intr)->GetFalseLabel();
+            int true_label = ((LabelOperand*)operand1)->GetLabelNo();
+            int false_label = ((LabelOperand*)operand2)->GetLabelNo();
+            LLVMBlock true_block = (*block_map)[true_label];
+            LLVMBlock false_block = (*block_map)[false_label];
+
+            G[B->block_id].push_back(true_block);
+            invG[true_label].push_back(B);
+            true_block->comment += ("L" + std::to_string(B->block_id) + ", ");
+
+            G[B->block_id].push_back(false_block);
+            invG[false_label].push_back(B);
+            false_block->comment += ("L" + std::to_string(B->block_id) + ", ");
+
+            SearchB(true_block);
+            SearchB(false_block);
+
+            if(std::next(it) != B->Instruction_list.end())
+                B->Instruction_list.erase(std::next(it), B->Instruction_list.end());
+            return;
+        }
+        //ret指令
+        else if(intr->GetOpcode()==BasicInstruction::LLVMIROpcode::RET){
+            //（1）删除当前块中跳转指令之后的所有指令
+            if(std::next(it) != B->Instruction_list.end())
+                B->Instruction_list.erase(std::next(it), B->Instruction_list.end());
+            return;
         }
     }
-    
-    for(auto [id,bb] : *block_map){
-        if(bb->Instruction_list.empty()){
-            continue;
-        }
-        auto brI = bb->Instruction_list.back();
-        if(brI->GetOpcode() == BasicInstruction::BR_COND){
-            auto brcondI = (BrCondInstruction*)brI;
-            auto truelabel = brcondI->GetTrueLabel();
-            auto truebbid = ((LabelOperand*)truelabel)->GetLabelNo();
-            auto truebb = (*block_map)[truebbid];
-            G[id].push_back(truebb);
-            auto falselabel = brcondI->GetFalseLabel();
-            auto falsebbid = ((LabelOperand*)falselabel)->GetLabelNo();
-            auto falsebb = (*block_map)[falsebbid];
-            G[id].push_back(falsebb);
-            invG[truebbid].push_back(bb);
-            invG[falsebbid].push_back(bb);
-        }else if(brI->GetOpcode() == BasicInstruction::BR_UNCOND){
-            auto bruncondI = (BrUncondInstruction*)brI;
-            auto dstlabel = bruncondI->GetDestLabel();
-            auto dstbbid = ((LabelOperand*)dstlabel)->GetLabelNo();
-            auto dstbb = (*block_map)[dstbbid];
-            G[id].push_back(dstbb);
-            invG[dstbbid].push_back(bb);
-        }
-    }
-	// 每次BuildCFG后，BuildDominatorTree确保支配树是最新的
-	// this->BuildDominatorTree();
 }
 
-
-LLVMBlock CFG::GetBlock(int bbid) { return (*block_map)[bbid]; }
-
-LLVMBlock CFG::NewBlock() {
-    ++max_label;
-    (*block_map)[max_label] = new BasicBlock(max_label);
-    return GetBlock(max_label);
+void CFG::BuildCFG() {
+    // 深度优先遍历块内的所有指令，遇到跳转指令记录前置块和后缀块
+    // 如果跳转/返回指令之后还有指令，全部删除
+    // SearchB()进行递归调用
+    LLVMBlock start_block = (*block_map)[0];
+    SearchB(start_block);
 }
-
 
 std::vector<LLVMBlock> CFG::GetPredecessor(LLVMBlock B) { return invG[B->block_id]; }
 
@@ -92,23 +98,3 @@ std::vector<LLVMBlock> CFG::GetPredecessor(int bbid) { return invG[bbid]; }
 std::vector<LLVMBlock> CFG::GetSuccessor(LLVMBlock B) { return G[B->block_id]; }
 
 std::vector<LLVMBlock> CFG::GetSuccessor(int bbid) { return G[bbid]; }
-
-void CFG::Display() {
-    std::cout << "Control Flow Graph (G):" << std::endl;
-    for (int i = 0; i < G.size(); ++i) {
-        std::cout << "Block " << i << " -> ";
-        for (const auto& succ : G[i]) {
-            std::cout << succ->block_id << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << "Inverse Control Flow Graph (invG):" << std::endl;
-    for (int i = 0; i < invG.size(); ++i) {
-        std::cout << "Block " << i << " -> ";
-        for (const auto& pred : invG[i]) {
-            std::cout << pred->block_id << " ";
-        }
-        std::cout << std::endl;
-    }
-}
