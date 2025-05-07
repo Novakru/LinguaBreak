@@ -11,8 +11,15 @@
 
 #include "llvm/optimize/transform/simplify_cfg.h"
 #include "llvm/optimize/analysis/dominator_tree.h"
-#include "llvm/optimize/transform/mem2reg.h"
-#include "llvm/optimize/transform/adce.h"
+//#include "llvm/optimize/transform/weaken_mem2reg.h"
+
+//-S
+#include"back_end/basic/riscv_def.h"
+#include"back_end/basic/register.h"
+#include"back_end/inst_process/inst_select/inst_select.h"
+#include"back_end/register_allocation/linear_scan/linear_scan.h"
+#include"back_end/inst_process/inst_print/inst_print.h"
+
 
 extern FILE *yyin;
 extern char *yytext;
@@ -103,20 +110,33 @@ int main(int argc, char** argv) {
 	llvmIR.CFGInit();
 	SimplifyCFGPass(&llvmIR).Execute();
 
-	/* 【5】 opt */
-    if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
-        // mem2reg
-        DomAnalysis dom(&llvmIR);
-        dom.Execute();   
-        (Mem2RegPass(&llvmIR, &dom)).Execute();
-        // adce
-        DomAnalysis inv_dom(&llvmIR);
-        inv_dom.invExecute();
-        (ADCEPass(&llvmIR, &inv_dom)).Execute();
-    }
+	// /* 【5】 opt */
+    // if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
+    //     // PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();
+    //     WeakenMem2RegPass(&llvmIR).Execute();
+        
+    //     // TailRecursiveEliminatePass(&llvmIR).Execute();
+    //     // SimplifyCFGPass(&llvmIR).Execute();
+    //     // SimpleFunctionOptPass(&llvmIR).Execute();
+    //     DomAnalysis dom(&llvmIR);
+
+    //     dom.Execute();   // 完成支配树建立后，取消该行代码的注释
+    //     // (Mem2RegPass(&llvmIR, &dom)).Execute();
+    // }
 
 	if (strcmp(argv[2], "-llvm") == 0) {
         llvmIR.printIR(fout);
+        fout.close();
+        return 0;
+    }
+
+	if (strcmp(argv[2], "-S") == 0) {
+        MachineUnit* m_unit=new RiscV64Unit(&llvmIR);
+		RiscV64RegisterAllocTools regs;
+		m_unit->SelectInstructionAndBuildCFG();
+		FastLinearScan(m_unit, &regs).Execute();
+		m_unit->LowerStack();
+		RiscV64Printer(fout, m_unit).emit();
         fout.close();
         return 0;
     }

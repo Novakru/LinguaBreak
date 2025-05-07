@@ -5,14 +5,26 @@ SRCDIR += ./llvm/generate
 SRCDIR += ./llvm/semant
 SRCDIR += ./llvm/optimize/analysis
 SRCDIR += ./llvm/optimize/transform
-
+SRCDIR += ./back_end/basic
+SRCDIR += ./back_end/inst_process/inst_print
+SRCDIR += ./back_end/inst_process/inst_select
+SRCDIR += ./back_end/inst_process/phi_processing
+SRCDIR += ./back_end/inst_process
+SRCDIR += ./back_end/register_allocation/linear_scan
+SRCDIR += ./back_end/register_allocation
 # 显式列出所有源文件（确保包含实现文件）
 SRCS := $(wildcard *.cc)
 SRCS += $(wildcard llvm/generate/*.cc)
 SRCS += $(wildcard llvm/semant/*.cc)
 SRCS += front_end/sysy_lexer.cc 
 SRCS += front_end/sysy_parser.tab.cc
-
+SRCS += $(wildcard back_end/basic/*.cc)
+SRCS += $(wildcard back_end/inst_process/inst_print/*.cc)
+SRCS += $(wildcard back_end/inst_process/inst_select/*.cc)
+SRCS += $(wildcard back_end/inst_process/*.cc)
+SRCS += $(wildcard back_end/inst_process/phi_processing/*.cc)
+SRCS += $(wildcard back_end/register_allocation/linear_scan/*.cc)
+SRCS += $(wildcard back_end/register_allocation/*.cc)
 # 添加-Wall -Wextra警告选项
 # CFLAGS += -Wall -Wextra
 
