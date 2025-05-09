@@ -32,6 +32,10 @@ public:
     std::vector<std::vector<LLVMBlock>> G{};       // control flow graph
     std::vector<std::vector<LLVMBlock>> invG{};    // inverse control flow graph
 
+	// 通过LLVMIR获取支配树森林调用不方便，CFG单独存储支配树，方便调用且可以和G、invG同步更新
+	void* DomTree;
+    void* PostDomTree;
+
     void SearchB(LLVMBlock B); // 辅助函数
     void BuildCFG();
 

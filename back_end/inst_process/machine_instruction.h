@@ -3,6 +3,7 @@
 #include<vector>
 #include"../basic/register.h"
 #include"inst_help.h"
+#include"../../include/Instruction.h"
 
 class MachineBaseInstruction {
 public:
@@ -13,7 +14,7 @@ public:
 private:
     int ins_number; // 指令编号, 用于活跃区间计算
     //新增
-        bool no_schedule;
+	bool no_schedule;
 
 public:
     void setNumber(int ins_number) { this->ins_number = ins_number; }
@@ -153,7 +154,7 @@ public:
         case RvOpInfo::CALL_type:
             return GetCall_typeReadreg();
         }
-        //ERROR("Unexpected insformat");
+        ERROR("Unexpected insformat");
     }
     
     std::vector<Register *> GetWriteReg() {
@@ -177,10 +178,147 @@ public:
         case RvOpInfo::CALL_type:
             return GetCall_typeWritereg();
         }
-        //ERROR("Unexpected insformat");
+        ERROR("Unexpected insformat");
     }
    
     int GetLatency() { return OpTable.at(op).latency; }
 };
+
+class RiscV64InstructionConstructor {
+    static RiscV64InstructionConstructor instance;
+
+    RiscV64InstructionConstructor() {}
+
+public:
+    static RiscV64InstructionConstructor *GetConstructor() { return &instance; }
+    // 函数命名方法大部分与RISC-V指令格式一致
+
+    // example: addw Rd, Rs1, Rs2 
+    RiscV64Instruction *ConstructR(int op, Register Rd, Register Rs1, Register Rs2) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, false);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::R_type);
+        ret->setRd(Rd);
+        ret->setRs1(Rs1);
+        ret->setRs2(Rs2);
+        return ret;
+    }
+    // example: fmv.x.w Rd, Rs1
+    RiscV64Instruction *ConstructR2(int op, Register Rd, Register Rs1) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, false);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::R2_type);
+        ret->setRd(Rd);
+        ret->setRs1(Rs1);
+        return ret;
+    }
+    // example: fmadd.s Rd, Rs1, Rs2, Rs3
+    RiscV64Instruction *ConstructR4(int op, Register Rd, Register Rs1, Register Rs2, Register Rs3) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, false);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::R4_type);
+        ret->setRd(Rd);
+        ret->setRs1(Rs1);
+        ret->setRs2(Rs2);
+        ret->setRs3(Rs3);
+        return ret;
+    }
+    // example: lw Rd, imm(Rs1) 
+    // example: addi Rd, Rs1, imm
+    RiscV64Instruction *ConstructIImm(int op, Register Rd, Register Rs1, int imm) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, false);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::I_type);
+        ret->setRd(Rd);
+        ret->setRs1(Rs1);
+        ret->setImm(imm);
+        return ret;
+    }
+    // example: lw Rd label(Rs1)   =>  lw Rd %lo(label_name)(Rs1)
+    // example: addi Rd, Rs1, label  =>  addi Rd, Rs1, %lo(label_name)
+    RiscV64Instruction *ConstructILabel(int op, Register Rd, Register Rs1, RiscVLabel label) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, true);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::I_type);
+        ret->setRd(Rd);
+        ret->setRs1(Rs1);
+        ret->setLabel(label);
+        return ret;
+    }
+    // example: sw value imm(ptr)
+    RiscV64Instruction *ConstructSImm(int op, Register value, Register ptr, int imm) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, false);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::S_type);
+        ret->setRs1(value);
+        ret->setRs2(ptr);
+        ret->setImm(imm);
+        return ret;
+    }
+    // example: sw value label(ptr)  =>  sw value %lo(label_name)(ptr)
+    RiscV64Instruction *ConstructSLabel(int op, Register value, Register ptr, RiscVLabel label) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, true);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::S_type);
+        ret->setRs1(value);
+        ret->setRs2(ptr);
+        ret->setLabel(label);
+        return ret;
+    }
+    // example: b(cond) Rs1, Rs2,label  =>  bne Rs1, Rs2, .L3(标签具体如何输出见riscv64_printasm.cc)
+    RiscV64Instruction *ConstructBLabel(int op, Register Rs1, Register Rs2, RiscVLabel label) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, true);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::B_type);
+        ret->setRs1(Rs1);
+        ret->setRs2(Rs2);
+        ret->setLabel(label);
+        return ret;
+    }
+    // example: lui Rd, imm
+    RiscV64Instruction *ConstructUImm(int op, Register Rd, int imm) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, false);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::U_type);
+        ret->setRd(Rd);
+        ret->setImm(imm);
+        return ret;
+    }
+    // example: lui Rd, %hi(label_name)
+    RiscV64Instruction *ConstructULabel(int op, Register Rd, RiscVLabel label) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, true);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::U_type);
+        ret->setRd(Rd);
+        ret->setLabel(label);
+        return ret;
+    }
+    // example: jal rd, label  =>  jal a0, .L4
+    RiscV64Instruction *ConstructJLabel(int op, Register rd, RiscVLabel label) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, true);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::J_type);
+        ret->setRd(rd);
+        ret->setLabel(label);
+        return ret;
+    }
+    // example: call funcname  
+    // iregnum 和 fregnum 表示该函数调用会分别用几个物理寄存器和浮点寄存器传参
+    // iregnum 和 fregnum 的作用为精确确定call会读取哪些寄存器 (具体见GetCall_typeWritereg()函数)
+    // 可以进行更精确的寄存器分配
+    // 对于函数调用，我们单独处理这一条指令，而不是用真指令替代，原因是函数调用涉及到部分寄存器的读写
+    RiscV64Instruction *ConstructCall(int op, std::string funcname, int iregnum, int fregnum) {
+        Assert(OpTable[op].ins_formattype == RvOpInfo::CALL_type);
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, true);
+        // ret->setRd(GetPhysicalReg(phy_rd));
+        ret->setCalliregNum(iregnum);
+        ret->setCallfregNum(fregnum);
+        ret->setLabel(RiscVLabel(funcname, false));
+        return ret;
+    }
+};
+extern RiscV64InstructionConstructor *rvconstructor;
+
 
 #endif

@@ -1,7 +1,7 @@
 #ifndef RISCV_DEF_H
 #define RISCV_DEF_H
 #include<unordered_map>
-enum {
+enum RISCV_INST {
     RISCV_SLL,
     RISCV_SLLI,
     RISCV_SRL,

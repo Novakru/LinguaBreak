@@ -3,10 +3,11 @@
 void SimplifyCFGPass::Execute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         EliminateUnreachedBlocksInsts(cfg);
+		cfg->BuildCFG();
     }
 }
 
-// 删除从函数入口开始到达不了的基本块和指令（删除不可达指令已经在之前完成，这里只需要遍历取出不可达基本块）
+// 删除从函数入口开始到达不了的基本块和指令
 void SimplifyCFGPass::EliminateUnreachedBlocksInsts(CFG *C) {
     for (auto it = C->block_map->begin(); it != C->block_map->end(); ) {
         if (!(it->second->dfs_id)) {
@@ -16,3 +17,5 @@ void SimplifyCFGPass::EliminateUnreachedBlocksInsts(CFG *C) {
         }
     }
 }
+
+// 合并基本块：如果一个基本快只有一个前驱，并且这个前驱只有一个后驱，则将当前基本快合并到唯一前驱中去

@@ -1,5 +1,6 @@
 #ifndef REGISTER_H
 #define REGISTER_H
+#include "../../include/Instruction.h"
 #include<string>
 #include<vector>
 #include"riscv_def.h"

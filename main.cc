@@ -141,19 +141,6 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-	/* parser and so on */
-	// if (strcmp(argv[2], "-parser") == 0) {
-	// 	TODO("-parser compile option is not supported now.");
-	// } else if (strcmp(argv[2], "-semant") == 0) {
-	// 	TODO("-semant compile option is not supported now.");
-	// } else if (strcmp(argv[2], "-llvm") == 0) {
-	// 	TODO("-llvm compile option is not supported now.");
-	// } else if (strcmp(argv[2], "-target") == 0) {
-	// 	TODO("-target compile option is not supported now.");
-	// } else {
-	// 	perror("invalid compile option.");
-	// }
-
     fclose(input);
     if (output != stdout) fclose(output);
     return 0;
