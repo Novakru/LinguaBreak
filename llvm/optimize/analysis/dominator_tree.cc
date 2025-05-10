@@ -7,6 +7,7 @@ void DomAnalysis::Execute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         DomInfo[cfg] = new DominatorTree(cfg);
         DomInfo[cfg]->BuildDominatorTree(false);
+        // cfg->DomTree = DomInfo[cfg];
     }
 }
 
@@ -14,6 +15,7 @@ void DomAnalysis::invExecute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         DomInfo[cfg] = new DominatorTree(cfg);
         DomInfo[cfg]->BuildDominatorTree(true);
+        // cfg->PostDomTree = DomInfo[cfg];
     }
 }
 
