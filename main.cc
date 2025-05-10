@@ -11,9 +11,10 @@
 
 #include "llvm/optimize/transform/simplify_cfg.h"
 #include "llvm/optimize/analysis/dominator_tree.h"
-//#include "llvm/optimize/transform/weaken_mem2reg.h"
+#include "llvm/optimize/transform/mem2reg.h"
+#include "llvm/optimize/transform/adce.h"
 
-//-S
+//-target
 #include"back_end/basic/riscv_def.h"
 #include"back_end/basic/register.h"
 #include"back_end/inst_process/inst_select/inst_select.h"
@@ -34,8 +35,8 @@ IdTable id_table;//新增
 int line = 1;
 
 // option table 
-#define nr_options 5 
-const char *valid_options[] = {"-lexer", "-parser", "-semant", "-llvm", "-target", "-O1"};
+#define nr_options 7 
+const char *valid_options[] = {"-lexer", "-parser", "-semant", "-llvm", "-select", "-target", "-O1"};
 
 int main(int argc, char** argv) {
 	/* argc = 4 or 5 : ./bin/SysYc input_file -llvm output_file [-O1] */
@@ -111,18 +112,16 @@ int main(int argc, char** argv) {
 	SimplifyCFGPass(&llvmIR).Execute();
 
 	// /* 【5】 opt */
-    // if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
-    //     // PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();
-    //     WeakenMem2RegPass(&llvmIR).Execute();
-        
-    //     // TailRecursiveEliminatePass(&llvmIR).Execute();
-    //     // SimplifyCFGPass(&llvmIR).Execute();
-    //     // SimpleFunctionOptPass(&llvmIR).Execute();
-    //     DomAnalysis dom(&llvmIR);
-
-    //     dom.Execute();   // 完成支配树建立后，取消该行代码的注释
-    //     // (Mem2RegPass(&llvmIR, &dom)).Execute();
-    // }
+    if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
+        // mem2reg
+        DomAnalysis dom(&llvmIR);
+        dom.Execute();   
+        (Mem2RegPass(&llvmIR, &dom)).Execute();
+        // adce
+        DomAnalysis inv_dom(&llvmIR);
+        inv_dom.invExecute();
+        (ADCEPass(&llvmIR, &inv_dom)).Execute();
+    }
 
 	if (strcmp(argv[2], "-llvm") == 0) {
         llvmIR.printIR(fout);
@@ -130,7 +129,17 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-	if (strcmp(argv[2], "-S") == 0) {
+	if (strcmp(argv[2], "-select") == 0) {
+		MachineUnit* m_unit=new RiscV64Unit(&llvmIR);
+
+		m_unit->SelectInstructionAndBuildCFG();
+
+        RiscV64Printer(fout, m_unit).emit();
+        // RiscV64Printer(std::cerr, m_unit).emit();
+		return 0;
+    }
+
+	if (strcmp(argv[2], "-target") == 0) {
         MachineUnit* m_unit=new RiscV64Unit(&llvmIR);
 		RiscV64RegisterAllocTools regs;
 		m_unit->SelectInstructionAndBuildCFG();

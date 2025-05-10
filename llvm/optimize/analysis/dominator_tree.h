@@ -24,6 +24,7 @@ public:
     
     int find(std::map<int,int>&mn_map, std::map<int,int>&fa_map, int id);
     int invfind(std::map<int,int>&mn_map, std::map<int,int>&fa_map, int id);
+    void display();                                   // 显示支配树结构
 };
 
 class DomAnalysis : public IRPass {

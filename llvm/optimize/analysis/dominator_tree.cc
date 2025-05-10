@@ -7,7 +7,7 @@ void DomAnalysis::Execute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         DomInfo[cfg] = new DominatorTree(cfg);
         DomInfo[cfg]->BuildDominatorTree(false);
-        // cfg->DomTree = DomInfo[cfg];
+        cfg->DomTree = DomInfo[cfg];
     }
 }
 
@@ -15,7 +15,7 @@ void DomAnalysis::invExecute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         DomInfo[cfg] = new DominatorTree(cfg);
         DomInfo[cfg]->BuildDominatorTree(true);
-        // cfg->PostDomTree = DomInfo[cfg];
+        cfg->PostDomTree = DomInfo[cfg];
     }
 }
 
@@ -56,9 +56,17 @@ void DominatorTree::SearchInvB(int bbid){
 }
 
 void DominatorTree::BuildDominatorTree(bool reverse) {
+    // 初始化 dom_tree
+    dom_tree.clear();
+    dom_tree.resize(C->block_map->size());
+    for (auto [id, block] : *(C->block_map)) {
+        dom_tree[id] = std::vector<LLVMBlock>();
+    }
+    
     if(!reverse){
         std::map<int, int> fa_map{};  // 这是用于记录路径压缩的祖宗节点的map
         std::map<int, int> mn_map{};  // 这是用于记录一个block顺着逆向图目前可以找到的最小sdom的block_id
+        std::map<int, int> idom_map{}; // 记录直接支配者
 
         // 遍历原图，获取dfs序号-->block_id的对应map
         // 初始化辅助map
@@ -70,6 +78,7 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
             sdom_map[block_id] = block_id;
             fa_map[block_id] = block_id;
             mn_map[block_id] = block_id;
+            idom_map[block_id] = block_id;
         }
         
         // 按照dfs的逆序遍历和invG遍历以获取idom（这里的idom在带权并查集其实就是sdom）
@@ -95,6 +104,34 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
             }
             sdom_map[block_id] = dfs_map[res];
             fa_map[block_id] = block_id==0?0:dfs_map[dfn-1];
+            
+            // 构建支配树
+            if (block_id != 0) {  // 跳过入口块
+                int sdom = sdom_map[block_id];
+                if (sdom == block_id) {
+                    idom_map[block_id] = sdom;
+                } else {
+                    int u = fa_map[block_id];
+                    for (auto v : C->invG[u]) {
+                        find(mn_map, fa_map, v->block_id);
+                        if (sdom_map[mn_map[v->block_id]] == u) {
+                            idom_map[v->block_id] = u;
+                        } else {
+                            idom_map[v->block_id] = mn_map[v->block_id];
+                        }
+                    }
+                }
+            }
+        }
+
+        // 构建最终的支配树
+        for (auto [block_id, block] : *(C->block_map)) {
+            if (block_id != 0) {  // 跳过入口块
+                if (idom_map[block_id] != sdom_map[block_id]) {
+                    idom_map[block_id] = idom_map[idom_map[block_id]];
+                }
+                dom_tree[idom_map[block_id]].push_back(block);
+            }
         }
 
         // debug
@@ -108,7 +145,6 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
                 for(int j=0; j<C->invG[i].size(); j++){
                     int runner = C->invG[i][j]->block_id;
                     while(runner!=sdom_map[i]){
-                        //std::cout<<"DF:"<< i << " " << sdom_map[i] << " " << runner <<std::endl;
                         DF_map[runner].insert(i);
                         (*(C->block_map))[runner]->comment += " DF:" + std::to_string(i);
                         if(runner==0)break;
@@ -116,7 +152,6 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
                     }
                 }
             }
-
         }
     }
     else{
@@ -199,4 +234,17 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
 
 std::set<int> DominatorTree::GetDF(int id) {
     return DF_map[id];
+}
+
+void DominatorTree::display() {
+    std::cout << "\n=== Dominator Tree Structure ===" << std::endl;
+    for (size_t i = 0; i < dom_tree.size(); i++) {
+        if (dom_tree[i].empty()) continue;
+        std::cout << "Block " << i << " dominates: ";
+        for (auto block : dom_tree[i]) {
+            std::cout << block->block_id << " ";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "=== End of Dominator Tree ===\n" << std::endl;
 }
