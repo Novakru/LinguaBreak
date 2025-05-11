@@ -44,6 +44,8 @@ public:
     std::vector<LLVMBlock> GetPredecessor(int bbid);
     std::vector<LLVMBlock> GetSuccessor(LLVMBlock B);
     std::vector<LLVMBlock> GetSuccessor(int bbid);
+
+	void display(bool reverse = false);
 };
 
 #endif

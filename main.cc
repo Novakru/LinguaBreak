@@ -121,6 +121,10 @@ int main(int argc, char** argv) {
         DomAnalysis inv_dom(&llvmIR);
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
+		// 重建CFG
+		SimplifyCFGPass(&llvmIR).Execute();
+
+		dom.Execute();
     }
 
 	if (strcmp(argv[2], "-llvm") == 0) {

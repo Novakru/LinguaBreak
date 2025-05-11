@@ -9,6 +9,7 @@ void LLVMIR::CFGInit() {
         CFG *cfg = new CFG();
         cfg->block_map = &bb_map;
         cfg->function_def = defI;
+		cfg->max_label = function_max_label[defI];
 
         // 初始化邻接表大小
         int block_num = bb_map.size();
@@ -84,6 +85,17 @@ void CFG::SearchB(LLVMBlock B){
 }
 
 void CFG::BuildCFG() {
+    G.clear();
+    invG.clear();
+    G.resize(max_label + 1);
+    invG.resize(max_label + 1);
+    
+    // 重置dfs编号
+    dfs_num = 0;
+    for (auto [id, block] : *block_map) {
+        block->dfs_id = 0;
+    }
+
     // 深度优先遍历块内的所有指令，遇到跳转指令记录前置块和后缀块
     // 如果跳转/返回指令之后还有指令，全部删除
     // SearchB()进行递归调用
@@ -98,3 +110,29 @@ std::vector<LLVMBlock> CFG::GetPredecessor(int bbid) { return invG[bbid]; }
 std::vector<LLVMBlock> CFG::GetSuccessor(LLVMBlock B) { return G[B->block_id]; }
 
 std::vector<LLVMBlock> CFG::GetSuccessor(int bbid) { return G[bbid]; }
+
+void CFG::display(bool reverse) {
+    std::cout << "\n=== Control Flow Graph Information ===" << std::endl;
+    if (!reverse) {
+        // 显示后继块信息
+        for(size_t i = 0; i < this->G.size(); i++) {
+            if(this->G[i].empty()) continue;
+            std::cout << "Block " << i << " 的后继块: ";
+            for(auto succ : this->G[i]) {
+                std::cout << succ->block_id << " ";
+            }
+            std::cout << std::endl;
+        }
+    } else {
+        // 显示前驱块信息
+        for(size_t i = 0; i < this->invG.size(); i++) {
+            if(this->invG[i].empty()) continue;
+            std::cout << "Block " << i << " 的前驱块: ";
+            for(auto pred : this->invG[i]) {
+                std::cout << pred->block_id << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
+    std::cout << "=== End of Control Flow Graph ===\n" << std::endl;
+}

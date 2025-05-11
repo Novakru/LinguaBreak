@@ -34,6 +34,12 @@ elif(args.lab == 4):
 elif(args.lab == 5):
     os.system("rm -rf test_output/functional_testAsm/*.s")
     if(args.is_advance==False):
+        os.system("python3 test.py testcase/functional_test/Basic test_output/functional_testSelect 1 select")
+    else:
+        os.system("python3 test.py testcase/functional_test/Advanced test_output/functional_testSelect 1 select")
+elif(args.lab == 6):
+    os.system("rm -rf test_output/functional_testAsm/*.s")
+    if(args.is_advance==False):
         os.system("python3 test.py testcase/functional_test/Basic test_output/functional_testAsm 1 target")
     else:
         os.system("python3 test.py testcase/functional_test/Advanced test_output/functional_testAsm 1 target")

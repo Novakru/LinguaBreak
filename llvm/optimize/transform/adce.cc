@@ -82,10 +82,8 @@ void ADCEPass::CleanUnlive(CFG *C){
     for(auto& ulb: unlive_block){
         C->block_map->erase(ulb);
     }
-
     // 删除不活跃的指令
     for(auto &[id, block]: *(C->block_map)){
-        //std::cout<<id<<std::endl;
         std::deque<Instruction> old_Intrs = block->Instruction_list;
         block->Instruction_list.clear();
 

@@ -56,13 +56,17 @@ void DominatorTree::SearchInvB(int bbid){
 }
 
 void DominatorTree::BuildDominatorTree(bool reverse) {
-    // 初始化 dom_tree
+    // 清空所有内容
     dom_tree.clear();
-    dom_tree.resize(C->block_map->size());
-    for (auto [id, block] : *(C->block_map)) {
-        dom_tree[id] = std::vector<LLVMBlock>();
-    }
-    
+    idom.clear();
+    sdom_map.clear();
+    dfs_map.clear();
+    dfs.clear();
+    DF_map.clear();
+
+    // 初始化 dom_tree
+    dom_tree.resize(C->max_label + 1);
+
     if(!reverse){
         std::map<int, int> fa_map{};  // 这是用于记录路径压缩的祖宗节点的map
         std::map<int, int> mn_map{};  // 这是用于记录一个block顺着逆向图目前可以找到的最小sdom的block_id
@@ -198,17 +202,21 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
         }
     }
 
-    // 根据半支配点构建支配树
-    std::set<int> visited; // 用于记录已经处理过的块
-    for(auto iter = C->block_map->begin(); iter != C->block_map->end(); iter++){
-        int block_id = iter->first;
-        if(block_id == 0 || visited.count(block_id) > 0) continue; // 跳过入口块和已处理的块
-        
-        // 将当前块加入其半支配点的支配子树中
-        dom_tree[sdom_map[block_id]].push_back(iter->second);
-        visited.insert(block_id);
-    }
-    
+	// 构建支配树
+	std::set<int> visited;
+	for(auto iter = C->block_map->begin(); iter != C->block_map->end(); iter++){
+		int block_id = iter->first;
+		if(block_id == 0 || visited.count(block_id) > 0) continue;
+		
+		int sdom_id = sdom_map[block_id];
+		if(sdom_id >= 0 && sdom_id < dom_tree.size()) {
+			dom_tree[sdom_id].push_back(iter->second);
+			visited.insert(block_id);
+		}
+	}
+
+    // 输出sdom_map
+	// display_sdom_map();
 }
 
 
@@ -227,4 +235,12 @@ void DominatorTree::display() {
         std::cout << std::endl;
     }
     std::cout << "=== End of Dominator Tree ===\n" << std::endl;
+}
+
+void DominatorTree::display_sdom_map() {
+    std::cout << "\n=== Semi-Dominator Map ===" << std::endl;
+    for(auto &[block_id, sdom_id] : sdom_map) {
+        std::cout << "Block " << block_id << " 的半支配点是: Block " << sdom_id << std::endl;
+    }
+    std::cout << "=== End of Semi-Dominator Map ===\n" << std::endl;
 }
