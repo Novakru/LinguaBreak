@@ -18,7 +18,7 @@ const int immF12Min = -2048, immF12Max= 2047;
 class MachineUnit {
 public:
     // 指令选择时，对全局变量不作任何处理，直接保留到MachineUnit中
-    //std::vector<Instruction> global_def{};//和llvmIR的一模一样，省略,直接使用IR->global_def即可
+    std::vector<Instruction> global_def{};
     std::vector<MachineFunction *> functions;
  
 public:
@@ -32,10 +32,6 @@ public:
 class RiscV64Unit : public MachineUnit
 {
 private:
-    // 指令选择时，对全局变量不作任何处理，直接保留到MachineUnit中
-    std::vector<Instruction> global_def{};
-    std::vector<MachineFunction *> functions;
-
     int cur_offset;    	// 局部变量在栈中的偏移
 	MachineFunction *cur_func;
     MachineBlock *cur_block;

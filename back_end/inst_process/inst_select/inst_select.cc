@@ -130,6 +130,8 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
             }
         }
 
+		// 打印CFG, 方便调试
+		// cur_mcfg->display();
 
         // 遍历完所有基本块后插入phi生成的额外指令
         for (auto [id, block] : *(cfg->block_map)) {
@@ -152,6 +154,7 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
             }
         }
     }
+	
     LowerFrame(); //最后调用LowerFrame
 }
 void RiscV64Unit::LowerFrame()
@@ -514,10 +517,15 @@ void RiscV64Unit::DomtreeDfs(BasicBlock* ubb, CFG *C){
 	auto domtree = DomTree->dom_tree;
 	// DomTree->display();
     cur_block = curblockmap[ubbid];
+    
+    // std::cerr << "\n[指令选择] 开始处理基本块 B" << ubbid << std::endl;
     for (auto instruction : ubb->Instruction_list) {
-		// instruction->PrintIR(std::cerr);
+        // std::cerr << "[指令选择] 处理指令: ";
+        // instruction->PrintIR(std::cerr);
         ConvertAndAppend<Instruction>(instruction);
     }
+    // std::cerr << "[指令选择] 完成基本块 B" << ubbid << " 的处理\n" << std::endl;
+
 	for (auto vbb : domtree[ubbid]) {
 		DomtreeDfs(vbb, C);
 	}
@@ -715,7 +723,7 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 
 		case BasicInstruction::LLVMIROpcode::ADD:
 		 	// Imm + Imm 的情况, riscv64 指令集无法解决, 在窥孔优化里消除
-			// 所以的 Imm 都需要存储在 Imm_reg 中，因为 addiw 等立即数运算有位宽限制
+			// 所有的 Imm 都需要存储在 Imm_reg 中，因为 addiw 等立即数运算有位宽限制
 			if(op1_isreg && op2_isreg){  // reg + reg
                 auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
                 auto rs = GetNewRegister(reg_op1->GetRegNo(), INT64);

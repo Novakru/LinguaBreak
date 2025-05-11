@@ -9,6 +9,9 @@
 #include"register.h"
 #include"../inst_process/machine_instruction.h"
 
+// 前向声明
+class RiscV64Printer;
+
 //注：参考原框架的MachineBlock,RiscV64Block,MachineBlockFactory,RiscV64BlockFactory,MachineCFG,MachineFunction,RiscV64Function,MachineUnit,RiscV64Unit
 
 class MachineUnit;
@@ -61,6 +64,8 @@ public:
         // return (*(instructions.rbegin()))->getNumber();
     }
     MachineBlock(int id) : label_id(id) {}
+
+    void display();
 };
 class MachineFunction {
 private:
@@ -317,6 +322,20 @@ public:
     }
  private:
     Iterator* reverse_child;
+
+public:
+    void display() {
+        std::cerr << "\n[MachineCFG] 控制流图结构:" << std::endl;
+        for (auto &[id, node] : block_map) {
+            std::cerr << "基本块 B" << id << " 的后继基本块:";
+            for (auto succ : G[id]) {
+                std::cerr << " B" << succ->Mblock->getLabelId();
+            }
+            std::cerr << std::endl;
+            node->Mblock->display();
+        }
+        std::cerr << std::endl;
+    }
 };
 
 class RiscV64Block : public MachineBlock {
