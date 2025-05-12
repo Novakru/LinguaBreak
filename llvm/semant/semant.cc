@@ -92,11 +92,14 @@ void GatherArrayrecursion(NodeAttribute & attr, InitValBase init,std::vector<int
             }
         }
         //补齐该层元素个数
-        for(int i=curr_num;i<needed_num[depth];i++){
-            attr.FloatInitVals.push_back(0.0);
-            ++pos;
-            attr.RealInitvalPos.push_back(0);//全局位置设为0
-        }
+		if(curr_num < needed_num[depth]){
+			size_t num_elements_to_add = needed_num[depth] - curr_num;
+
+			attr.FloatInitVals.resize(attr.FloatInitVals.size() + num_elements_to_add, 0.0);
+			attr.RealInitvalPos.resize(attr.RealInitvalPos.size() + num_elements_to_add, 0);
+
+			pos += num_elements_to_add;
+		}
         return;
     }
 }

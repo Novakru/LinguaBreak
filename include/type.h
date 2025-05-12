@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <utility>
 class OpType{
 public:
     enum Op{
@@ -111,15 +112,27 @@ public:
         type = new BuiltinType(BuiltinType::BuiltinKind::Void);
         ConstTag = false;
     }
-	VarAttribute(std::vector<int> Dims, std::vector<int> InitVals) 
-    : dims(Dims), IntInitVals(InitVals)
-    {
+	// VarAttribute(std::vector<int> Dims, std::vector<int> InitVals) 
+    // : dims(Dims), IntInitVals(InitVals)
+    // {
+    //     type = new BuiltinType(BuiltinType::BuiltinKind::Int);
+    //     ConstTag = false;
+    // }
+    // VarAttribute(std::vector<int> Dims, std::vector<float> InitVals) 
+    // : dims(Dims), FloatInitVals(InitVals)
+    // {
+    //     type = new BuiltinType(BuiltinType::BuiltinKind::Float);
+    //     ConstTag = false;
+    // }
+	// 防止传参拷贝，大数组内存超限
+	VarAttribute(std::vector<int>&& Dims, std::vector<int>&& InitVals) 
+        : dims(std::move(Dims)), IntInitVals(std::move(InitVals)) {
         type = new BuiltinType(BuiltinType::BuiltinKind::Int);
         ConstTag = false;
     }
-    VarAttribute(std::vector<int> Dims, std::vector<float> InitVals) 
-    : dims(Dims), FloatInitVals(InitVals)
-    {
+
+    VarAttribute(std::vector<int>&& Dims, std::vector<float>&& InitVals) 
+        : dims(std::move(Dims)), FloatInitVals(std::move(InitVals)) {
         type = new BuiltinType(BuiltinType::BuiltinKind::Float);
         ConstTag = false;
     }
