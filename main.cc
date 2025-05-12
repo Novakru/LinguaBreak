@@ -101,18 +101,20 @@ int main(int argc, char** argv) {
 	/* 【4】 irgen */
 	ASTroot->codeIR();
 	llvmIR.CFGInit();
-	SimplifyCFGPass(&llvmIR).Execute();
+	SimplifyCFGPass(&llvmIR).Execute();//已消除不可达指令和不可达块
 
 	/* 【5】 opt */
     if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
         // mem2reg
         DomAnalysis dom(&llvmIR);
         dom.Execute();   
-        (Mem2RegPass(&llvmIR, &dom)).Execute();
-        // adce
-        DomAnalysis inv_dom(&llvmIR);
-        inv_dom.invExecute();
-        (ADCEPass(&llvmIR, &inv_dom)).Execute();
+		(Mem2RegPass(&llvmIR, &dom)).Execute();
+		SimplifyCFGPass(&llvmIR).EOBB();//消除只有一条 br_uncond 指令的基本块（仅消除由mem2reg引入的，位于头部）
+
+		// adce
+		DomAnalysis inv_dom(&llvmIR);
+		inv_dom.invExecute();
+		(ADCEPass(&llvmIR, &inv_dom)).Execute();//消除死代码（含冗余phi指令和 br_uncond_block）
     }
 
 	if (strcmp(argv[2], "-llvm") == 0) {

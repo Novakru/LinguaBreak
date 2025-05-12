@@ -1,1 +1,0 @@
-./bin/SysYc debug.sy -parser output.txt

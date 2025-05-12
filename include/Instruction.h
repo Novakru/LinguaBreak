@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <cstdint>
 
 #ifndef ERROR
 #define ERROR(...)                                                                                                     \
@@ -479,7 +480,8 @@ private:
     enum LLVMType type;
     Operand result;
     int regno; // 新增，记录这个phi属于哪一个寄存器
-    std::vector<std::pair<Operand, Operand>> phi_list;
+    std::set<int> def_regno; // 记录这个phi的源值寄存器号
+    std::vector<std::pair<Operand, Operand>> phi_list;// label-reg
 
 public:
     PhiInstruction(enum LLVMType type, Operand result, decltype(phi_list) val_labels) {
@@ -487,28 +489,36 @@ public:
         this->type = type;
         this->result = result;
         this->phi_list = val_labels;
+        for(auto &[label,reg]:phi_list){
+            if(reg->GetOperandType()==BasicOperand::REG){
+                def_regno.insert(((RegOperand*)reg)->GetRegNo());
+            }
+        }
     }
     PhiInstruction(enum LLVMType type, Operand result, int regno) {
         this->opcode = LLVMIROpcode::PHI;
         this->type = type;
         this->result = result;
         this->regno = regno;
+        for(auto &[label,reg]:phi_list){
+            if(reg->GetOperandType()==BasicOperand::REG){
+                def_regno.insert(((RegOperand*)reg)->GetRegNo());
+            }
+        }
     }
     int GetRegno() { return regno; }
-    void AddPhi(std::pair<Operand, Operand> phi){ phi_list.push_back(phi); }
+    void AddPhi(std::pair<Operand, Operand> phi){ phi_list.push_back(phi); def_regno.insert(((RegOperand*)phi.second)->GetRegNo());}
     virtual void PrintIR(std::ostream &s);
     
-    void ReplaceLabelByMap(const std::map<int, int> &Rule);
-    void SetNewLabelFrom(int old_id, int new_id);
     Operand GetResult(){ return result; };
     LLVMType GetResultType(){ return type; };
     void SetResult(Operand op){ result = op; }
     std::vector<std::pair<Operand, Operand>> GetPhiList(){ return phi_list; }
-    void SetPhiList(std::vector<std::pair<Operand, Operand>> pairlist){ phi_list = pairlist; }
-    
-    void AddNewPhiPair(std::pair<Operand, Operand> new_pair){ phi_list.push_back(new_pair);}
-    
-    
+    void ChangePhiPair(int index, std::pair<Operand, Operand> new_pair){ 
+        def_regno.erase(((RegOperand*)phi_list[index].second)->GetRegNo());
+        phi_list[index] = new_pair; 
+        def_regno.insert(((RegOperand*)phi_list[index].second)->GetRegNo());
+    }
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
@@ -566,17 +576,10 @@ public:
     void SetCond(Operand op){ cond = op; }
     void SetTrueLabel(Operand op){ trueLabel = op; }
     void SetFalseLabel(Operand op){ falseLabel = op; }
-
-    virtual void PrintIR(std::ostream &s);
-    
-    void ReplaceLabelByMap(const std::map<int, int> &Rule);
-    Operand GetResult(){ return nullptr; };
-    
-    
-    
-
     void ChangeTrueLabel(Operand op) { trueLabel=op; }
     void ChangeFalseLabel(Operand op) { falseLabel=op; }
+    virtual void PrintIR(std::ostream &s);
+    Operand GetResult(){ return nullptr; };
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
@@ -597,7 +600,6 @@ public:
     void SetTarget(Operand op){ destLabel = op; }
     virtual void PrintIR(std::ostream &s);
     void ReplaceRegByMap(const std::map<int, int> &Rule){};
-    void ReplaceLabelByMap(const std::map<int, int> &Rule);
     Operand GetResult(){ return nullptr; };
     
     

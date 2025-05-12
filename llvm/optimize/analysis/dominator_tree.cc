@@ -48,8 +48,8 @@ void DominatorTree::SearchInvB(int bbid){
     dfs[bbid] = ++inv_dfs_num;
     //std::cout<<bbid<<" "<<inv_dfs_num<<std::endl;
 
-    for(int i=0; i<C->invG[bbid].size(); i++){
-        SearchInvB(C->invG[bbid][i]->block_id);
+    for(auto block: C->invG[bbid]){
+        SearchInvB(block->block_id);
     }
 }
 
@@ -78,16 +78,16 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
             if(block_id==0){
                 break;
             }
-            std::vector<LLVMBlock> vec = C->invG[block_id];
+            std::set<LLVMBlock> block_set = C->invG[block_id];
             int res = INT32_MAX;
 
-            for(int i=0; i<vec.size(); i++){
-                if(dfn > vec[i]->dfs_id){
-                    res = std::min(res, vec[i]->dfs_id);
+            for(auto &block: block_set){
+                if(dfn > block->dfs_id){
+                    res = std::min(res, block->dfs_id);
                 }
                 else{
-                    find(mn_map, fa_map, vec[i]->block_id);
-                    int sdom = sdom_map[mn_map[vec[i]->block_id]];
+                    find(mn_map, fa_map, block->block_id);
+                    int sdom = sdom_map[mn_map[block->block_id]];
                     res = std::min(res, (*(C->block_map))[sdom]->dfs_id);
                 }
             }
@@ -103,8 +103,8 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
         // 建立DF_map
         for(int i=0; i<C->invG.size(); i++){
             if(C->invG[i].size()>=2){
-                for(int j=0; j<C->invG[i].size(); j++){
-                    int runner = C->invG[i][j]->block_id;
+                for(auto &block: C->invG[i]){
+                    int runner = block->block_id;
                     while(runner!=sdom_map[i]){
                         //std::cout<<"DF:"<< i << " " << sdom_map[i] << " " << runner <<std::endl;
                         DF_map[runner].insert(i);
@@ -153,16 +153,16 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
         for(iter=dfs_map.rbegin(); iter!=dfs_map.rend(); iter++){
             int dfn = iter->first;
             int block_id = iter->second;
-            std::vector<LLVMBlock> vec = C->G[block_id];
+            std::set<LLVMBlock> block_set = C->G[block_id];
             int res = INT32_MAX;
 
-            for(int i=0; i<vec.size(); i++){
-                if(dfn > dfs[vec[i]->block_id]){
-                    res = std::min(res, dfs[vec[i]->block_id]);
+            for(auto &block: block_set){
+                if(dfn > dfs[block->block_id]){
+                    res = std::min(res, dfs[block->block_id]);
                 }
                 else{
-                    invfind(mn_map, fa_map, vec[i]->block_id);
-                    int sdom = sdom_map[mn_map[vec[i]->block_id]];
+                    invfind(mn_map, fa_map, block->block_id);
+                    int sdom = sdom_map[mn_map[block->block_id]];
                     res = std::min(res, dfs[(*(C->block_map))[sdom]->block_id]);
                 }
             }
@@ -178,8 +178,8 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
         // 建立DF_map
         for(int i=0; i<C->G.size(); i++){
             if(C->G[i].size()>=2){
-                for(int j=0; j<C->G[i].size(); j++){
-                    int runner = C->G[i][j]->block_id;
+                for(auto &block: C->G[i]){
+                    int runner = block->block_id;
                     while(runner!=sdom_map[i]){
                         DF_map[runner].insert(i);
                         (*(C->block_map))[runner]->comment += " inv_DF:" + std::to_string(i);

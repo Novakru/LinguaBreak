@@ -2,8 +2,7 @@ obj/
 bin/
 .vscode/
 test/
-testcase/
+testcase/*
+test_output/*
 debug.sy
-output.txt
-semant_output.txt
-test_output/
+debug.ll

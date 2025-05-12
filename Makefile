@@ -77,3 +77,22 @@ format:
 	@echo "Formatting source files..."
 	clang-format -style=file -i $(SRCS)
 	clang-format -style=file -i $(foreach dir,$(SRCDIR),$(wildcard $(dir)/*.h))
+
+# # 生成调试版本 make debug
+# DEBUG_OBJDIR := ./obj/debug
+# DEBUG_OBJS := $(patsubst %.cc, $(DEBUG_OBJDIR)/%.o, $(SRCS))
+
+# debug: CFLAGS := -O0 -g -w -MMD -std=c++17 $(INCLUDES)
+# debug: BINARY := $(BIN_DIR)/$(NAME)-dbg
+# debug: $(BINARY)
+
+# $(BINARY): $(DEBUG_OBJS)
+# 	@echo + LD $@
+# 	@mkdir -p $(BIN_DIR)
+# 	@$(LD) $(DEBUG_OBJS) -o $@ -O0 -std=c++17
+
+# $(DEBUG_OBJDIR)/%.o : %.cc
+# 	@echo + CC [debug] $<
+# 	@mkdir -p $(dir $@)
+# 	@$(CC) $(CFLAGS) -c -o $@ $<
+

@@ -1,6 +1,8 @@
 #ifndef PASS_H
 #define PASS_H
 #include "../include/ir.h"
+#include <cstdint>
+#include <unordered_set>
 
 class IRPass {
 protected:
