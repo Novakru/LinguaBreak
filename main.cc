@@ -30,8 +30,8 @@ extern Program ASTroot;
 extern LLVMIR llvmIR;
 extern int yylex();
 extern void dumpTokens(FILE* output, int token, int line_number, char *yytext, YYSTYPE yylval);
-extern std::vector<std::string> error_msgs;//新增
-IdTable id_table;//新增
+extern std::vector<std::string> error_msgs;
+IdTable id_table;
 int line = 1;
 
 // option table 
@@ -123,8 +123,6 @@ int main(int argc, char** argv) {
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
 		// 重建CFG
 		SimplifyCFGPass(&llvmIR).Execute();
-
-		dom.Execute();
     }
 
 	if (strcmp(argv[2], "-llvm") == 0) {
@@ -135,9 +133,7 @@ int main(int argc, char** argv) {
 
 	if (strcmp(argv[2], "-select") == 0) {
 		MachineUnit* m_unit=new RiscV64Unit(&llvmIR);
-
 		m_unit->SelectInstructionAndBuildCFG();
-
         RiscV64Printer(fout, m_unit).emit();
         // RiscV64Printer(std::cerr, m_unit).emit();
 		return 0;
