@@ -13,6 +13,7 @@
 #include "llvm/optimize/analysis/dominator_tree.h"
 #include "llvm/optimize/transform/mem2reg.h"
 #include "llvm/optimize/transform/adce.h"
+#include "llvm/optimize/transform/peephole.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -123,6 +124,7 @@ int main(int argc, char** argv) {
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
 		// 重建CFG
 		SimplifyCFGPass(&llvmIR).Execute();
+		PeepholePass(&llvmIR).ImmResultReplaceExecute();
     }
 
 	if (strcmp(argv[2], "-llvm") == 0) {
