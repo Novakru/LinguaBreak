@@ -3,6 +3,7 @@
 #include <assert.h>
 
 int dfs_num = 0;
+extern int inv_dfs_num;
 
 void LLVMIR::CFGInit() {
     for (auto &[defI, bb_map] : function_block_map) {
@@ -10,21 +11,11 @@ void LLVMIR::CFGInit() {
         cfg->block_map = &bb_map;
         cfg->function_def = defI;
 
-        // 初始化邻接表大小
-        int block_num = bb_map.size();
-        cfg->G.resize(block_num);
-        cfg->invG.resize(block_num);
-
         cfg->BuildCFG();
         llvm_cfg[defI] = cfg;
     }
 }
 
-void LLVMIR::BuildCFG() {
-    for (auto [defI, cfg] : llvm_cfg) {
-        cfg->BuildCFG();
-    }
-}
 
 void CFG::SearchB(LLVMBlock B){
     if(B->dfs_id!=0)return;
@@ -39,14 +30,15 @@ void CFG::SearchB(LLVMBlock B){
             int next_label = ((LabelOperand*)operand)->GetLabelNo();
             LLVMBlock next_block = (*block_map)[next_label];
             //（2）维护G/invG
-            G[B->block_id].push_back(next_block);
-            invG[next_label].push_back(B);
+            G[B->block_id].insert(next_block);
+            invG[next_label].insert(B);
             next_block->comment += ("L" + std::to_string(B->block_id) + ", ");
             //（3）递归调用，搜索它的目标块
             SearchB(next_block);
             //（4）删除当前块中跳转指令之后的所有指令
-            if(std::next(it) != B->Instruction_list.end())
+            if(std::next(it) != B->Instruction_list.end()){
                 B->Instruction_list.erase(std::next(it), B->Instruction_list.end());
+            }
             return;
         }
         //【2】条件跳转指令（与【1】类似，但是有两个目标块，都要维护）
@@ -58,26 +50,28 @@ void CFG::SearchB(LLVMBlock B){
             LLVMBlock true_block = (*block_map)[true_label];
             LLVMBlock false_block = (*block_map)[false_label];
 
-            G[B->block_id].push_back(true_block);
-            invG[true_label].push_back(B);
-            true_block->comment += ("L" + std::to_string(B->block_id) + ", ");
+            G[B->block_id].insert(true_block);
+            invG[true_label].insert(B);
+            //true_block->comment += ("L" + std::to_string(B->block_id) + ", ");
 
-            G[B->block_id].push_back(false_block);
-            invG[false_label].push_back(B);
-            false_block->comment += ("L" + std::to_string(B->block_id) + ", ");
+            G[B->block_id].insert(false_block);
+            invG[false_label].insert(B);
+            //false_block->comment += ("L" + std::to_string(B->block_id) + ", ");
 
             SearchB(true_block);
             SearchB(false_block);
 
-            if(std::next(it) != B->Instruction_list.end())
+            if(std::next(it) != B->Instruction_list.end()){
                 B->Instruction_list.erase(std::next(it), B->Instruction_list.end());
+            }
             return;
         }
         //ret指令
         else if(intr->GetOpcode()==BasicInstruction::LLVMIROpcode::RET){
             //（1）删除当前块中跳转指令之后的所有指令
-            if(std::next(it) != B->Instruction_list.end())
+            if(std::next(it) != B->Instruction_list.end()){
                 B->Instruction_list.erase(std::next(it), B->Instruction_list.end());
+            }
             return;
         }
     }
@@ -91,10 +85,10 @@ void CFG::BuildCFG() {
     SearchB(start_block);
 }
 
-std::vector<LLVMBlock> CFG::GetPredecessor(LLVMBlock B) { return invG[B->block_id]; }
+std::set<LLVMBlock> CFG::GetPredecessor(LLVMBlock B) { return invG[B->block_id]; }
 
-std::vector<LLVMBlock> CFG::GetPredecessor(int bbid) { return invG[bbid]; }
+std::set<LLVMBlock> CFG::GetPredecessor(int bbid) { return invG[bbid]; }
 
-std::vector<LLVMBlock> CFG::GetSuccessor(LLVMBlock B) { return G[B->block_id]; }
+std::set<LLVMBlock> CFG::GetSuccessor(LLVMBlock B) { return G[B->block_id]; }
 
-std::vector<LLVMBlock> CFG::GetSuccessor(int bbid) { return G[bbid]; }
+std::set<LLVMBlock> CFG::GetSuccessor(int bbid) { return G[bbid]; }

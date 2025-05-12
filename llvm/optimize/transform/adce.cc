@@ -6,6 +6,11 @@ Instruction ADCEPass::GetTerminal(CFG *C, int label){
 }
 
 void ADCEPass::ADCE(CFG *C){
+    // std::cout<<" blocks rest:"<<C->block_map->size()<<" 个 。";
+    // for(auto &[id, block]: *(C->block_map)){
+    //     std::cout<<id<<" ";
+    // }std::cout<<std::endl;
+
     std::set<Instruction> worklist;
     std::map<Instruction, int> intr_bbid_map; // 保存指令和所在block_id
     std::map<int, Instruction> defmap;
@@ -44,6 +49,11 @@ void ADCEPass::ADCE(CFG *C){
             auto phiI = (PhiInstruction*)intr;
             for(auto& phi_pair: phiI->GetPhiList()){
                 int label = ((LabelOperand*)phi_pair.first)->GetLabelNo();
+                // std::cout<<"get terminal: "<<label<<std::endl;
+                // if(C->block_map->find(label)==C->block_map->end()){
+                //     std::cout<<"label not found: "<<label<<std::endl;
+                //     continue;
+                // }
                 Instruction terminal = GetTerminal(C, label);
                 if(worklist.find(terminal)==worklist.end() && live.find(terminal)==live.end()){
                     worklist.insert(terminal);
@@ -85,7 +95,6 @@ void ADCEPass::CleanUnlive(CFG *C){
 
     // 删除不活跃的指令
     for(auto &[id, block]: *(C->block_map)){
-        //std::cout<<id<<std::endl;
         std::deque<Instruction> old_Intrs = block->Instruction_list;
         block->Instruction_list.clear();
 

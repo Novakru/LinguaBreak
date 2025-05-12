@@ -13,8 +13,6 @@ private:
     std::map<int, std::set<int>> use_map; // load过的regno与其出现的block set，用于选择优化方法
     std::map<int, std::set<int>> def_map; // store过的regno与其出现的block set，用于选择优化方法
 
-    //std::set<int> regno_for_phi; //记录需要进行phi指令插入的变量
-
     bool IsPromotable(Instruction AllocaInst);
     void Mem2RegNoUseAlloca(CFG *C, std::set<int> &vset);
     void Mem2RegUseDefInSameBlock(CFG *C, std::set<int> &vset, int block_id);
@@ -29,5 +27,8 @@ public:
     Mem2RegPass(LLVMIR *IR, DomAnalysis *dom) : IRPass(IR) { domtrees = dom; }
     void Execute();
 };
+
+//// <函数定义指令，<函数内的基本块id，基本块内的phi指令列表>>
+//std::unordered_map<CFG*,std::unordered_map<int, std::vector<PhiInstruction*>>> phi_map; 
 
 #endif

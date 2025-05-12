@@ -41,6 +41,7 @@ def execute_compilation(input_file, output_file, compile_option, opt_level):
     cmd = ["timeout", "10", "./bin/SysYc", input_file, compile_option, output_file]
     if compile_option in ["-llvm", "-target"]:
         cmd.append(opt_level)
+    # print(" ".join(cmd))
     result = execute(cmd)
     return result.returncode == 0
 
