@@ -1,5 +1,5 @@
 #include"inst_print.h"
-#include"../phi_processing/phi_process.h"
+#include"../phi_process.h"
 #include <assert.h>
 #include<string.h>
 bool isMemFormatOp(int opcode) {
