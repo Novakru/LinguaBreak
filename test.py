@@ -39,9 +39,9 @@ def add_returncode(file, ret):
 
 def execute_compilation(input_file, output_file, compile_option, opt_level):
     cmd = ["timeout", "10", "./bin/SysYc", input_file, compile_option, output_file]
-    if compile_option in ["-llvm", "-target"]:
+    if compile_option in ["-llvm", "-select", "-target"]:
         cmd.append(opt_level)
-    # print(" ".join(cmd))
+    # print(f"执行命令: {' '.join(cmd)}")
     result = execute(cmd)
     return result.returncode == 0
 
@@ -84,7 +84,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('input_folder')
 parser.add_argument('output_folder')
 parser.add_argument('opt', choices=['0', '1'], default='0', help="optimization level")
-parser.add_argument('step', choices=["lexer", "parser", "semant", "llvm", "target"])
+parser.add_argument('step', choices=["lexer", "parser", "semant", "llvm", "select", "target"])
 args = parser.parse_args()
 
 input_folder = args.input_folder

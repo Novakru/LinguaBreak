@@ -13,6 +13,15 @@
 #include "llvm/optimize/analysis/dominator_tree.h"
 #include "llvm/optimize/transform/mem2reg.h"
 #include "llvm/optimize/transform/adce.h"
+#include "llvm/optimize/transform/peephole.h"
+
+//-target
+#include"back_end/basic/riscv_def.h"
+#include"back_end/basic/register.h"
+#include"back_end/inst_process/inst_select/inst_select.h"
+#include"back_end/register_allocation/linear_scan/linear_scan.h"
+#include"back_end/inst_process/inst_print/inst_print.h"
+
 
 extern FILE *yyin;
 extern char *yytext;
@@ -22,13 +31,13 @@ extern Program ASTroot;
 extern LLVMIR llvmIR;
 extern int yylex();
 extern void dumpTokens(FILE* output, int token, int line_number, char *yytext, YYSTYPE yylval);
-extern std::vector<std::string> error_msgs;//新增
-IdTable id_table;//新增
+extern std::vector<std::string> error_msgs;
+IdTable id_table;
 int line = 1;
 
 // option table 
-#define nr_options 5 
-const char *valid_options[] = {"-lexer", "-parser", "-semant", "-llvm", "-target", "-O1"};
+#define nr_options 7 
+const char *valid_options[] = {"-lexer", "-parser", "-semant", "-llvm", "-select", "-target", "-O1"};
 
 int main(int argc, char** argv) {
 	/* argc = 4 or 5 : ./bin/SysYc input_file -llvm output_file [-O1] */
@@ -101,20 +110,21 @@ int main(int argc, char** argv) {
 	/* 【4】 irgen */
 	ASTroot->codeIR();
 	llvmIR.CFGInit();
-	SimplifyCFGPass(&llvmIR).Execute();//已消除不可达指令和不可达块
+	SimplifyCFGPass(&llvmIR).Execute();
 
-	/* 【5】 opt */
+	// /* 【5】 opt */
     if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
         // mem2reg
         DomAnalysis dom(&llvmIR);
         dom.Execute();   
-		(Mem2RegPass(&llvmIR, &dom)).Execute();
-		SimplifyCFGPass(&llvmIR).EOBB();//消除只有一条 br_uncond 指令的基本块（仅消除由mem2reg引入的，位于头部）
-
-		// adce
-		DomAnalysis inv_dom(&llvmIR);
-		inv_dom.invExecute();
-		(ADCEPass(&llvmIR, &inv_dom)).Execute();//消除死代码（含冗余phi指令和 br_uncond_block）
+        (Mem2RegPass(&llvmIR, &dom)).Execute();
+        // adce
+        DomAnalysis inv_dom(&llvmIR);
+        inv_dom.invExecute();
+        (ADCEPass(&llvmIR, &inv_dom)).Execute();
+		// 重建CFG
+		SimplifyCFGPass(&llvmIR).Execute();
+		PeepholePass(&llvmIR).ImmResultReplaceExecute();
     }
 
 	if (strcmp(argv[2], "-llvm") == 0) {
@@ -123,18 +133,24 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-	/* parser and so on */
-	// if (strcmp(argv[2], "-parser") == 0) {
-	// 	TODO("-parser compile option is not supported now.");
-	// } else if (strcmp(argv[2], "-semant") == 0) {
-	// 	TODO("-semant compile option is not supported now.");
-	// } else if (strcmp(argv[2], "-llvm") == 0) {
-	// 	TODO("-llvm compile option is not supported now.");
-	// } else if (strcmp(argv[2], "-target") == 0) {
-	// 	TODO("-target compile option is not supported now.");
-	// } else {
-	// 	perror("invalid compile option.");
-	// }
+	if (strcmp(argv[2], "-select") == 0) {
+		MachineUnit* m_unit=new RiscV64Unit(&llvmIR);
+		m_unit->SelectInstructionAndBuildCFG();
+        RiscV64Printer(fout, m_unit).emit();
+        // RiscV64Printer(std::cerr, m_unit).emit();
+		return 0;
+    }
+
+	if (strcmp(argv[2], "-target") == 0) {
+        MachineUnit* m_unit=new RiscV64Unit(&llvmIR);
+		RiscV64RegisterAllocTools regs;
+		m_unit->SelectInstructionAndBuildCFG();
+		FastLinearScan(m_unit, &regs).Execute();
+		m_unit->LowerStack();
+		RiscV64Printer(fout, m_unit).emit();
+        fout.close();
+        return 0;
+    }
 
     fclose(input);
     if (output != stdout) fclose(output);

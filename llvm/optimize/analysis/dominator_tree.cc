@@ -7,6 +7,7 @@ void DomAnalysis::Execute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         DomInfo[cfg] = new DominatorTree(cfg);
         DomInfo[cfg]->BuildDominatorTree(false);
+        cfg->DomTree = DomInfo[cfg];
     }
 }
 
@@ -14,6 +15,7 @@ void DomAnalysis::invExecute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         DomInfo[cfg] = new DominatorTree(cfg);
         DomInfo[cfg]->BuildDominatorTree(true);
+        cfg->PostDomTree = DomInfo[cfg];
     }
 }
 
@@ -48,12 +50,23 @@ void DominatorTree::SearchInvB(int bbid){
     dfs[bbid] = ++inv_dfs_num;
     //std::cout<<bbid<<" "<<inv_dfs_num<<std::endl;
 
-    for(auto block: C->invG[bbid]){
-        SearchInvB(block->block_id);
+    for(int i=0; i<C->invG[bbid].size(); i++){
+        SearchInvB(C->invG[bbid][i]->block_id);
     }
 }
 
 void DominatorTree::BuildDominatorTree(bool reverse) {
+    // 清空所有内容
+    dom_tree.clear();
+    idom.clear();
+    sdom_map.clear();
+    dfs_map.clear();
+    dfs.clear();
+    DF_map.clear();
+
+    // 初始化 dom_tree
+    dom_tree.resize(C->max_label + 1);
+
     if(!reverse){
         std::map<int, int> fa_map{};  // 这是用于记录路径压缩的祖宗节点的map
         std::map<int, int> mn_map{};  // 这是用于记录一个block顺着逆向图目前可以找到的最小sdom的block_id
@@ -70,24 +83,23 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
             mn_map[block_id] = block_id;
         }
         
-        // 按照dfs的逆序遍历和invG遍历以获取idom（这里的idom在带权并查集其实就是sdom）
+        // 按照dfs的逆序遍历和invG遍历以获取idom
         std::map<int, int>::reverse_iterator iter;
         for(iter=dfs_map.rbegin(); iter!=dfs_map.rend(); iter++){
             int dfn = iter->first;
             int block_id = iter->second;
-            if(block_id==0){
-                break;
-            }
-            std::set<LLVMBlock> block_set = C->invG[block_id];
+            if(block_id==0) continue;
+
+            std::vector<LLVMBlock> vec = C->invG[block_id];
             int res = INT32_MAX;
 
-            for(auto &block: block_set){
-                if(dfn > block->dfs_id){
-                    res = std::min(res, block->dfs_id);
+            for(int i=0; i<vec.size(); i++){
+                if(dfn > vec[i]->dfs_id){
+                    res = std::min(res, vec[i]->dfs_id);
                 }
                 else{
-                    find(mn_map, fa_map, block->block_id);
-                    int sdom = sdom_map[mn_map[block->block_id]];
+                    find(mn_map, fa_map, vec[i]->block_id);
+                    int sdom = sdom_map[mn_map[vec[i]->block_id]];
                     res = std::min(res, (*(C->block_map))[sdom]->dfs_id);
                 }
             }
@@ -103,10 +115,9 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
         // 建立DF_map
         for(int i=0; i<C->invG.size(); i++){
             if(C->invG[i].size()>=2){
-                for(auto &block: C->invG[i]){
-                    int runner = block->block_id;
+                for(int j=0; j<C->invG[i].size(); j++){
+                    int runner = C->invG[i][j]->block_id;
                     while(runner!=sdom_map[i]){
-                        //std::cout<<"DF:"<< i << " " << sdom_map[i] << " " << runner <<std::endl;
                         DF_map[runner].insert(i);
                         (*(C->block_map))[runner]->comment += " DF:" + std::to_string(i);
                         if(runner==0)break;
@@ -114,7 +125,6 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
                     }
                 }
             }
-
         }
     }
     else{
@@ -153,16 +163,16 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
         for(iter=dfs_map.rbegin(); iter!=dfs_map.rend(); iter++){
             int dfn = iter->first;
             int block_id = iter->second;
-            std::set<LLVMBlock> block_set = C->G[block_id];
+            std::vector<LLVMBlock> vec = C->G[block_id];
             int res = INT32_MAX;
 
-            for(auto &block: block_set){
-                if(dfn > dfs[block->block_id]){
-                    res = std::min(res, dfs[block->block_id]);
+            for(int i=0; i<vec.size(); i++){
+                if(dfn > dfs[vec[i]->block_id]){
+                    res = std::min(res, dfs[vec[i]->block_id]);
                 }
                 else{
-                    invfind(mn_map, fa_map, block->block_id);
-                    int sdom = sdom_map[mn_map[block->block_id]];
+                    invfind(mn_map, fa_map, vec[i]->block_id);
+                    int sdom = sdom_map[mn_map[vec[i]->block_id]];
                     res = std::min(res, dfs[(*(C->block_map))[sdom]->block_id]);
                 }
             }
@@ -178,8 +188,8 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
         // 建立DF_map
         for(int i=0; i<C->G.size(); i++){
             if(C->G[i].size()>=2){
-                for(auto &block: C->G[i]){
-                    int runner = block->block_id;
+                for(int j=0; j<C->G[i].size(); j++){
+                    int runner = C->G[i][j]->block_id;
                     while(runner!=sdom_map[i]){
                         DF_map[runner].insert(i);
                         (*(C->block_map))[runner]->comment += " inv_DF:" + std::to_string(i);
@@ -191,10 +201,46 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
             }
         }
     }
-    
+
+	// 构建支配树
+	std::set<int> visited;
+	for(auto iter = C->block_map->begin(); iter != C->block_map->end(); iter++){
+		int block_id = iter->first;
+		if(block_id == 0 || visited.count(block_id) > 0) continue;
+		
+		int sdom_id = sdom_map[block_id];
+		if(sdom_id >= 0 && sdom_id < dom_tree.size()) {
+			dom_tree[sdom_id].push_back(iter->second);
+			visited.insert(block_id);
+		}
+	}
+
+    // 输出sdom_map
+	// display_sdom_map();
 }
 
 
 std::set<int> DominatorTree::GetDF(int id) {
     return DF_map[id];
+}
+
+void DominatorTree::display() {
+    std::cout << "\n=== Dominator Tree Structure ===" << std::endl;
+    for (size_t i = 0; i < dom_tree.size(); i++) {
+        if (dom_tree[i].empty()) continue;
+        std::cout << "Block " << i << " dominates: ";
+        for (auto block : dom_tree[i]) {
+            std::cout << block->block_id << " ";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "=== End of Dominator Tree ===\n" << std::endl;
+}
+
+void DominatorTree::display_sdom_map() {
+    std::cout << "\n=== Semi-Dominator Map ===" << std::endl;
+    for(auto &[block_id, sdom_id] : sdom_map) {
+        std::cout << "Block " << block_id << " 的半支配点是: Block " << sdom_id << std::endl;
+    }
+    std::cout << "=== End of Semi-Dominator Map ===\n" << std::endl;
 }

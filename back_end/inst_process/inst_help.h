@@ -1,0 +1,260 @@
+#ifndef INST_HELP_H
+#define INST_HELP_H
+#include<string>
+#include"../basic/register.h"
+#include <memory>
+#include <stdexcept>
+//注：参考原框架的Label,RiscVLabel,MachineBaseOperand,MachineRegister,为了方便后端代码调试，将原框架代码附在之后
+//Label及RISCVLabel改动后使用上的差距
+//1.成员变量的访问上：原代码：if (label.jmp_label_id == ...)；修改后的代码：if (label.get_jmp_id() == ...) 
+//2.类型检查上：原代码：if (label.is_data_address) { ... }；修改后的代码：if (label.is_data_symbol()) { ... }
+//MachineBaseOperand及其继承类暂未改动
+struct MachineBaseOperand {
+    MachineDataType type;
+    enum { REG, IMMI, IMMF, IMMD };
+    int op_type;
+    MachineBaseOperand(int op_type) : op_type(op_type) {}
+    virtual std::string toString() = 0;
+};
+struct MachineRegister : public MachineBaseOperand {
+    Register reg;
+    MachineRegister(Register reg) : MachineBaseOperand(MachineBaseOperand::REG), reg(reg) {}
+    std::string toString() {
+        if (reg.is_virtual)
+            return "%" + std::to_string(reg.reg_no);
+        else
+            return "phy_" + std::to_string(reg.reg_no);
+    }
+};
+
+struct MachineImmediateInt : public MachineBaseOperand {
+    int imm32;
+    MachineImmediateInt(int imm32) : MachineBaseOperand(MachineBaseOperand::IMMI), imm32(imm32) {}
+    std::string toString() { return std::to_string(imm32); }
+};
+struct MachineImmediateFloat : public MachineBaseOperand {
+    float fimm32;
+    MachineImmediateFloat(float fimm32) : MachineBaseOperand(MachineBaseOperand::IMMF), fimm32(fimm32) {}
+    std::string toString() { return std::to_string(fimm32); }
+};
+struct MachineImmediateDouble : public MachineBaseOperand {
+    double dimm64;
+    MachineImmediateDouble(double dimm64) : MachineBaseOperand(MachineBaseOperand::IMMD), dimm64(dimm64) {}
+    std::string toString() { return std::to_string(dimm64); }
+};
+
+// 新增：标签类型枚举
+enum class LabelType {
+    Jump,       // 跳转标签（jmp_label_id）
+    Memory,     // 内存标签（mem_label_id）
+    Print,      // 打印标签（print_label_id）
+    DataSymbol  // 数据符号标签（name + is_hi）
+};
+
+// 基类 Label，定义通用接口
+class Label {
+public:
+    LabelType type;
+    int seq_label_id;
+
+    explicit Label(LabelType type, int seq = 0) 
+        : type(type), seq_label_id(seq) {}
+
+    virtual ~Label() = default;
+
+    // 类型安全的访问方法（防止错误访问成员）
+    virtual int get_jmp_id() const { 
+        throw std::runtime_error("Not a jump label"); 
+    }
+    virtual int get_mem_id() const { 
+        throw std::runtime_error("Not a memory label"); 
+    }
+    virtual std::string get_data_name() const { 
+        throw std::runtime_error("Not a data symbol"); 
+    }
+    virtual bool is_hi() const { 
+        throw std::runtime_error("Not a data symbol"); 
+    }
+
+    // 深拷贝支持
+    virtual std::unique_ptr<Label> clone() const = 0;
+};
+
+// 跳转标签（原 Label 的跳转分支）
+class JumpLabel : public Label {
+public:
+    int jmp_label_id;
+
+    JumpLabel(int jmp, int seq = 0) 
+        : Label(LabelType::Jump, seq), jmp_label_id(jmp) {}
+
+    int get_jmp_id() const override { return jmp_label_id; }
+
+    std::unique_ptr<Label> clone() const override {
+        return std::make_unique<JumpLabel>(*this);
+    }
+};
+
+// 内存标签（原 Label 的内存分支）
+class MemoryLabel : public Label {
+public:
+    int mem_label_id;
+
+    MemoryLabel(int mem, int seq = 0) 
+        : Label(LabelType::Memory, seq), mem_label_id(mem) {}
+
+    int get_mem_id() const override { return mem_label_id; }
+
+    std::unique_ptr<Label> clone() const override {
+        return std::make_unique<MemoryLabel>(*this);
+    }
+};
+
+// 数据符号标签（原 RiscVLabel 的数据分支）
+class DataSymbolLabel : public Label {
+public:
+    std::string name;
+    bool hi_part;  // 是否表示高位地址（%hi）
+
+    DataSymbolLabel(const std::string& name, bool is_hi, int seq = 0) 
+        : Label(LabelType::DataSymbol, seq), name(name), hi_part(is_hi) {}
+
+    std::string get_data_name() const override { return name; }
+    bool is_hi() const override { return hi_part; }
+
+    std::unique_ptr<Label> clone() const override {
+        return std::make_unique<DataSymbolLabel>(*this);
+    }
+};
+
+class RiscVLabel {
+private:
+    std::unique_ptr<Label> label;
+
+public:
+    RiscVLabel() : label(std::make_unique<JumpLabel>(0, 0)) {}
+    // 构造函数委托给具体 Label 类型
+    RiscVLabel(int jmp, int seq) 
+        : label(std::make_unique<JumpLabel>(jmp, seq)) {}
+
+    RiscVLabel(const std::string& name, bool is_hi) 
+        : label(std::make_unique<DataSymbolLabel>(name, is_hi)) {}
+
+    // 拷贝构造函数和赋值运算符
+    RiscVLabel(const RiscVLabel& other) 
+        : label(other.label ? other.label->clone() : nullptr) {}
+
+    RiscVLabel& operator=(const RiscVLabel& other) {
+        if (this != &other) {
+            label = other.label ? other.label->clone() : nullptr;
+        }
+        return *this;
+    }
+
+    // 类型检查方法
+    bool is_jump() const { 
+        return label && label->type == LabelType::Jump; 
+    }
+    bool is_data_symbol() const { 
+        return label && label->type == LabelType::DataSymbol; 
+    }
+
+    // 访问成员（类型安全）
+    int get_jmp_id() const {
+        if (!is_jump()) throw std::runtime_error("Not a jump label");
+        return static_cast<JumpLabel*>(label.get())->get_jmp_id();
+    }
+
+    std::string get_data_name() const {
+        if (!is_data_symbol()) throw std::runtime_error("Not a data symbol");
+        return static_cast<DataSymbolLabel*>(label.get())->get_data_name();
+    }
+
+    bool is_hi() const {
+        if (!is_data_symbol()) throw std::runtime_error("Not a data symbol");
+        return static_cast<DataSymbolLabel*>(label.get())->is_hi();
+    }
+
+    // 比较运算符
+    bool operator==(const RiscVLabel& other) const {
+        if (!label || !other.label) return false;
+        if (label->type != other.label->type) return false;
+
+        switch (label->type) {
+            case LabelType::Jump:
+                return get_jmp_id() == other.get_jmp_id();
+            case LabelType::DataSymbol:
+                return get_data_name() == other.get_data_name() 
+                    && is_hi() == other.is_hi();
+            default:
+                return false; // 其他类型暂不处理
+        }
+    }
+};
+
+// struct Label {
+// public:
+//     union {
+//         int jmp_label_id;
+//         int mem_label_id;
+//         int print_label_id;
+//     };
+//     int seq_label_id;
+//     bool is_data_address;
+//     Label(int jmp, int seq) {
+//         this->jmp_label_id = jmp;
+//         this->seq_label_id = seq;
+//         this->is_data_address = false;
+//     }
+//     Label(int jmp, bool is_data_address = false) {
+//         this->is_data_address = is_data_address;
+//         this->seq_label_id = 0;
+//         this->mem_label_id = jmp;
+//     }
+// };
+
+// struct RiscVLabel : public Label {
+// std::string name;
+// bool is_hi;
+// RiscVLabel() : Label(0, 0), name(), is_hi(false) {}
+// RiscVLabel(int jmp, int seq) : Label(jmp, seq), name() {}
+// RiscVLabel(int jmp) : Label(jmp, false), name() {}
+// RiscVLabel(std::string name, bool is_hi) : Label(0, 0), name(name), is_hi(is_hi) { this->is_data_address = true; }
+// RiscVLabel(const RiscVLabel &other) : Label(0, 0) {
+//     this->is_data_address = other.is_data_address;
+//     if (other.is_data_address) {
+//         std::string temp = other.name;
+//         this->name = temp;
+//         this->is_hi = other.is_hi;
+//     } else {
+//         this->print_label_id = other.print_label_id;
+//         this->seq_label_id = other.seq_label_id;
+//     }
+// }
+// RiscVLabel operator=(const RiscVLabel &other) {
+//     if (this == &other)
+//         return *this;
+//     this->is_data_address = other.is_data_address;
+//     if (other.is_data_address) {
+//         std::string temp = other.name;
+//         this->name = temp;
+//         this->is_hi = other.is_hi;
+//     } else {
+//         this->print_label_id = other.print_label_id;
+//         this->seq_label_id = other.seq_label_id;
+//     }
+//     return *this;
+// }
+// bool operator==(const RiscVLabel &other) const {
+//     if (this == &other)
+//         return true;
+//     if (is_data_address != other.is_data_address)
+//         return false;
+//     if (is_data_address) {
+//         return name == other.name && is_hi == other.is_hi;
+//     } else {
+//         return jmp_label_id == other.jmp_label_id;
+//     }
+// }
+// };
+#endif

@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 #include <set>
-#include <cstdint>
 
 #ifndef ERROR
 #define ERROR(...)                                                                                                     \
@@ -302,6 +301,8 @@ public:
     virtual int GetDefRegno() = 0;
     virtual std::set<int> GetUseRegno() = 0;
     virtual void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) =0;
+    virtual std::vector<Operand> GetNonResultOperands() = 0;
+    virtual void SetNonResultOperands(std::vector<Operand> ops) = 0;
 };
 
 // load
@@ -327,6 +328,16 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        vec.push_back(pointer);
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            pointer = ops[0];
+        }
+    }
 };
 
 // store
@@ -353,6 +364,7 @@ public:
     virtual void PrintIR(std::ostream &s);
     
     
+    
     Operand GetResult(){ return nullptr; };
     
     
@@ -360,6 +372,20 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        vec.push_back(pointer);
+        vec.push_back(value);
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            pointer = ops[0];
+        }
+        if(ops.size() > 1) {
+            value = ops[1];
+        }
+    }
 };
 
 //<result>=add <ty> <op1>,<op2>
@@ -399,6 +425,20 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        vec.push_back(op1);
+        vec.push_back(op2);
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            op1 = ops[0];
+        }
+        if(ops.size() > 1) {
+            op2 = ops[1];
+        }
+    }
 };
 
 //<result>=icmp <cond> <ty> <op1>,<op2>
@@ -436,6 +476,20 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        vec.push_back(op1);
+        vec.push_back(op2);
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            op1 = ops[0];
+        }
+        if(ops.size() > 1) {
+            op2 = ops[1];
+        }
+    }
 };
 
 //<result>=fcmp <cond> <ty> <op1>,<op2>
@@ -470,6 +524,20 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        vec.push_back(op1);
+        vec.push_back(op2);
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            op1 = ops[0];
+        }
+        if(ops.size() > 1) {
+            op2 = ops[1];
+        }
+    }
 };
 
 // phi syntax:
@@ -480,8 +548,7 @@ private:
     enum LLVMType type;
     Operand result;
     int regno; // 新增，记录这个phi属于哪一个寄存器
-    std::set<int> def_regno; // 记录这个phi的源值寄存器号
-    std::vector<std::pair<Operand, Operand>> phi_list;// label-reg
+    std::vector<std::pair<Operand, Operand>> phi_list;
 
 public:
     PhiInstruction(enum LLVMType type, Operand result, decltype(phi_list) val_labels) {
@@ -489,39 +556,43 @@ public:
         this->type = type;
         this->result = result;
         this->phi_list = val_labels;
-        for(auto &[label,reg]:phi_list){
-            if(reg->GetOperandType()==BasicOperand::REG){
-                def_regno.insert(((RegOperand*)reg)->GetRegNo());
-            }
-        }
     }
     PhiInstruction(enum LLVMType type, Operand result, int regno) {
         this->opcode = LLVMIROpcode::PHI;
         this->type = type;
         this->result = result;
         this->regno = regno;
-        for(auto &[label,reg]:phi_list){
-            if(reg->GetOperandType()==BasicOperand::REG){
-                def_regno.insert(((RegOperand*)reg)->GetRegNo());
-            }
-        }
     }
     int GetRegno() { return regno; }
-    void AddPhi(std::pair<Operand, Operand> phi){ phi_list.push_back(phi); def_regno.insert(((RegOperand*)phi.second)->GetRegNo());}
+    void AddPhi(std::pair<Operand, Operand> phi){ phi_list.push_back(phi); }
     virtual void PrintIR(std::ostream &s);
     
+    void ReplaceLabelByMap(const std::map<int, int> &Rule);
+    void SetNewLabelFrom(int old_id, int new_id);
     Operand GetResult(){ return result; };
     LLVMType GetResultType(){ return type; };
     void SetResult(Operand op){ result = op; }
     std::vector<std::pair<Operand, Operand>> GetPhiList(){ return phi_list; }
-    void ChangePhiPair(int index, std::pair<Operand, Operand> new_pair){ 
-        def_regno.erase(((RegOperand*)phi_list[index].second)->GetRegNo());
-        phi_list[index] = new_pair; 
-        def_regno.insert(((RegOperand*)phi_list[index].second)->GetRegNo());
-    }
+    void SetPhiList(std::vector<std::pair<Operand, Operand>> pairlist){ phi_list = pairlist; }
+    
+    void AddNewPhiPair(std::pair<Operand, Operand> new_pair){ phi_list.push_back(new_pair);}
+    
+    
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        for(auto [labelop, valop] : phi_list){
+            vec.push_back(valop);
+        }
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        for(int i = 0; i < ops.size() && i < phi_list.size(); i++) {
+            phi_list[i].second = ops[i];
+        }
+    }
 };
 
 // alloca
@@ -553,6 +624,13 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        // No operands to set
+    }
 };
 
 // Conditional branch
@@ -576,13 +654,38 @@ public:
     void SetCond(Operand op){ cond = op; }
     void SetTrueLabel(Operand op){ trueLabel = op; }
     void SetFalseLabel(Operand op){ falseLabel = op; }
+
+    virtual void PrintIR(std::ostream &s);
+    
+    void ReplaceLabelByMap(const std::map<int, int> &Rule);
+    Operand GetResult(){ return nullptr; };
+    
+    
+    
+
     void ChangeTrueLabel(Operand op) { trueLabel=op; }
     void ChangeFalseLabel(Operand op) { falseLabel=op; }
-    virtual void PrintIR(std::ostream &s);
-    Operand GetResult(){ return nullptr; };
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        vec.push_back(cond);
+        vec.push_back(trueLabel);
+        vec.push_back(falseLabel);
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            cond = ops[0];
+        }
+        if(ops.size() > 1) {
+            trueLabel = ops[1];
+        }
+        if(ops.size() > 2) {
+            falseLabel = ops[2];
+        }
+    }
 };
 
 // Unconditional branch
@@ -600,6 +703,7 @@ public:
     void SetTarget(Operand op){ destLabel = op; }
     virtual void PrintIR(std::ostream &s);
     void ReplaceRegByMap(const std::map<int, int> &Rule){};
+    void ReplaceLabelByMap(const std::map<int, int> &Rule);
     Operand GetResult(){ return nullptr; };
     
     
@@ -609,6 +713,16 @@ public:
     std::set<int> GetUseRegno();
     void ChangeDestLabel(Operand op) { destLabel=op; }
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        vec.push_back(destLabel);
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            destLabel = ops[0];
+        }
+    }
 };
 
 /*
@@ -646,6 +760,18 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        if(init_val != nullptr){
+            vec.push_back(init_val);
+        }
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            init_val = ops[0];
+        }
+    }
 };
 
 class GlobalStringConstInstruction : public BasicInstruction {
@@ -667,6 +793,13 @@ public:
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
     
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        // No operands to set
+    }
 };
 
 /*
@@ -724,6 +857,18 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        for(auto [tp, op] : args){
+            vec.push_back(op);
+        }
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        for(int i = 0; i < ops.size() && i < args.size(); i++) {
+            args[i].second = ops[i];
+        }
+    }
 };
 
 /*
@@ -760,6 +905,18 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        if(ret_val != nullptr) {
+            vec.push_back(ret_val);
+        }
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            ret_val = ops[0];
+        }
+    }
 };
 
 /*
@@ -808,6 +965,25 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        for(auto op : indexes){
+            vec.push_back(op);
+        }
+        vec.push_back(ptrval);
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            int i = 0;
+            for(; i < ops.size() - 1 && i < indexes.size(); i++) {
+                indexes[i] = ops[i];
+            }
+            if(i < ops.size()) {
+                ptrval = ops[i];
+            }
+        }
+    }
 };
 
 class FunctionDefineInstruction : public BasicInstruction {
@@ -837,6 +1013,18 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        for(auto op : formals_reg){
+            vec.push_back(op);
+        }
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        for(int i = 0; i < ops.size() && i < formals_reg.size(); i++) {
+            formals_reg[i] = ops[i];
+        }
+    }
 };
 typedef FunctionDefineInstruction *FuncDefInstruction;
 
@@ -865,6 +1053,13 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        // No operands to set
+    }
 };
 
 // 这条指令目前只支持float和i32的转换，如果你需要double, i64等类型，需要自己添加更多变量
@@ -884,6 +1079,16 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        vec.push_back(value);
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            value = ops[0];
+        }
+    }
 };
 
 // 这条指令目前只支持float和i32的转换，如果你需要double, i64等类型，需要自己添加更多变量
@@ -904,6 +1109,16 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        vec.push_back(value);
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            value = ops[0];
+        }
+    }
 };
 
 // 无符号扩展，你大概率需要它来将i1无符号扩展至i32(即对应c语言bool类型转int)
@@ -927,6 +1142,16 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    std::vector<Operand> GetNonResultOperands() {
+        std::vector<Operand> vec;
+        vec.push_back(value);
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) {
+        if(ops.size() > 0) {
+            value = ops[0];
+        }
+    }
 };
 
 std::ostream &operator<<(std::ostream &s, BasicInstruction::LLVMType type);
