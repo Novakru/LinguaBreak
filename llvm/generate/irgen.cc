@@ -1185,11 +1185,10 @@ void ConstInitValList::codeIR() {
 		}
 	}
 
-	if(head <= tail) {
-		size_t new_size = initarrayint.size() + (tail - head + 1);
-		initarrayint.resize(new_size, 0);
-		initarrayfloat.resize(new_size, 0.0);
-		head = tail + 1;
+	while(head <= tail) {
+		head++;
+		initarrayint.push_back(0);
+		initarrayfloat.push_back(0.0);
 	}
 }
 
@@ -1275,11 +1274,11 @@ void VarInitValList::codeIR() {
 			init->codeIR();
 		}
 	}
-	if(head <= tail) {
-		size_t new_size = initarrayint.size() + (tail - head + 1);
-		initarrayint.resize(new_size, 0);
-		initarrayfloat.resize(new_size, 0.0);
-		head = tail + 1;
+
+	while(head <= tail) {
+		head++;
+		initarrayint.push_back(0);
+		initarrayfloat.push_back(0.0);
 	}
 }
 
@@ -1407,9 +1406,9 @@ void VarDef_no_init::codeIR() {
 			irgen_table.symboldim_table.enter(name, dim);
             dimcount = 0; 
             if(ty == BuiltinType::BuiltinKind::Int){
-                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::I32,  VarAttribute(std::move(dim), std::move(noinitarrayint)));
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::I32, VarAttribute(dim,noinitarrayint));
             }else{
-                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::FLOAT32,  VarAttribute(std::move(dim), std::move(noinitarrayfloat)));
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::FLOAT32, VarAttribute(dim,noinitarrayfloat));
             }
         
         }
@@ -1493,10 +1492,11 @@ void VarDef::codeIR() {
             }
 			irgen_table.symboldim_table.enter(name, initdim);
 
-			initarrayint.clear();
-			initarrayint.shrink_to_fit();
-			initarrayfloat.clear();
-			initarrayfloat.shrink_to_fit();
+			if(ty == BuiltinType::BuiltinKind::Int){
+                initarrayint.clear();
+            }else{
+                initarrayfloat.clear();
+            }
 
 			head = 0;
 			isTopVarInitVal = true;
@@ -1506,15 +1506,11 @@ void VarDef::codeIR() {
 			isGobal = false;
 
             if(ty == BuiltinType::BuiltinKind::Int){
-				initarrayint.resize(arraySize, 0);
-				initarrayfloat.clear();
-				initarrayfloat.shrink_to_fit();
-                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::I32, VarAttribute(std::move(initdim), std::move(initarrayint)));
-			}else{
-				initarrayfloat.resize(arraySize, 0.0);
-				initarrayint.clear();
-				initarrayint.shrink_to_fit();
-                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::FLOAT32, VarAttribute(std::move(initdim),std::move(initarrayfloat)));
+				while(initarrayint.size() < arraySize) initarrayint.push_back(0);
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::I32, VarAttribute(initdim,initarrayint));
+            }else{
+				while(initarrayfloat.size() < arraySize) initarrayfloat.push_back(0.0);
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::FLOAT32, VarAttribute(initdim,initarrayfloat));
             }
 
         }        
@@ -1651,15 +1647,11 @@ void ConstDef::codeIR() {
             dimcount = 0;
 			isGobal = false;
             if(ty == BuiltinType::BuiltinKind::Int){
-				initarrayint.resize(arraySize, 0);
-				initarrayfloat.clear();
-				initarrayfloat.shrink_to_fit();
-                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::I32,  VarAttribute(std::move(initdim), std::move(initarrayint)));
+				while(initarrayint.size() < arraySize) initarrayint.push_back(0);
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::I32, VarAttribute(initdim,initarrayint));
             }else{
-				initarrayfloat.resize(arraySize, 0.0);
-				initarrayint.clear();
-				initarrayint.shrink_to_fit();
-                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::FLOAT32, VarAttribute(std::move(initdim), std::move(initarrayfloat)));
+				while(initarrayfloat.size() < arraySize) initarrayfloat.push_back(0.0);
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::FLOAT32, VarAttribute(initdim,initarrayfloat));
             }
         }        
         
