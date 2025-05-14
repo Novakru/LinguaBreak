@@ -11,21 +11,11 @@ void LLVMIR::CFGInit() {
         cfg->function_def = defI;
 		cfg->max_label = function_max_label[defI];
 
-        // 初始化邻接表大小
-        int block_num = bb_map.size();
-        cfg->G.resize(block_num);
-        cfg->invG.resize(block_num);
-
         cfg->BuildCFG();
         llvm_cfg[defI] = cfg;
     }
 }
 
-void LLVMIR::BuildCFG() {
-    for (auto [defI, cfg] : llvm_cfg) {
-        cfg->BuildCFG();
-    }
-}
 
 void CFG::SearchB(LLVMBlock B){
     if(B->dfs_id!=0)return;
@@ -40,8 +30,8 @@ void CFG::SearchB(LLVMBlock B){
             int next_label = ((LabelOperand*)operand)->GetLabelNo();
             LLVMBlock next_block = (*block_map)[next_label];
             //（2）维护G/invG
-            G[B->block_id].push_back(next_block);
-            invG[next_label].push_back(B);
+             G[B->block_id].insert(next_block);
+            invG[next_label].insert(B);
             next_block->comment += ("L" + std::to_string(B->block_id) + ", ");
             //（3）递归调用，搜索它的目标块
             SearchB(next_block);
@@ -59,13 +49,13 @@ void CFG::SearchB(LLVMBlock B){
             LLVMBlock true_block = (*block_map)[true_label];
             LLVMBlock false_block = (*block_map)[false_label];
 
-            G[B->block_id].push_back(true_block);
-            invG[true_label].push_back(B);
-            true_block->comment += ("L" + std::to_string(B->block_id) + ", ");
+            G[B->block_id].insert(true_block);
+            invG[true_label].insert(B);
+            //true_block->comment += ("L" + std::to_string(B->block_id) + ", ");
 
-            G[B->block_id].push_back(false_block);
-            invG[false_label].push_back(B);
-            false_block->comment += ("L" + std::to_string(B->block_id) + ", ");
+            G[B->block_id].insert(false_block);
+            invG[false_label].insert(B);
+            //false_block->comment += ("L" + std::to_string(B->block_id) + ", ");
 
             SearchB(true_block);
             SearchB(false_block);
@@ -87,8 +77,8 @@ void CFG::SearchB(LLVMBlock B){
 void CFG::BuildCFG() {
     G.clear();
     invG.clear();
-    G.resize(max_label + 1);
-    invG.resize(max_label + 1);
+    //G.resize(max_label + 1);
+    //invG.resize(max_label + 1);
     
     // 重置dfs编号
     dfs_num = 0;
@@ -103,13 +93,13 @@ void CFG::BuildCFG() {
     SearchB(start_block);
 }
 
-std::vector<LLVMBlock> CFG::GetPredecessor(LLVMBlock B) { return invG[B->block_id]; }
+std::set<LLVMBlock> CFG::GetPredecessor(LLVMBlock B) { return invG[B->block_id]; }
 
-std::vector<LLVMBlock> CFG::GetPredecessor(int bbid) { return invG[bbid]; }
+std::set<LLVMBlock> CFG::GetPredecessor(int bbid) { return invG[bbid]; }
 
-std::vector<LLVMBlock> CFG::GetSuccessor(LLVMBlock B) { return G[B->block_id]; }
+std::set<LLVMBlock> CFG::GetSuccessor(LLVMBlock B) { return G[B->block_id]; }
 
-std::vector<LLVMBlock> CFG::GetSuccessor(int bbid) { return G[bbid]; }
+std::set<LLVMBlock> CFG::GetSuccessor(int bbid) { return G[bbid]; }
 
 void CFG::display(bool reverse) {
     std::cout << "\n=== Control Flow Graph Information ===" << std::endl;

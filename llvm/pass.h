@@ -3,6 +3,7 @@
 #include "../include/ir.h"
 #include <cstdint>
 #include <unordered_set>
+#include <cstdint>
 
 class IRPass {
 protected:

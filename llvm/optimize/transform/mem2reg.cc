@@ -331,7 +331,8 @@ void Mem2RegPass::InsertPhi(CFG *C, int& max_reg) {
                 //std::cout<<"df: "<<df<<std::endl;
                 if(historylist.find(df)==historylist.end()){
                     LLVMBlock block = (*(C->block_map))[df];
-                    block->InsertInstruction(0, new PhiInstruction(((AllocaInstruction*)intr)->GetDataType(), GetNewRegOperand(++max_reg), regno));
+                    Instruction phi_instr = new PhiInstruction(((AllocaInstruction*)intr)->GetDataType(), GetNewRegOperand(++max_reg), regno);
+                    block->InsertInstruction(0, phi_instr);
                     historylist.insert(df);
                     if(def_map[regno].find(df)==def_map[regno].end()){
                         worklist.insert(df);
@@ -419,11 +420,10 @@ void Mem2RegPass::DFS(CFG *C, int bbid){
     }
 
     //【2】对本block的所有后继进行phi指令填充
-    std::vector<LLVMBlock> succ = C->GetSuccessor(bbid);
-
-    for(int i=0; i<succ.size(); i++){
+    std::set<LLVMBlock> succ = C->GetSuccessor(bbid);
+    for(auto & succ_block: succ){
         // 处理后继节点的phi
-        for(auto &intr: succ[i]->Instruction_list){
+         for(auto &intr: succ_block->Instruction_list){
             if(intr->GetOpcode()==BasicInstruction::LLVMIROpcode::PHI){
                 int regno = ((PhiInstruction*)intr)->GetRegno();
                 if(store_bb_map[bbid].find(regno)!=store_bb_map[bbid].end())
@@ -436,14 +436,14 @@ void Mem2RegPass::DFS(CFG *C, int bbid){
         }
 
         // 向后继节点传递变量
-        store_bb_map[succ[i]->block_id].insert(store_bb_map[bbid].begin(), store_bb_map[bbid].end());
-        load_bb_map[succ[i]->block_id].insert(load_bb_map[bbid].begin(), load_bb_map[bbid].end());
+        store_bb_map[succ_block->block_id].insert(store_bb_map[bbid].begin(), store_bb_map[bbid].end());
+        load_bb_map[succ_block->block_id].insert(load_bb_map[bbid].begin(), load_bb_map[bbid].end());
     }
 
     //【3】依次对后继进行DFS
     visited_blocks.insert(bbid);
-    for(int i=0; i<succ.size(); i++){
-        DFS(C, succ[i]->block_id);
+     for(auto & succ_block: succ){
+        DFS(C, succ_block->block_id);
     }
 }
 

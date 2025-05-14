@@ -28,7 +28,4 @@ public:
     void Execute();
 };
 
-//// <函数定义指令，<函数内的基本块id，基本块内的phi指令列表>>
-//std::unordered_map<CFG*,std::unordered_map<int, std::vector<PhiInstruction*>>> phi_map; 
-
 #endif

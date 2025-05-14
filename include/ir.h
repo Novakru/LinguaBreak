@@ -36,7 +36,6 @@ public:
     void printIR(std::ostream &s);
 
     void CFGInit();
-    void BuildCFG();
 };
 
 #endif
