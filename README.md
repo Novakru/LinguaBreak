@@ -29,6 +29,13 @@ clang -static  test_output/example/temp.o ./lib/libsysy_x86.a -o test_output/exa
 ./test_output/example/temp (< ./testcase/functional_test/Advanced/lisp2.in)
 ```
 
+### 测试llvm-pass的优化效果
+```bash
+opt -opaque-pointers=1 -passes=tailcallelim input.ll -S -o output.ll # 以尾递归优化为例
+opt -opaque-pointers=1 -passes=tailcallelim ./test_output/example/temp.ll -S -o ./test_output/example/temp-O1.ll
+```
+
+
 ### 使用gdb调试
 ```bash
 # 1. 确保你编译时加了 -g 开启调试信息

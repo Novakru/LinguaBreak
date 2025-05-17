@@ -80,6 +80,41 @@ def execute_llvm(input_file, output_file, stdin, stdout, testout, opt_level):
         print(f"\033[91mWrong Answer on \033[0m{input_file}")
         return 0
 
+def execute_asm(input_file, output_file, stdin, stdout, testout, opt_level):
+    if not execute_compilation(input_file, output_file, "-target", opt_level):
+        print(f"\033[93mCompile Error on \033[0m{input_file}")
+        return 0
+
+    if execute(["riscv64-unknown-linux-gnu-gcc", output_file, "-c", "-o", "tmp.o", "-w"]).returncode != 0:
+        print(f"\033[93mOutput Error on \033[0m{input_file}")
+        return 0
+
+    if execute(["riscv64-unknown-linux-gnu-gcc", "-static", "tmp.o", "lib/libsysy_rv.a"]).returncode != 0:
+        execute(["rm", "-rf", "tmp.o"])
+        print(f"\033[93mLink Error on \033[0m{input_file}")
+        return 0
+
+    execute(["rm", "-rf", "tmp.o"])
+
+    cmd = f"timeout 10 qemu-riscv64 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
+    result = execute_with_stdin_out(cmd)
+
+    if result == 124:
+        print(f"\033[93mTime Limit Exceed on \033[0m{input_file}")
+        return 0
+    elif result == 139:
+        print(f"\033[95mRunTime Error on \033[0m{input_file}")
+        return 0
+
+    add_returncode(testout, result)
+
+    if check_file(testout, stdout) == 0:
+        print(f"\033[92mAccept \033[0m{input_file}")
+        return 1
+    else:
+        print(f"\033[91mWrong Answer on \033[0m{input_file}")
+        return 0
+
 parser = argparse.ArgumentParser()
 parser.add_argument('input_folder')
 parser.add_argument('output_folder')
@@ -111,6 +146,9 @@ for file in os.listdir(input_folder):
         if step == "llvm":
             output_file = f"{output_folder}/{name}.ll"
             ac += execute_llvm(input_path, output_file, stdin, stdout_file, testout, opt_level)
+        elif step == "target":
+            output_file = f"{output_folder}/{name}.s"
+            ac += execute_asm(input_path, output_file, stdin, stdout_file, testout, opt_level)
         else:
             if execute_compilation(input_path, output_path, f"-{step}", opt_level):
                 print(f"\033[92mAccept (Compilation) \033[0m{input_path}")
