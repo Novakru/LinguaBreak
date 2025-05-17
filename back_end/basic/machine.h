@@ -151,121 +151,7 @@ public:
     // 设置CFG
     void SetMachineCFG(MachineCFG *mcfg) { this->mcfg = mcfg; }
 };
-class DynamicBitset {
-private:
-    std::vector<uint64_t> bits;  // 使用 uint64_t 存储位数据，提高处理效率(单位是64个bit)
 
-    // 内部函数，用于设置某一位
-    void setBitInternal(int pos, bool value) {
-        int index = pos / 64;  // 每个 uint64_t 64 位
-        int offset = pos % 64;
-        if (value) {
-            bits[index] |= (1ULL << offset);
-        } else {
-            bits[index] &= ~(1ULL << offset);
-        }
-    }
-
-public:
-    DynamicBitset() {}
-
-    // 根据位宽度初始化位集
-    DynamicBitset(int bit_width) {
-        int size = (bit_width + 63) / 64; // 向上取整
-        bits.resize(size, 0); // 初始化为 0
-    }
-
-    int count() const {
-        int result = 0;
-        for (const auto& chunk : bits) {
-            result += __builtin_popcountll(chunk);  // 使用内建函数快速计算位数
-        }
-        return result;
-    }
-
-    void setbit(int pos, bool value) {
-        assert(pos < bits.size() * 64); // 检查位置有效性
-        setBitInternal(pos, value); // 直接调用内部函数
-    }
-
-    bool getbit(int pos) const {
-        assert(pos < bits.size() * 64); // 检查位置有效性
-        int index = pos / 64;
-        int offset = pos % 64;
-        return (bits[index] >> offset) & 1; // 直接返回位值
-    }
-
-    DynamicBitset operator&(const DynamicBitset& other) const {
-        assert(bits.size() == other.bits.size()); // 确保两者大小相同
-        DynamicBitset result(bits.size() * 64); // 创建结果位集
-
-        for (size_t i = 0; i < bits.size(); ++i) {
-            result.bits[i] = bits[i] & other.bits[i]; // 使用并行位操作
-        }
-        return result;
-    }
-
-    DynamicBitset operator|(const DynamicBitset& other) const {
-        assert(bits.size() == other.bits.size());
-        DynamicBitset result(bits.size() * 64);
-
-        for (size_t i = 0; i < bits.size(); ++i) {
-            result.bits[i] = bits[i] | other.bits[i];
-        }
-        return result;
-    }
-
-    DynamicBitset operator^(const DynamicBitset& other) const {
-        assert(bits.size() == other.bits.size());
-        DynamicBitset result(bits.size() * 64);
-        
-        for (size_t i = 0; i < bits.size(); ++i) {
-            result.bits[i] = bits[i] ^ other.bits[i];
-        }
-        return result;
-    }
-
-    DynamicBitset operator-(const DynamicBitset& other) const {
-        assert(bits.size() == other.bits.size());
-        DynamicBitset result(bits.size() * 64);
-        
-        for (size_t i = 0; i < bits.size(); ++i) {
-            result.bits[i] = bits[i] & (~other.bits[i]);
-        }
-        return result;
-    }
-
-    DynamicBitset& operator=(const DynamicBitset& other) {
-        if (this != &other) {
-            bits = other.bits; // 使用 std::vector 的赋值
-        }
-        return *this;
-    }
-
-    bool operator==(const DynamicBitset& other) const {
-        return bits == other.bits; // 直接比较
-    }
-
-    bool operator!=(const DynamicBitset& other) const {
-        return !(*this == other); // 反向比较
-    }
-
-    DynamicBitset(const DynamicBitset& other) : bits(other.bits) {}
-};
-class MachineDominatorTree {
-public:
-    MachineCFG *C;
-    std::vector<std::vector<MachineBlock *>> dom_tree{};
-    std::vector<MachineBlock *> idom{};
-    std::vector<DynamicBitset> df;//新增
-    std::vector<DynamicBitset> atdom;
-
-    void BuildDominatorTree(bool reverse = false);
-    void BuildPostDominatorTree();
-    bool IsDominate(int id1, int id2) {    // if blockid1 dominate blockid2, return true, else return false
-        return atdom[id2].getbit(id1);
-    }
-};
 class MachineCFG {
 
 public:
@@ -437,17 +323,7 @@ public:
         }
         std::cerr << std::endl;
     }
-     //新增
-    MachineDominatorTree DomTree, PostDomTree;
-    void BuildDominatoorTree(bool buildPost = true) {
-        DomTree.C = this;
-        DomTree.BuildDominatorTree();
 
-        PostDomTree.C = this;
-        if (buildPost) {
-            PostDomTree.BuildPostDominatorTree();
-        }
-    }
 
 };
 

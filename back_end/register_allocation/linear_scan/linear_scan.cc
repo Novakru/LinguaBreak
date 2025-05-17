@@ -138,21 +138,22 @@ void FastLinearScan::Execute() {
     for (auto func : unit->functions) {
         not_allocated_funcs.push(func);
     }
+    //1.逐一处理函数
     while (!not_allocated_funcs.empty()) {
         current_func = not_allocated_funcs.front();
         numbertoins.clear();
-        // 对每条指令进行编号
+        //2.对每条指令进行编号
         InstructionNumber(unit, numbertoins).ExecuteInFunc(current_func);
 
-        // 需要清除之前分配的结果
+        //3.清除之前分配的结果
         alloc_result[current_func].clear();
         not_allocated_funcs.pop();
 
-        // 计算活跃区间
+        //4.计算活跃区间
         UpdateIntervalsInCurrentFunc();
 
-        if (DoAllocInCurrentFunc()) {    // 尝试进行分配
-            // 如果发生溢出，插入spill指令后将所有物理寄存器退回到虚拟寄存器，重新分配
+        if (DoAllocInCurrentFunc()) {    // 5.尝试进行分配
+            // 6.如果发生溢出，插入spill指令后将所有物理寄存器退回到虚拟寄存器，重新分配
             SpillCodeGen(current_func, &alloc_result[current_func]);    // 生成溢出代码
             current_func->AddStackSize(phy_regs_tools->getSpillSize());                 // 调整栈的大小
             not_allocated_funcs.push(current_func);                               // 重新分配直到不再spill
@@ -191,83 +192,125 @@ void InstructionNumber::ExecuteInFunc(MachineFunction *func) {
     //mcfg->bfs_close();
 }
 
+// 更新当前函数中所有寄存器的活跃区间（Live Interval）
 void FastLinearScan::UpdateIntervalsInCurrentFunc() {
-    intervals.clear();
-    auto mfun = current_func;
-    auto mcfg = mfun->getMachineCFG();
+    //1.清空之前的活跃区间数据（以函数为单位，可能处理过其他函数）
+    intervals.clear(); 
+    //2.获取当前函数，当前函数对应的控制流图
+    auto mfun = current_func; 
+    auto mcfg = mfun->getMachineCFG(); 
+    //3.对当前函数进行活跃分析
+    Liveness liveness(mfun); 
 
-    Liveness liveness(mfun);
-
-    mcfg->bfs_close();
-    mcfg->reverse_open();
+    // 4.准备反向遍历控制流图（逆向数据流分析，从函数出口遍历到函数入口）
+    mcfg->bfs_close(); 
+    mcfg->reverse_open(); 
+    
+    // 记录寄存器最后一次定义和使用的位置（指令编号）
     std::map<Register, int> last_def, last_use;
 
+    // 开始反向遍历所有基本块（逆控制流方向）
     while (mcfg->reverse_hasNext()) {
-        auto mcfg_node = mcfg->reverse_next();
-        auto mblock = mcfg_node->Mblock;
-        auto cur_id = mcfg_node->Mblock->getLabelId();
-        // For pseudo code see https://www.cnblogs.com/AANA/p/16311477.html
+        auto mcfg_node = mcfg->reverse_next(); // 获取下一个基本块节点
+        auto mblock = mcfg_node->Mblock; // 当前基本块对象
+        auto cur_id = mblock->getLabelId(); // 基本块标签ID
+
+        // 处理基本块的OUT集合（出口处活跃的寄存器）
         for (auto reg : liveness.GetOUT(cur_id)) {
+            // 若该寄存器尚未记录，创建新的活跃区间
             if (intervals.find(reg) == intervals.end()) {
-                intervals[reg] = LiveInterval(reg);
+                intervals[reg] = LiveInterval(reg); // 初始化区间对象
             }
-            // Extend or add new Range
+            
+            // 扩展或新增区间段
             if (last_use.find(reg) == last_use.end()) {
-                // No previous Use, New Range
-                intervals[reg].PushFront(mblock->getBlockInNumber(), mblock->getBlockOutNumber());
+                // 情况1：无前驱使用记录，创建新区间段（从块入口到出口）
+                intervals[reg].PushFront(
+                    mblock->getBlockInNumber(), // 基本块起始指令编号
+                    mblock->getBlockOutNumber() // 基本块结束指令编号
+                );
             } else {
-                // Have previous Use, No Extend Range
-                // intervals[reg].SetMostBegin(mblock->getBlockInNumber());
-                intervals[reg].PushFront(mblock->getBlockInNumber(), mblock->getBlockOutNumber());
+                // 情况2：已有前驱使用记录，合并区间（仍会创建新区间段）
+                intervals[reg].PushFront(
+                    mblock->getBlockInNumber(),
+                    mblock->getBlockOutNumber()
+                );
             }
-            last_use[reg] = mblock->getBlockOutNumber();
+            last_use[reg] = mblock->getBlockOutNumber(); // 记录最后一次使用位置
         }
-        for (auto reverse_it = mcfg_node->Mblock->ReverseBegin(); reverse_it != mcfg_node->Mblock->ReverseEnd();
-             ++reverse_it) {
-            auto ins = *reverse_it;
+
+        // 反向遍历当前基本块内的指令（从最后一条到第一条）
+        for (auto reverse_it = mblock->ReverseBegin(); 
+             reverse_it != mblock->ReverseEnd(); 
+             ++reverse_it) 
+        {
+            auto ins = *reverse_it; // 获取当前指令对象
+
+            // 处理指令的写寄存器（定义操作）
             for (auto reg : ins->GetWriteReg()) {
-                // Update last_def of reg
-                last_def[*reg] = ins->getNumber();
+                // 更新最后一次定义位置
+                last_def[*reg] = ins->getNumber(); // 记录指令编号
 
+                // 初始化未记录的寄存器区间
                 if (intervals.find(*reg) == intervals.end()) {
                     intervals[*reg] = LiveInterval(*reg);
                 }
 
-                // Have Last Use, Cut Range
+                // 检查是否存在未处理的最后一次使用
                 if (last_use.find(*reg) != last_use.end()) {
-                    last_use.erase(*reg);
-                    intervals[*reg].SetMostBegin(ins->getNumber());
+                    // 情况1：存在后续使用，分割当前区间
+                    last_use.erase(*reg); // 清除使用记录
+                    intervals[*reg].SetMostBegin(ins->getNumber()); // 设置区间起点为定义位置
                 } else {
-                    // No Last Use, New Range
-                    intervals[*reg].PushFront(ins->getNumber(), ins->getNumber());
+                    // 情况2：无后续使用，创建单指令区间（仅定义点）
+                    intervals[*reg].PushFront(
+                        ins->getNumber(), // 起始
+                        ins->getNumber()   // 结束（定义即结束）
+                    );
                 }
-                intervals[*reg].IncreaseReferenceCount(1);
+                intervals[*reg].IncreaseReferenceCount(1); // 增加引用计数（用于溢出优先级）
             }
+
+            // 处理指令的读寄存器（使用操作）
             for (auto reg : ins->GetReadReg()) {
-                // Update last_use of reg
+                // 初始化未记录的寄存器区间
                 if (intervals.find(*reg) == intervals.end()) {
                     intervals[*reg] = LiveInterval(*reg);
                 }
 
-                if (last_use.find(*reg) != last_use.end() /*|| (last_def[*reg] == last_use[*reg])*/) {
-                } else {
-                    // No Last Use, New Range
-                    intervals[*reg].PushFront(mblock->getBlockInNumber(), ins->getNumber());
+                // 检查是否存在未处理的最后一次使用
+                if (last_use.find(*reg) == last_use.end()) {
+                    // 情况：无后续使用，创建从块入口到当前指令的区间
+                    intervals[*reg].PushFront(
+                        mblock->getBlockInNumber(), // 块起始
+                        ins->getNumber()            // 当前指令
+                    );
                 }
-                last_use[*reg] = ins->getNumber();
-
-                intervals[*reg].IncreaseReferenceCount(1);
+                last_use[*reg] = ins->getNumber(); // 更新最后一次使用位置
+                intervals[*reg].IncreaseReferenceCount(1); // 增加引用计数
             }
-        }
+        } // 结束指令遍历
+
+        // 清空临时记录，避免跨基本块污染
         last_use.clear();
         last_def.clear();
-    }
-    //mcfg->reverse_close();
-    //mcfg->bfs_close();
-    // 你可以在这里输出intervals的值来获得活跃变量分析的结果
-    // 观察结果可能对你寄存器分配算法的编写有一定帮助
-}
+    } // 结束基本块遍历
 
+    // 调试输出：打印合并前的活跃区间信息
+    std::cerr << "Check Intervals " << mfun->getFunctionName().c_str() 
+              << " Before Coalesce" << std::endl;
+    for (auto interval_pair : intervals) {
+        auto reg = interval_pair.first;
+        auto interval = interval_pair.second;
+        std::cerr << reg.is_virtual << " " << reg.reg_no << " ";
+        for (auto seg : interval) {
+            std::cerr << "[" << seg.begin << "," << seg.end << ") "; // 打印区间段
+        }
+        std::cerr << "Ref: " << interval.getReferenceCount(); // 引用计数
+        std::cerr << "\n";
+    }
+    std::cerr << "\n";
+}
 
 void FastLinearScan::SpillCodeGen(MachineFunction *function, std::map<Register, AllocResult> *alloc_result) {
     //this->function = function;

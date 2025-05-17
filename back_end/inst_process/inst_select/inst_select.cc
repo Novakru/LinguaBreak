@@ -206,107 +206,6 @@ void RiscV64Unit::LowerFrame()
     }
 }
 
-int CalFirLasAncestor(std::vector<int> &reg_occurblockids, MachineDominatorTree *domtree, int domroot) {
-    std::vector<int> dfsorder; // 存储深度优先遍历的顺序
-    std::map<int, int> vsd; // 存储每个节点在遍历中的状态
-    std::map<int, int> dph; // 存储每个节点的深度
-   //1. 获取从 domroot 开始的深度优先遍历顺序,存储在vsd中
-    std::stack<int> stack;
-    stack.push(domroot);
-    vsd[domroot] = 1;
-    
-    while (!stack.empty()) {
-        int node = stack.top();
-        stack.pop();
-        dfsorder.push_back(node);
-
-        // 获取当前节点的子节点列表，并将未访问过的子节点压入栈
-        for (auto child : domtree->dom_tree[node]) {
-            int child_id = child->getLabelId();
-            if (vsd.find(child_id) == vsd.end()) {
-                vsd[child_id] = 1;
-                stack.push(child_id);
-            }
-        }
-    }
-    
-    //2.获取从 domroot 开始的每个节点的深度,存储在dph中
-    std::stack<std::pair<int, int>> stack_pair; // 存放节点 ID 和其深度的栈
-    stack_pair.push(std::make_pair(domroot, 1)); // 初始化根节点深度为 1
-    dph[domroot] = 1;
-
-    while (!stack_pair.empty()) {
-        auto [cur, depth] = stack_pair.top();
-        stack_pair.pop();
-        
-        // 更新当前节点的深度（如有需要）
-        if (dph[cur] < depth) {
-            dph[cur] = depth;
-        }
-
-        // 遍历子节点
-        for (auto child : domtree->dom_tree[cur]) {
-            int child_id = child->getLabelId();
-            if (dph.find(child_id) == dph.end() || dph[child_id] < depth + 1) {
-                dph[child_id] = depth + 1;
-                stack_pair.push(std::make_pair(child_id, depth + 1)); // 将子节点压入栈，深度增加
-            }
-        }
-    }
-    //3.寻找公共祖先
-    //1)标记包含寄存器的块
-    int x = -1, y = -1; // 初始化 x 和 y，用于存储找到的块 ID
-    std::map<int, int> blockhasreg; // 存储每个块是否包含寄存器的映射
-    for (auto b : reg_occurblockids) { // 遍历所有寄存器出现的块 ID
-        blockhasreg[b] = 1; // 将包含寄存器的块标记为 1
-    }
-    //2）找到第一个包含寄存器的块ID
-    for (auto it = dfsorder.begin(); it != dfsorder.end(); ++it) { // 从前向后遍历 dfsorder
-        if (blockhasreg[*it]) { // 如果当前块包含寄存器
-            x = *it; // 记录第一个包含寄存器的块 ID
-            break; // 找到后退出循环
-        }
-    }
-    //3)找到最后一个包含寄存器的块ID
-    for (auto it = dfsorder.rbegin(); it != dfsorder.rend(); ++it) { // 从后向前遍历 dfsorder
-        if (blockhasreg[*it]) { // 如果当前块包含寄存器
-            y = *it; // 记录最后一个包含寄存器的块 ID
-            break; // 找到后退出循环
-        }
-    }
-    Assert(x != -1 && y != -1); // 确保找到了有效的 x 和 y 块 ID
-    //4)计算x和y最近的公共祖先
-    //return CalculatePairLCA(x, y, domtree, dph); // 计算并返回 x 和 y 块的最近公共祖先
-    std::map<int, int> parent;
-    std::map<int, int> rank;
-    
-    // 初始化每个节点的父节点是自己，rank为0
-    for (auto& entry : dph) {
-        parent[entry.first] = entry.first;
-        rank[entry.first] = 0;
-    }
-
-    // 将节点根据其深度初始化，确保深度较大的节点先被处理
-    while (dph[x] > dph[y]) {
-        x = domtree->idom[x]->getLabelId();
-    }
-    while (dph[y] > dph[x]) {
-        y = domtree->idom[y]->getLabelId();
-    }
-
-    // 利用并查集算法寻找到共同祖先
-    while (x != y) {
-        x = domtree->idom[x]->getLabelId();
-        y = domtree->idom[y]->getLabelId();
-    }
-
-    // 找到初步的最近公共祖先后，我们还需要检查循环深度
-    while (domtree->C->GetNodeByBlockId(x)->Mblock->loop_depth != 0) {
-        x = domtree->idom[x]->getLabelId();
-    }
-
-    return x;
-}
 const int TotalRegs = 64;
 extern bool optimize_flag;//在main.cc中定义
 void RiscV64Unit::LowerStack()
@@ -401,56 +300,9 @@ void RiscV64Unit::LowerStack()
             restore_at_beginning = true; // 强制在开始时恢复寄存器
         }
         //1）如果无需在开始时恢复寄存器
-        if(!restore_at_beginning)
-        {
-            func->getMachineCFG()->BuildDominatoorTree();
-            for(int i=0;i<saveregs_occurblockids.size();i++)
-            {
-                auto &vld = saveregs_rwblockids[i]; // 获取与当前保存寄存器相关的读写块 ID
-                auto &vsd = saveregs_rwblockids[i]; // 获取当前保存寄存器的读写块 ID（重复）
-                if (!vld.empty()) { // 如果读写块不为空
-                    cur_restore_offset -= 8; // 当前恢复偏移量减去8
-                    restore_offset[i] = cur_restore_offset; // 更新恢复偏移量
-                    ld_blocks[i] = CalFirLasAncestor(vld, &func->getMachineCFG()->PostDomTree,
-                                                     func->getMachineCFG()->ret_block->Mblock->getLabelId()); // 计算恢复块
-                    if (ld_blocks[i] != func->getMachineCFG()->ret_block->Mblock->getLabelId()) {
-                        ld_blocks[i] = func->getMachineCFG()->PostDomTree.idom[ld_blocks[i]]->getLabelId(); // 更新恢复块
-                    }
-                    vsd.push_back(ld_blocks[i]); // 将恢复块添加到 vds 中
-                    sd_blocks[i] = CalFirLasAncestor(vsd, &func->getMachineCFG()->DomTree, 0); // 计算保存块
-                }
-            }
-              for (int i = 0; i < saveregs_occurblockids.size(); i++) { // 再次遍历保存寄存器的出现块
-                if (!saveregs_occurblockids[i].empty()) { // 如果当前保存寄存器的出现块不为空
-                    int regno = i; // 当前寄存器号
-                    int sp_offset = restore_offset[i] + func->GetStackSize(); // 计算栈偏移量
-                    if (!func->HasInParaInStack() || i != RISCV_fp) { // 如果没有栈参数或者当前寄存器不是 fp
-                        int saveb = sd_blocks[i]; // 获取保存块相关的 ID
-                        auto block = mcfg->GetNodeByBlockId(saveb)->Mblock; // 获取保存块对应的基本块
-                        int sd_op = 0; // 初始化保存操作的操作码
-                        if (regno >= RISCV_x0 && regno <= RISCV_x31) { // 如果寄存器是整型
-                            sd_op = RISCV_SD; // 设置操作码为 SD
-                        } else {
-                            sd_op = RISCV_FSD; // 设置操作码为 FSD
-                        }
-                        block->push_front(
-                        rvconstructor->ConstructSImm(sd_op, GetPhysicalReg(i), GetPhysicalReg(RISCV_sp), sp_offset)); // 在基本块前插入保存寄存器的指令
-                    }
-                    int restoreb = ld_blocks[i]; // 获取恢复块相关的 ID
-                    auto block = mcfg->GetNodeByBlockId(restoreb)->Mblock; // 获取恢复块对应的基本块
-                    auto it = block->getInsertBeforeBrIt(); // 获取插入位置
-
-                    int ld_op = 0; // 初始化恢复操作的操作码
-                    if (regno >= RISCV_x0 && regno <= RISCV_x31) { // 如果寄存器是整型
-                        ld_op = RISCV_LD; // 设置操作码为 LD
-                    } else {
-                        ld_op = RISCV_FLD; // 设置操作码为 FLD
-                    }
-                    block->insert(
-                    it, rvconstructor->ConstructIImm(ld_op, GetPhysicalReg(i), GetPhysicalReg(RISCV_sp), sp_offset)); // 在基本块中插入恢复寄存器的指令
-                }
-            }
-        }
+        // if(!restore_at_beginning)
+        // {//...
+        // }
 
          for (auto &b : func->blocks) {
             cur_block = b;
