@@ -52,7 +52,7 @@ void FastLinearScan::RewriteInFunc() {
             }
         }
     }
-    //mcfg->seqscan_close();
+   mcfg->seqscan_close();
 }
 
 bool IntervalsPrioCmp(LiveInterval a, LiveInterval b) { return a.begin()->begin > b.begin()->begin; }
@@ -82,49 +82,86 @@ bool FastLinearScan::DoAllocInCurrentFunc() {
     {
         //A.获取待处理的活跃区间，及其对应的寄存器
         auto interval=unalloc_queue.top();
-        //B.尝试获取空闲物理寄存器（通过活跃区间）
-        int phy_reg_id=phy_regs_tools->getIdleReg(interval);
-        auto cur_vreg=interval.getReg();
         unalloc_queue.pop();
-        if(phy_reg_id>=0)
-        {
-            //C.使用物理寄存器的情况：占用该物理寄存器并记录占用信息
-            phy_regs_tools->OccupyReg(phy_reg_id,interval);//占用寄存器
-            AllocPhyReg(mfun,cur_vreg,phy_reg_id);//再分配结果中记录
-            continue;
-        }
-        //D.溢出的情况：获取可用内存并占用，在栈上分配这部分内存
-        int mem=phy_regs_tools->getIdleMem(interval);//获取可用的内存位置
-        phy_regs_tools->OccupyMem(mem,interval);//占用内存
-        AllocStack(mfun,cur_vreg,mem);//在栈上分配
-        spilled=true;
+        //B.尝试获取空闲物理寄存器（通过活跃区间）
+        auto cur_vreg=interval.getReg();
+    //     int phy_reg_id=phy_regs_tools->getIdleReg(interval);
+    //     //unalloc_queue.pop();
+    //     if(phy_reg_id>=0)
+    //     {
+    //         //C.使用物理寄存器的情况：占用该物理寄存器并记录占用信息
+    //         phy_regs_tools->OccupyReg(phy_reg_id,interval);//占用寄存器
+    //         AllocPhyReg(mfun,cur_vreg,phy_reg_id);//再分配结果中记录
+    //         continue;
+    //     }
+    //     //D.溢出的情况：获取可用内存并占用，在栈上分配这部分内存
+    //     int mem=phy_regs_tools->getIdleMem(interval);//获取可用的内存位置
+    //     phy_regs_tools->OccupyMem(mem,interval);//占用内存
+    //     AllocStack(mfun,cur_vreg,mem);//在栈上分配
+    //     spilled=true;
 
-        //E.计算溢出权重,选择冲突区间里溢出权重小的溢出
-        double spill_weight=CalculateSpillWeight(interval);
-        auto spill_interval=interval;
-        for(auto other:phy_regs_tools->getConflictIntervals(interval))
-        {
-            double other_weight=CalculateSpillWeight(other);
-            if(spill_weight>other_weight && other.getReg().is_virtual)
-            {
-                spill_weight=other_weight;
-                spill_interval=other;
+    //     //E.计算溢出权重,选择冲突区间里溢出权重小的溢出
+    //     double spill_weight=CalculateSpillWeight(interval);
+    //     auto spill_interval=interval;
+    //     for(auto other:phy_regs_tools->getConflictIntervals(interval))
+    //     {
+    //         double other_weight=CalculateSpillWeight(other);
+    //         if(spill_weight>other_weight && other.getReg().is_virtual)
+    //         {
+    //             spill_weight=other_weight;
+    //             spill_interval=other;
+    //         }
+    //     }
+    //     //如果需要交换
+    //     auto spill_reg=spill_interval.getReg();
+    //     if(!(cur_vreg==spill_reg))
+    //     {
+    //         //执行寄存器和内存的交换
+    //         phy_regs_tools->swapRegspill(getAllocResultInReg(mfun, spill_interval.getReg()), spill_interval, mem,
+    //                                 cur_vreg.getDataWidth(), interval);
+    //         swapAllocResult(mfun, interval.getReg(), spill_interval.getReg());
+    //         int spill_mem = phy_regs_tools->getIdleMem(spill_interval);
+    //         phy_regs_tools->OccupyMem(spill_mem,  spill_interval);
+    //         AllocStack(mfun, spill_interval.getReg(), spill_mem);
+    //     }
+    // }
+    // // 返回是否发生溢出
+    // return spilled;
+    int phy_reg_id = phy_regs_tools->getIdleReg(interval);
+        if (phy_reg_id >= 0) {
+            phy_regs_tools->OccupyReg(phy_reg_id, interval);
+            AllocPhyReg(mfun, cur_vreg, phy_reg_id);
+        } else {
+            spilled = true;
+
+            int mem = phy_regs_tools->getIdleMem(interval);
+            phy_regs_tools->OccupyMem(mem, interval);
+            // volatile int mem_ = mem;
+            // volatile int mem__ = mem_+current_func->GetStackOffset();
+            AllocStack(mfun, cur_vreg, mem);
+
+            double spill_weight = CalculateSpillWeight(interval);
+            auto spill_interval = interval;
+            for (auto other : phy_regs_tools->getConflictIntervals(interval)) {
+                double other_weight = CalculateSpillWeight(other);
+                if (spill_weight > other_weight && other.getReg().is_virtual) {
+                    spill_weight = other_weight;
+                    spill_interval = other;
+                }
+            }
+            auto spill_reg=spill_interval.getReg();
+            if (!(cur_vreg==spill_reg)) {
+                phy_regs_tools->swapRegspill(getAllocResultInReg(mfun, spill_interval.getReg()), spill_interval, mem,
+                                       cur_vreg.getDataWidth(), interval);
+                swapAllocResult(mfun, interval.getReg(), spill_interval.getReg());
+                // alloc_result[mfun].erase(spill_interval.getReg());
+                // unalloc_queue.push(spill_interval);
+                int spill_mem = phy_regs_tools->getIdleMem(spill_interval);
+                phy_regs_tools->OccupyMem(spill_mem, spill_interval);
+                AllocStack(mfun, spill_interval.getReg(), spill_mem);
             }
         }
-        //如果需要交换
-        auto spill_reg=spill_interval.getReg();
-        if(!(cur_vreg==spill_reg))
-        {
-            //执行寄存器和内存的交换
-            phy_regs_tools->swapRegspill(getAllocResultInReg(mfun, spill_interval.getReg()), spill_interval, mem,
-                                    cur_vreg.getDataWidth(), interval);
-            swapAllocResult(mfun, interval.getReg(), spill_interval.getReg());
-            int spill_mem = phy_regs_tools->getIdleMem(spill_interval);
-            phy_regs_tools->OccupyMem(spill_mem,  spill_interval);
-            AllocStack(mfun, spill_interval.getReg(), spill_mem);
-        }
     }
-    // 返回是否发生溢出
     return spilled;
 }
 
@@ -297,129 +334,313 @@ void FastLinearScan::UpdateIntervalsInCurrentFunc() {
     } // 结束基本块遍历
 
     // 调试输出：打印合并前的活跃区间信息
-    std::cerr << "Check Intervals " << mfun->getFunctionName().c_str() 
-              << " Before Coalesce" << std::endl;
-    for (auto interval_pair : intervals) {
-        auto reg = interval_pair.first;
-        auto interval = interval_pair.second;
-        std::cerr << reg.is_virtual << " " << reg.reg_no << " ";
-        for (auto seg : interval) {
-            std::cerr << "[" << seg.begin << "," << seg.end << ") "; // 打印区间段
-        }
-        std::cerr << "Ref: " << interval.getReferenceCount(); // 引用计数
-        std::cerr << "\n";
-    }
-    std::cerr << "\n";
+    // std::cerr << "Check Intervals " << mfun->getFunctionName().c_str() 
+    //           << " Before Coalesce" << std::endl;
+    // for (auto interval_pair : intervals) {
+    //     auto reg = interval_pair.first;
+    //     auto interval = interval_pair.second;
+    //     std::cerr << reg.is_virtual << " " << reg.reg_no << " ";
+    //     for (auto seg : interval) {
+    //         std::cerr << "[" << seg.begin << "," << seg.end << ") "; // 打印区间段
+    //     }
+    //     std::cerr << "Ref: " << interval.getReferenceCount(); // 引用计数
+    //     std::cerr << "\n";
+    // }
+    // std::cerr << "\n";
 }
 
+// void FastLinearScan::SpillCodeGen(MachineFunction *function, std::map<Register, AllocResult> *alloc_result) {
+//     //this->function = function;
+//     //this->alloc_result = alloc_result;
+//     std::cout<<"SpillCodeGen\n";
+//     auto mcfg = function->getMachineCFG();
+//     mcfg->seqscan_open();
+//     while (mcfg->seqscan_hasNext()) {
+//         cur_block = mcfg->seqscan_next()->Mblock;
+//         for (auto it = cur_block->begin(); it != cur_block->end(); ++it) {
+//             auto ins = *it;
+//             // 根据alloc_result对ins溢出的寄存器生成溢出代码
+//             // 在溢出虚拟寄存器的read前插入load，在write后插入store
+//             // 注意load的结果寄存器是虚拟寄存器, 因为我们接下来要重新分配直到不再溢出
+//             //TODO("FastLinearScan");
+//         for(auto reg:ins->GetReadReg())
+//             {
+//                 if(reg->is_virtual==false){continue;}
+//                 auto result=alloc_result->find(*reg)->second;
+//                 if(result.in_mem==true)//如果虚拟寄存器，在内存中，生成溢出代码
+//                 {
+//                     *reg=GenerateReadCode(it,result.stack_offset*4,reg->type);
+//                 }
+//             }
+//             for(auto reg:ins->GetReadReg())
+//             {
+//                 if(reg->is_virtual==false){continue;}
+//                 auto result=alloc_result->find(*reg)->second;
+//                 if(result.in_mem==true)
+//                 {
+//                     *reg=GenerateWriteCode(it,result.stack_offset*4,reg->type);
+//                 }
+//             }
+//         }
+//     }
+//     //mcfg->seqscan_close();
+// }
+
+// // 生成从栈中读取溢出寄存器的指令
+// Register FastLinearScan::GenerateReadCode(std::list<MachineBaseInstruction *>::iterator &it, int raw_stk_offset,
+//                                           MachineDataType type) {
+//     // it为指向发生寄存器溢出的指令的迭代器
+//     // raw_stk_offset为该寄存器溢出到栈中的位置的偏移，相对于什么位置的偏移可以在调用时自行决定
+//     //std::cout<<"GenerateReadCode\n";
+//     auto read_mid_reg = current_func->GetNewRegister(type.data_type, type.data_length);
+//     //TODO("GenerateReadSpillCode");
+//     int offset=raw_stk_offset+current_func->GetParaSize();//函数栈偏移量+当前偏移量
+//    if(offset<=2047 &&offset>=-2048)
+//    {
+//     if(type==INT64)
+//     {
+//         cur_block->insert(it,rvconstructor->ConstructIImm(RISCV_LD,read_mid_reg,GetPhysicalReg(RISCV_sp),offset));
+//     }
+//     else if(type==FLOAT64)
+//     {
+//         cur_block->insert(it,rvconstructor->ConstructIImm(RISCV_FLD,read_mid_reg,GetPhysicalReg(RISCV_sp),offset));
+//     }
+//    }
+//    else//如果偏移量超出可操作范围
+//    {
+//     //std::cout<<"偏移量超出可操作范围\n";
+//     // auto imm_reg=current_func->GetNewRegister(INT64.data_type,INT64.data_length);
+//     // auto offset_mid_reg=current_func->GetNewRegister(INT64.data_type,INT64.data_length);
+//     // auto addiw_instr1 = rvconstructor->ConstructUImm(RISCV_LUI, imm_reg,  (offset + (1 << 11)) >> 12);//修改//////////////////////////
+//     // cur_block->insert(it,addiw_instr1);
+//     // auto addiw_instr2 = rvconstructor->ConstructIImm(RISCV_ORI, imm_reg, imm_reg,offset& 0xfff);//修改//////////////////////////
+//     // cur_block->insert(it,addiw_instr2);
+//     // //cur_block->insert(it,rvconstructor->ConstructUImm(RISCV_LI,imm_reg,offset));//将偏移量加载到imm_reg寄存器
+//     // cur_block->insert(it,rvconstructor->ConstructR(RISCV_ADD,offset_mid_reg,GetPhysicalReg(RISCV_sp),imm_reg));//计算基址加偏移到offset_mid_reg
+//     // if (type == INT64) { // 如果数据类型是 64 位整数
+//     //     cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_LD, read_mid_reg, offset_mid_reg, 0)); // 从计算的地址中加载数据
+//     // } else if (type == FLOAT64) { // 如果数据类型是 64 位浮点数
+//     //     cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_FLD, read_mid_reg, offset_mid_reg, 0)); // 从计算的地址中加载浮点数据
+//     // }
+//     auto imm_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
+//     auto offset_mid_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
+//     cur_block->insert(it, rvconstructor->ConstructUImm(RISCV_LI, imm_reg, offset));
+//     cur_block->insert(it, rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+//     if (type == INT64) {
+//         cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_LD, read_mid_reg, offset_mid_reg, 0));
+//     } else if (type == FLOAT64) {
+//         cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_FLD, read_mid_reg, offset_mid_reg, 0));
+//     }
+//    }
+//     std::cout<< "read_mid_reg=" << read_mid_reg.reg_no<<"\n";
+//     return read_mid_reg;
+// }
+
+// // 生成将溢出寄存器写入栈的指令
+// Register FastLinearScan::GenerateWriteCode(std::list<MachineBaseInstruction *>::iterator &it, int raw_stk_offset,
+//                                            MachineDataType type) {
+//     //std::cout<<"GenerateWriteCode\n";
+//     auto write_mid_reg = current_func->GetNewRegister(type.data_type, type.data_length);
+//     //TODO("GenerateWriteSpillCode");
+//     int offset=raw_stk_offset+current_func->GetStackOffset();
+//     ++it;//STORE指令需要加载在写指令之后；而LOAD指令需要加载在读指令之前
+//     if(offset<=2047 && offset>=-2048)
+//     {
+//         if(type==INT64)
+//         {
+//             cur_block->insert(it,rvconstructor->ConstructSImm(RISCV_SD,write_mid_reg,GetPhysicalReg(RISCV_sp),offset));
+//         }
+//         else if(type==FLOAT64)
+//         {
+//             cur_block->insert(it,rvconstructor->ConstructSImm(RISCV_FSD,write_mid_reg,GetPhysicalReg(RISCV_sp),offset));
+//         }
+//     }
+//     else
+//     {
+//         //std::cout<<"偏移量超出可操作范围\n";
+//         // auto imm_reg=current_func->GetNewRegister(INT64.data_type,INT64.data_length);
+//         // auto offset_mid_reg=current_func->GetNewRegister(INT64.data_type,INT64.data_length);
+//         // auto addiw_instr1 = rvconstructor->ConstructUImm(RISCV_LUI, imm_reg,  (offset + (1 << 11)) >> 12);//修改//////////////////////////
+//         // cur_block->insert(it,addiw_instr1);
+//         // auto addiw_instr2 = rvconstructor->ConstructIImm(RISCV_ORI, imm_reg, imm_reg,offset& 0xfff);//修改//////////////////////////
+//         // cur_block->insert(it,addiw_instr2);
+//         // //cur_block->insert(it,rvconstructor->ConstructUImm(RISCV_LI,imm_reg,offset));
+//         // cur_block->insert(it,rvconstructor->ConstructR(RISCV_ADD,offset_mid_reg,GetPhysicalReg(RISCV_sp),imm_reg));
+//         //  if (type == INT64) { // 如果数据类型是 64 位整数
+//         //     cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_SD, write_mid_reg, offset_mid_reg, 0)); // 从中间寄存器存储到计算的地址
+//         // } else if (type == FLOAT64) { // 如果数据类型是 64 位浮点数
+//         //     cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_FSD, write_mid_reg, offset_mid_reg, 0)); // 从中间寄存器存储浮点数据到计算的地址
+//         // }
+//         auto imm_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
+//         auto offset_mid_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
+//         cur_block->insert(it, rvconstructor->ConstructUImm(RISCV_LI, imm_reg, offset));
+//         cur_block->insert(it, rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+//         if (type == INT64) {
+//             cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_SD, write_mid_reg, offset_mid_reg, 0));
+//         } else if (type == FLOAT64) {
+//             cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_FSD, write_mid_reg, offset_mid_reg, 0));
+//         }
+//     }
+//     --it;
+//     std::cout<<"write_mid_reg=" << write_mid_reg.reg_no<<"\n";
+//     return write_mid_reg;
+// }
+const int MAX_TEMP_REGS=11;
 void FastLinearScan::SpillCodeGen(MachineFunction *function, std::map<Register, AllocResult> *alloc_result) {
-    //this->function = function;
-    //this->alloc_result = alloc_result;
+    std::cout<<"Optimized SpillCodeGen\n";
     auto mcfg = function->getMachineCFG();
     mcfg->seqscan_open();
+    
+    // 跟踪当前使用的临时寄存器数量
+    int temp_reg_count = 0;
+    // 用于存储频繁访问的栈值的临时寄存器
+    std::map<int, Register> temp_reg_cache;
+    
     while (mcfg->seqscan_hasNext()) {
         cur_block = mcfg->seqscan_next()->Mblock;
         for (auto it = cur_block->begin(); it != cur_block->end(); ++it) {
             auto ins = *it;
-            // 根据alloc_result对ins溢出的寄存器生成溢出代码
-            // 在溢出虚拟寄存器的read前插入load，在write后插入store
-            // 注意load的结果寄存器是虚拟寄存器, 因为我们接下来要重新分配直到不再溢出
-            //TODO("FastLinearScan");
-        for(auto reg:ins->GetReadReg())
-            {
-                if(reg->is_virtual==false){continue;}
+            
+            // 合并读取和写入的处理逻辑
+            std::set<Register> processed_regs;
+            
+            // 处理读取寄存器
+            for(auto reg:ins->GetReadReg()) {
+                if(reg->is_virtual==false || processed_regs.count(*reg)) continue;
+                
                 auto result=alloc_result->find(*reg)->second;
-                if(result.in_mem==true)//如果虚拟寄存器，在内存中，生成溢出代码
-                {
+                if(result.in_mem==true) {
+                    // 检查是否可以复用临时寄存器
+                    if(temp_reg_cache.find(result.stack_offset) != temp_reg_cache.end()) {
+                        *reg = temp_reg_cache[result.stack_offset];
+                        processed_regs.insert(*reg);
+                        continue;
+                    }
+                    
+                    // 生成读取代码
                     *reg=GenerateReadCode(it,result.stack_offset*4,reg->type);
+                    processed_regs.insert(*reg);
+                    
+                    // 缓存临时寄存器，避免重复读取
+                    if(temp_reg_count < MAX_TEMP_REGS) {
+                        temp_reg_cache[result.stack_offset] = *reg;
+                        temp_reg_count++;
+                    }
                 }
             }
-            for(auto reg:ins->GetReadReg())
-            {
-                if(reg->is_virtual==false){continue;}
+            
+            // 处理写入寄存器
+            for(auto reg:ins->GetWriteReg()) {
+                if(reg->is_virtual==false || processed_regs.count(*reg)) continue;
+                
                 auto result=alloc_result->find(*reg)->second;
-                if(result.in_mem==true)
-                {
+                if(result.in_mem==true) {
+                    // 生成写入代码
                     *reg=GenerateWriteCode(it,result.stack_offset*4,reg->type);
+                    processed_regs.insert(*reg);
+                    
+                    // 写入后从缓存中移除
+                    temp_reg_cache.erase(result.stack_offset);
+                    temp_reg_count = std::max(0, temp_reg_count-1);
                 }
             }
         }
+        
+        // 块结束时清空临时寄存器缓存
+        temp_reg_cache.clear();
+        temp_reg_count = 0;
     }
-    //mcfg->seqscan_close();
 }
 
-// 生成从栈中读取溢出寄存器的指令
 Register FastLinearScan::GenerateReadCode(std::list<MachineBaseInstruction *>::iterator &it, int raw_stk_offset,
                                           MachineDataType type) {
-    // it为指向发生寄存器溢出的指令的迭代器
-    // raw_stk_offset为该寄存器溢出到栈中的位置的偏移，相对于什么位置的偏移可以在调用时自行决定
     auto read_mid_reg = current_func->GetNewRegister(type.data_type, type.data_length);
-    //TODO("GenerateReadSpillCode");
-    int offset=raw_stk_offset+current_func->GetParaSize();//函数栈偏移量+当前偏移量
-   if(offset<=2047 &&offset>=-2048)
-   {
-    if(type==INT64)
-    {
-        cur_block->insert(it,rvconstructor->ConstructIImm(RISCV_LD,read_mid_reg,GetPhysicalReg(RISCV_sp),offset));
+    int offset=raw_stk_offset+current_func->GetParaSize();
+    
+    // 优化大偏移量处理
+    if(offset > 2047 || offset < -2048) {
+        // 使用LUI+ADD策略，避免ORI限制
+        auto imm_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
+        auto offset_mid_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
+        
+        // 计算高20位和低12位
+        int high20 = (offset + 0x800) >> 12;
+        int low12 = offset & 0xFFF;
+        
+        cur_block->insert(it, rvconstructor->ConstructUImm(RISCV_LUI, imm_reg, high20));
+        
+        // 根据低12位的值选择最佳指令
+        if(low12 != 0) {
+            if(low12 < 2048) {
+                cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_ADDI, imm_reg, imm_reg, low12));
+            } else {
+                // 处理负数偏移
+                cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_ADDI, imm_reg, imm_reg, low12 - 4096));
+            }
+        }
+        
+        cur_block->insert(it, rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+        
+        if (type == INT64) {
+            cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_LD, read_mid_reg, offset_mid_reg, 0));
+        } else if (type == FLOAT64) {
+            cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_FLD, read_mid_reg, offset_mid_reg, 0));
+        }
+    } else {
+        // 小偏移量直接使用基址+偏移
+        if(type==INT64) {
+            cur_block->insert(it,rvconstructor->ConstructIImm(RISCV_LD,read_mid_reg,GetPhysicalReg(RISCV_sp),offset));
+        } else if(type==FLOAT64) {
+            cur_block->insert(it,rvconstructor->ConstructIImm(RISCV_FLD,read_mid_reg,GetPhysicalReg(RISCV_sp),offset));
+        }
     }
-    else if(type==FLOAT64)
-    {
-        cur_block->insert(it,rvconstructor->ConstructIImm(RISCV_FLD,read_mid_reg,GetPhysicalReg(RISCV_sp),offset));
-    }
-   }
-   else//如果偏移量超出可操作范围
-   {
-    auto imm_reg=current_func->GetNewRegister(INT64.data_type,INT64.data_length);
-    auto offset_mid_reg=current_func->GetNewRegister(INT64.data_type,INT64.data_length);
-    auto addiw_instr1 = rvconstructor->ConstructUImm(RISCV_LUI, imm_reg,  (offset + (1 << 11)) >> 12);//修改//////////////////////////
-    cur_block->insert(it,addiw_instr1);
-    auto addiw_instr2 = rvconstructor->ConstructIImm(RISCV_ORI, imm_reg, imm_reg,offset& 0xfff);//修改//////////////////////////
-    cur_block->insert(it,addiw_instr2);
-    //cur_block->insert(it,rvconstructor->ConstructUImm(RISCV_LI,imm_reg,offset));//将偏移量加载到imm_reg寄存器
-    cur_block->insert(it,rvconstructor->ConstructR(RISCV_ADD,offset_mid_reg,GetPhysicalReg(RISCV_sp),imm_reg));//计算基址加偏移到offset_mid_reg
-    if (type == INT64) { // 如果数据类型是 64 位整数
-        cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_LD, read_mid_reg, offset_mid_reg, 0)); // 从计算的地址中加载数据
-    } else if (type == FLOAT64) { // 如果数据类型是 64 位浮点数
-        cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_FLD, read_mid_reg, offset_mid_reg, 0)); // 从计算的地址中加载浮点数据
-    }
-   }
+    
     return read_mid_reg;
 }
 
-// 生成将溢出寄存器写入栈的指令
 Register FastLinearScan::GenerateWriteCode(std::list<MachineBaseInstruction *>::iterator &it, int raw_stk_offset,
                                            MachineDataType type) {
     auto write_mid_reg = current_func->GetNewRegister(type.data_type, type.data_length);
-    //TODO("GenerateWriteSpillCode");
     int offset=raw_stk_offset+current_func->GetStackOffset();
-    ++it;//STORE指令需要加载在写指令之后；而LOAD指令需要加载在读指令之前
-    if(offset<=2047 && offset>=-2048)
-    {
-        if(type==INT64)
-        {
-            cur_block->insert(it,rvconstructor->ConstructSImm(RISCV_SD,write_mid_reg,GetPhysicalReg(RISCV_sp),offset));
+    
+    ++it; // STORE指令需要加载在写指令之后
+    
+    // 优化大偏移量处理
+    if(offset > 2047 || offset < -2048) {
+        auto imm_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
+        auto offset_mid_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
+        
+        // 计算高20位和低12位
+        int high20 = (offset + 0x800) >> 12;
+        int low12 = offset & 0xFFF;
+        
+        cur_block->insert(it, rvconstructor->ConstructUImm(RISCV_LUI, imm_reg, high20));
+        
+        // 根据低12位的值选择最佳指令
+        if(low12 != 0) {
+            if(low12 < 2048) {
+                cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_ADDI, imm_reg, imm_reg, low12));
+            } else {
+                // 处理负数偏移
+                cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_ADDI, imm_reg, imm_reg, low12 - 4096));
+            }
         }
-        else if(type==FLOAT64)
-        {
+        
+        cur_block->insert(it, rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+        
+        if (type == INT64) {
+            cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_SD, write_mid_reg, offset_mid_reg, 0));
+        } else if (type == FLOAT64) {
+            cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_FSD, write_mid_reg, offset_mid_reg, 0));
+        }
+    } else {
+        if(type==INT64) {
+            cur_block->insert(it,rvconstructor->ConstructSImm(RISCV_SD,write_mid_reg,GetPhysicalReg(RISCV_sp),offset));
+        } else if(type==FLOAT64) {
             cur_block->insert(it,rvconstructor->ConstructSImm(RISCV_FSD,write_mid_reg,GetPhysicalReg(RISCV_sp),offset));
         }
     }
-    else
-    {
-        auto imm_reg=current_func->GetNewRegister(INT64.data_type,INT64.data_length);
-        auto offset_mid_reg=current_func->GetNewRegister(INT64.data_type,INT64.data_length);
-        auto addiw_instr1 = rvconstructor->ConstructUImm(RISCV_LUI, imm_reg,  (offset + (1 << 11)) >> 12);//修改//////////////////////////
-        cur_block->insert(it,addiw_instr1);
-        auto addiw_instr2 = rvconstructor->ConstructIImm(RISCV_ORI, imm_reg, imm_reg,offset& 0xfff);//修改//////////////////////////
-        cur_block->insert(it,addiw_instr2);
-        //cur_block->insert(it,rvconstructor->ConstructUImm(RISCV_LI,imm_reg,offset));
-        cur_block->insert(it,rvconstructor->ConstructR(RISCV_ADD,offset_mid_reg,GetPhysicalReg(RISCV_sp),imm_reg));
-         if (type == INT64) { // 如果数据类型是 64 位整数
-            cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_SD, write_mid_reg, offset_mid_reg, 0)); // 从中间寄存器存储到计算的地址
-        } else if (type == FLOAT64) { // 如果数据类型是 64 位浮点数
-            cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_FSD, write_mid_reg, offset_mid_reg, 0)); // 从中间寄存器存储浮点数据到计算的地址
-        }
-    }
+    
     --it;
     return write_mid_reg;
 }
