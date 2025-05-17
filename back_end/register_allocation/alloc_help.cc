@@ -103,34 +103,130 @@ bool PhysicalRegistersAllocTools::OccupyReg(int phy_id, LiveInterval interval) {
 
 bool PhysicalRegistersAllocTools::ReleaseReg(int phy_id, LiveInterval interval) { 
     //TODO("ReleaseReg"); 
+    for(auto it=phy_occupied[phy_id].begin();it!=phy_occupied[phy_id].end();++it)
+    {
+        if((*it).getReg() == interval.getReg())//找到要释放的活跃区间
+        {
+            phy_occupied[phy_id].erase(it);
+            return true;
+        }
+    }
     return false; 
 }
 
 bool PhysicalRegistersAllocTools::OccupyMem(int offset, LiveInterval interval) {
     //TODO("OccupyMem");
+    auto cur_vreg=interval.getReg();
+    auto size=cur_vreg.getDataWidth()/4;
+    for(int i=offset;i<offset+size;i++)
+    {
+        while(i>=mem_occupied.size()){mem_occupied.push_back({});}
+        mem_occupied[i].push_back(interval);
+    }
     return true;
 }
 bool PhysicalRegistersAllocTools::ReleaseMem(int offset, LiveInterval interval) {
     //TODO("ReleaseMem");
-    return true;
+    auto cur_vreg=interval.getReg();
+    auto size=cur_vreg.getDataWidth()/4;
+    for(int i=offset;i<offset+size;i++)
+    { 
+        for(auto it=mem_occupied[i].begin();it!=mem_occupied[i].end();++it)
+        {
+            if((*it).getReg() == interval.getReg())
+            {
+                mem_occupied[i].erase(it);
+                break;
+            }
+        }
+    }
+     return true;
 }
 
 int PhysicalRegistersAllocTools::getIdleReg(LiveInterval interval) {
     //TODO("getIdleReg");
+    for(auto i:getValidRegs(interval))
+    {
+        int flag=true;
+        for(auto conflict_j:getAliasRegs(i))//其实只是获取自己
+        {
+            for(auto other_interval:phy_occupied[conflict_j])//自己的活跃区间不会重叠
+            {
+                if(interval&other_interval)//检查活跃区间是否重叠
+                {
+                    flag=false;
+                    break;
+                }
+            }
+        }
+        if(flag){return i;}
+    }
+
     return -1;
+    // PRINT("\nVreg: ");
+    // interval.Print();
+    // for(auto i:getValidRegs(interval))
+    // {
+    //     int ok=true;
+    //     for(auto conflict_j:getAliasRegs(i))
+    //     {
+    //         for(auto other_interval:phy_occupied[conflict_j])
+    //         {
+    //             PRINT("\nTry Phy %d",i);
+    //             PRINT("Other:");
+    //             other_interval.Print();
+    //             if(interval&other_interval)//检查活跃区间是否重叠
+    //             {
+    //                 PRINT("\n->Fail\n");
+    //                 ok=false;
+    //                 break;
+    //             }
+    //             else{PRINT("\n->Success\n");}
+    //         }
+    //     }
+    //     if(ok){return i;}
+    // }
+
+    // return -1;
 }
-int PhysicalRegistersAllocTools::getIdleMem(LiveInterval interval) { 
-    //TODO("getIdleMem"); 
-    return 0;
+
+//reference:https://github.com/yuhuifishash/SysY/target/common/machine_passes/register_alloc/physical_register.cc line128-line152
+int PhysicalRegistersAllocTools::getIdleMem(LiveInterval interval) //{ TODO("getIdleMem"); }
+{
+    std::vector<bool> ok;
+    ok.resize(mem_occupied.size(),true);
+    for(int i=0;i<mem_occupied.size();i++)
+    {
+        ok[i]=true;
+        for(auto other_interval:mem_occupied[i])
+        {
+            if(interval&other_interval)
+            {
+                ok[i]=false;//该内存处不可使用
+                break;
+            }
+        }
+    }
+    int free_cnt=0;
+    for(int offset=0;offset<ok.size();offset++)
+    {
+        if(ok[offset]){free_cnt++;}
+        else{free_cnt=0;}
+        if(free_cnt==interval.getReg().getDataWidth()/4)
+        {return offset-free_cnt+1;}//返回可用块的起始偏移量
+    }
+    return mem_occupied.size()-free_cnt;//返回最后的可用偏移
 }
 
 int PhysicalRegistersAllocTools::swapRegspill(int p_reg1, LiveInterval interval1, int offset_spill2, int size,
                                               LiveInterval interval2) {
 
     //TODO("swapRegspill");
+    ReleaseReg(p_reg1,interval1);
+    ReleaseMem(offset_spill2,interval2);
+    OccupyReg(p_reg1,interval2);
     return 0;
 }
-
 std::vector<LiveInterval> PhysicalRegistersAllocTools::getConflictIntervals(LiveInterval interval) {
     std::vector<LiveInterval> result;
     for (auto phy_intervals : phy_occupied) {

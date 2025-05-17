@@ -205,10 +205,340 @@ void RiscV64Unit::LowerFrame()
         }
     }
 }
+
+int CalFirLasAncestor(std::vector<int> &reg_occurblockids, MachineDominatorTree *domtree, int domroot) {
+    std::vector<int> dfsorder; // 存储深度优先遍历的顺序
+    std::map<int, int> vsd; // 存储每个节点在遍历中的状态
+    std::map<int, int> dph; // 存储每个节点的深度
+   //1. 获取从 domroot 开始的深度优先遍历顺序,存储在vsd中
+    std::stack<int> stack;
+    stack.push(domroot);
+    vsd[domroot] = 1;
+    
+    while (!stack.empty()) {
+        int node = stack.top();
+        stack.pop();
+        dfsorder.push_back(node);
+
+        // 获取当前节点的子节点列表，并将未访问过的子节点压入栈
+        for (auto child : domtree->dom_tree[node]) {
+            int child_id = child->getLabelId();
+            if (vsd.find(child_id) == vsd.end()) {
+                vsd[child_id] = 1;
+                stack.push(child_id);
+            }
+        }
+    }
+    
+    //2.获取从 domroot 开始的每个节点的深度,存储在dph中
+    std::stack<std::pair<int, int>> stack_pair; // 存放节点 ID 和其深度的栈
+    stack_pair.push(std::make_pair(domroot, 1)); // 初始化根节点深度为 1
+    dph[domroot] = 1;
+
+    while (!stack_pair.empty()) {
+        auto [cur, depth] = stack_pair.top();
+        stack_pair.pop();
+        
+        // 更新当前节点的深度（如有需要）
+        if (dph[cur] < depth) {
+            dph[cur] = depth;
+        }
+
+        // 遍历子节点
+        for (auto child : domtree->dom_tree[cur]) {
+            int child_id = child->getLabelId();
+            if (dph.find(child_id) == dph.end() || dph[child_id] < depth + 1) {
+                dph[child_id] = depth + 1;
+                stack_pair.push(std::make_pair(child_id, depth + 1)); // 将子节点压入栈，深度增加
+            }
+        }
+    }
+    //3.寻找公共祖先
+    //1)标记包含寄存器的块
+    int x = -1, y = -1; // 初始化 x 和 y，用于存储找到的块 ID
+    std::map<int, int> blockhasreg; // 存储每个块是否包含寄存器的映射
+    for (auto b : reg_occurblockids) { // 遍历所有寄存器出现的块 ID
+        blockhasreg[b] = 1; // 将包含寄存器的块标记为 1
+    }
+    //2）找到第一个包含寄存器的块ID
+    for (auto it = dfsorder.begin(); it != dfsorder.end(); ++it) { // 从前向后遍历 dfsorder
+        if (blockhasreg[*it]) { // 如果当前块包含寄存器
+            x = *it; // 记录第一个包含寄存器的块 ID
+            break; // 找到后退出循环
+        }
+    }
+    //3)找到最后一个包含寄存器的块ID
+    for (auto it = dfsorder.rbegin(); it != dfsorder.rend(); ++it) { // 从后向前遍历 dfsorder
+        if (blockhasreg[*it]) { // 如果当前块包含寄存器
+            y = *it; // 记录最后一个包含寄存器的块 ID
+            break; // 找到后退出循环
+        }
+    }
+    Assert(x != -1 && y != -1); // 确保找到了有效的 x 和 y 块 ID
+    //4)计算x和y最近的公共祖先
+    //return CalculatePairLCA(x, y, domtree, dph); // 计算并返回 x 和 y 块的最近公共祖先
+    std::map<int, int> parent;
+    std::map<int, int> rank;
+    
+    // 初始化每个节点的父节点是自己，rank为0
+    for (auto& entry : dph) {
+        parent[entry.first] = entry.first;
+        rank[entry.first] = 0;
+    }
+
+    // 将节点根据其深度初始化，确保深度较大的节点先被处理
+    while (dph[x] > dph[y]) {
+        x = domtree->idom[x]->getLabelId();
+    }
+    while (dph[y] > dph[x]) {
+        y = domtree->idom[y]->getLabelId();
+    }
+
+    // 利用并查集算法寻找到共同祖先
+    while (x != y) {
+        x = domtree->idom[x]->getLabelId();
+        y = domtree->idom[y]->getLabelId();
+    }
+
+    // 找到初步的最近公共祖先后，我们还需要检查循环深度
+    while (domtree->C->GetNodeByBlockId(x)->Mblock->loop_depth != 0) {
+        x = domtree->idom[x]->getLabelId();
+    }
+
+    return x;
+}
+const int TotalRegs = 64;
+extern bool optimize_flag;//在main.cc中定义
 void RiscV64Unit::LowerStack()
 {
     //TODO
     //原架构中需要通过unit获取functions等信息，此处直接获取即可
+    for(auto func:functions)
+    {
+        cur_func=func;
+        std::vector<std::vector<int>> saveregs_occurblockids,saveregs_rwblockids;
+        //GatherUseSregs(func,saveregs_occurblockids,saveregs_rwblockids);
+        //1.搜集使用的寄存器信息
+        saveregs_occurblockids.resize(TotalRegs);
+        saveregs_rwblockids.resize(TotalRegs);
+
+        for(auto &b:func->blocks)
+        {
+            std::bitset<TotalRegs> RegNeedSaved;
+            RegNeedSaved.set(RISCV_s0);
+            RegNeedSaved.set(RISCV_s1);
+            RegNeedSaved.set(RISCV_s2);
+            RegNeedSaved.set(RISCV_s3);
+            RegNeedSaved.set(RISCV_s4);
+            RegNeedSaved.set(RISCV_s5);
+            RegNeedSaved.set(RISCV_s6);
+            RegNeedSaved.set(RISCV_s7);
+            RegNeedSaved.set(RISCV_s8);
+            RegNeedSaved.set(RISCV_s9);
+            RegNeedSaved.set(RISCV_s10);
+            RegNeedSaved.set(RISCV_s11);
+            RegNeedSaved.set(RISCV_fs0);
+            RegNeedSaved.set(RISCV_fs1);
+            RegNeedSaved.set(RISCV_fs2);
+            RegNeedSaved.set(RISCV_fs3);
+            RegNeedSaved.set(RISCV_fs4);
+            RegNeedSaved.set(RISCV_fs5);
+            RegNeedSaved.set(RISCV_fs6);
+            RegNeedSaved.set(RISCV_fs7);
+            RegNeedSaved.set(RISCV_fs8);
+            RegNeedSaved.set(RISCV_fs9);
+            RegNeedSaved.set(RISCV_fs10);
+            RegNeedSaved.set(RISCV_fs11);
+            RegNeedSaved.set(RISCV_ra);
+            std::bitset<TotalRegs> RegVisited; // 用于记录当前基本块中访问过的寄存器
+            for(auto ins:*b)
+            {
+                for (auto reg : ins->GetWriteReg()) 
+                {
+                    if (!reg->is_virtual && RegNeedSaved[reg->reg_no] && !RegVisited[reg->reg_no]) 
+                    {
+                        RegVisited[reg->reg_no] = true;
+                        saveregs_occurblockids[reg->reg_no].push_back(b->getLabelId());
+                        saveregs_rwblockids[reg->reg_no].push_back(b->getLabelId());
+                    }
+                }
+                for (auto reg : ins->GetReadReg()) 
+                {
+                    if (!reg->is_virtual && RegNeedSaved[reg->reg_no] && !RegVisited[reg->reg_no]) 
+                    {
+                        saveregs_rwblockids[reg->reg_no].push_back(b->getLabelId());
+                    }
+                }
+            }
+        }
+        
+        if (func->HasInParaInStack()) 
+        {
+            saveregs_occurblockids[RISCV_fp].push_back(0);
+            saveregs_rwblockids[RISCV_fp].push_back(0);
+        }
+
+        //2.分配栈空间
+        std::vector<int> sd_blocks;
+        std::vector<int> ld_blocks;
+        std::vector<int> restore_offset;
+        sd_blocks.resize(64);
+        ld_blocks.resize(64);
+        restore_offset.resize(64);
+        int saveregnum = 0, cur_restore_offset = 0;
+         for (int i = 0; i < saveregs_occurblockids.size(); i++) { // 遍历保存寄存器的出现块 ID
+            auto &vld = saveregs_rwblockids[i]; // 获取与当前保存寄存器相关的读写块 ID
+            if (!vld.empty()) { // 如果读写块不为空
+                saveregnum++; // 保存寄存器数量加1
+            }
+        }
+        func->AddStackSize(saveregnum*8);
+
+        //2.恢复栈空间
+        auto mcfg = func->getMachineCFG(); // 获取函数的机器控制流图
+        bool restore_at_beginning = (-8 + func->GetStackSize()) >= 2048; // 如果函数栈空间太大，需要在开始时恢复寄存器
+        if (!optimize_flag) { // 如果未启用优化标志
+            restore_at_beginning = true; // 强制在开始时恢复寄存器
+        }
+        //1）如果无需在开始时恢复寄存器
+        if(!restore_at_beginning)
+        {
+            func->getMachineCFG()->BuildDominatoorTree();
+            for(int i=0;i<saveregs_occurblockids.size();i++)
+            {
+                auto &vld = saveregs_rwblockids[i]; // 获取与当前保存寄存器相关的读写块 ID
+                auto &vsd = saveregs_rwblockids[i]; // 获取当前保存寄存器的读写块 ID（重复）
+                if (!vld.empty()) { // 如果读写块不为空
+                    cur_restore_offset -= 8; // 当前恢复偏移量减去8
+                    restore_offset[i] = cur_restore_offset; // 更新恢复偏移量
+                    ld_blocks[i] = CalFirLasAncestor(vld, &func->getMachineCFG()->PostDomTree,
+                                                     func->getMachineCFG()->ret_block->Mblock->getLabelId()); // 计算恢复块
+                    if (ld_blocks[i] != func->getMachineCFG()->ret_block->Mblock->getLabelId()) {
+                        ld_blocks[i] = func->getMachineCFG()->PostDomTree.idom[ld_blocks[i]]->getLabelId(); // 更新恢复块
+                    }
+                    vsd.push_back(ld_blocks[i]); // 将恢复块添加到 vds 中
+                    sd_blocks[i] = CalFirLasAncestor(vsd, &func->getMachineCFG()->DomTree, 0); // 计算保存块
+                }
+            }
+              for (int i = 0; i < saveregs_occurblockids.size(); i++) { // 再次遍历保存寄存器的出现块
+                if (!saveregs_occurblockids[i].empty()) { // 如果当前保存寄存器的出现块不为空
+                    int regno = i; // 当前寄存器号
+                    int sp_offset = restore_offset[i] + func->GetStackSize(); // 计算栈偏移量
+                    if (!func->HasInParaInStack() || i != RISCV_fp) { // 如果没有栈参数或者当前寄存器不是 fp
+                        int saveb = sd_blocks[i]; // 获取保存块相关的 ID
+                        auto block = mcfg->GetNodeByBlockId(saveb)->Mblock; // 获取保存块对应的基本块
+                        int sd_op = 0; // 初始化保存操作的操作码
+                        if (regno >= RISCV_x0 && regno <= RISCV_x31) { // 如果寄存器是整型
+                            sd_op = RISCV_SD; // 设置操作码为 SD
+                        } else {
+                            sd_op = RISCV_FSD; // 设置操作码为 FSD
+                        }
+                        block->push_front(
+                        rvconstructor->ConstructSImm(sd_op, GetPhysicalReg(i), GetPhysicalReg(RISCV_sp), sp_offset)); // 在基本块前插入保存寄存器的指令
+                    }
+                    int restoreb = ld_blocks[i]; // 获取恢复块相关的 ID
+                    auto block = mcfg->GetNodeByBlockId(restoreb)->Mblock; // 获取恢复块对应的基本块
+                    auto it = block->getInsertBeforeBrIt(); // 获取插入位置
+
+                    int ld_op = 0; // 初始化恢复操作的操作码
+                    if (regno >= RISCV_x0 && regno <= RISCV_x31) { // 如果寄存器是整型
+                        ld_op = RISCV_LD; // 设置操作码为 LD
+                    } else {
+                        ld_op = RISCV_FLD; // 设置操作码为 FLD
+                    }
+                    block->insert(
+                    it, rvconstructor->ConstructIImm(ld_op, GetPhysicalReg(i), GetPhysicalReg(RISCV_sp), sp_offset)); // 在基本块中插入恢复寄存器的指令
+                }
+            }
+        }
+
+         for (auto &b : func->blocks) {
+            cur_block = b;
+            if (b->getLabelId() == 0) {
+                if (func->GetStackSize() <= 2032) {
+                    b->push_front(rvconstructor->ConstructIImm(RISCV_ADDI, GetPhysicalReg(RISCV_sp),
+                                                               GetPhysicalReg(RISCV_sp),
+                                                               -func->GetStackSize()));    // sub sp
+                } else {
+                    auto stacksz_reg = GetPhysicalReg(RISCV_t0);
+                    b->push_front(rvconstructor->ConstructR(RISCV_SUB, GetPhysicalReg(RISCV_sp),
+                                                            GetPhysicalReg(RISCV_sp), stacksz_reg));
+                    auto addiw_instr1 = rvconstructor->ConstructUImm(RISCV_LUI, stacksz_reg,  (func->GetStackSize() + (1 << 11)) >> 12);//修改//////////////////////////
+                    b->push_front(addiw_instr1);
+                    auto addiw_instr2 = rvconstructor->ConstructIImm(RISCV_ORI, stacksz_reg, stacksz_reg,func->GetStackSize()& 0xfff);//修改//////////////////////////
+                    b->push_front(addiw_instr2);
+                    //b->push_front(rvconstructor->ConstructUImm(RISCV_LI, stacksz_reg, func->GetStackSize()));
+                }
+                if (func->HasInParaInStack()) {
+                    b->push_front(rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_fp),
+                                                            GetPhysicalReg(RISCV_sp), GetPhysicalReg(RISCV_x0)));
+                }
+                // fp should always be restored at beginning now
+                if (restore_at_beginning) {
+                    int offset = 0;
+                    for (int i = 0; i < 64; i++) {
+                        if (!saveregs_occurblockids[i].empty()) {
+                            int regno = i;
+                            offset -= 8;
+                            if (regno >= RISCV_x0 && regno <= RISCV_x31) {
+                                b->push_front(rvconstructor->ConstructSImm(RISCV_SD, GetPhysicalReg(regno),
+                                                                           GetPhysicalReg(RISCV_sp), offset));
+                            } else {
+                                b->push_front(rvconstructor->ConstructSImm(RISCV_FSD, GetPhysicalReg(regno),
+                                                                           GetPhysicalReg(RISCV_sp), offset));
+                            }
+                        }
+                    }
+                } else if (func->HasInParaInStack()) {
+                    b->push_front(rvconstructor->ConstructSImm(RISCV_SD, GetPhysicalReg(RISCV_fp),
+                                                               GetPhysicalReg(RISCV_sp), restore_offset[RISCV_fp]));
+                }
+            }
+            auto y_ins = *(b->ReverseBegin());
+            Assert(y_ins->arch == MachineBaseInstruction::RiscV);
+            auto riscv_y_ins = (RiscV64Instruction *)y_ins;
+            if (riscv_y_ins->getOpcode() == RISCV_JALR) {
+                if (riscv_y_ins->getRd() == GetPhysicalReg(RISCV_x0)) {
+                    if (riscv_y_ins->getRs1() == GetPhysicalReg(RISCV_ra)) {
+                        Assert(riscv_y_ins->getImm() == 0);
+                        b->pop_back();
+                        // b->push_back(rvconstructor->ConstructComment("Lowerstack: add sp\n"));
+                        if (func->GetStackSize() <= 2032) {
+                            b->push_back(rvconstructor->ConstructIImm(RISCV_ADDI, GetPhysicalReg(RISCV_sp),
+                                                                      GetPhysicalReg(RISCV_sp), func->GetStackSize()));
+                        } else {
+                            auto stacksz_reg = GetPhysicalReg(RISCV_t0);
+                            auto addiw_instr1 = rvconstructor->ConstructUImm(RISCV_LUI, stacksz_reg,  (func->GetStackSize() + (1 << 11)) >> 12);//修改//////////////////////////
+                            b->push_front(addiw_instr1);
+                            auto addiw_instr2 = rvconstructor->ConstructIImm(RISCV_ORI, stacksz_reg, stacksz_reg,func->GetStackSize()& 0xfff);//修改//////////////////////////
+                            b->push_front(addiw_instr2);
+                            //b->push_back(rvconstructor->ConstructUImm(RISCV_LI, stacksz_reg, func->GetStackSize()));
+                            b->push_back(rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_sp),
+                                                                   GetPhysicalReg(RISCV_sp), stacksz_reg));
+                        }
+                        if (restore_at_beginning) {
+                            int offset = 0;
+                            for (int i = 0; i < 64; i++) {
+                                if (!saveregs_occurblockids[i].empty()) {
+                                    int regno = i;
+                                    offset -= 8;
+                                    if (regno >= RISCV_x0 && regno <= RISCV_x31) {
+                                        b->push_back(rvconstructor->ConstructIImm(RISCV_LD, GetPhysicalReg(regno),
+                                                                                  GetPhysicalReg(RISCV_sp), offset));
+                                    } else {
+                                        b->push_back(rvconstructor->ConstructIImm(RISCV_FLD, GetPhysicalReg(regno),
+                                                                                  GetPhysicalReg(RISCV_sp), offset));
+                                    }
+                                }
+                            }
+                        }
+                        b->push_back(riscv_y_ins);
+                    }
+                }
+            }
+         }
+    }
+
 }
 
 void RiscV64Unit::ClearFunctionSelectState() { 

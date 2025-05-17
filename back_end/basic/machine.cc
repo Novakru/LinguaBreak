@@ -313,7 +313,7 @@ Register MachineFunction::GetNewReg(MachineDataType type) { return GetNewRegiste
 
 MachineBlock *MachineFunction::InitNewBlock() {
     int new_id = ++max_exist_label;
-    MachineBlock *new_block =new MachineBlock(new_id);
+    MachineBlock *new_block =new RiscV64Block(new_id);
     new_block->setParent(this);
     blocks.push_back(new_block);
     mcfg->AssignEmptyNode(new_id, new_block);
@@ -331,3 +331,254 @@ void MachineBlock::display() {
         std::cerr << std::endl;
     }
 }
+//新增：
+std::list<MachineBaseInstruction *>::iterator RiscV64Block::getInsertBeforeBrIt() {
+    auto it = --instructions.end();
+    auto jal_pos = it;
+    if (instructions.empty()) {
+        return instructions.end();
+    }
+    for (auto it = --instructions.end(); it != --instructions.begin(); --it) {
+        if ((*it)->arch == MachineBaseInstruction::PHI) {
+            continue;
+        }
+        if ((*it)->arch != MachineBaseInstruction::RiscV) {
+            return jal_pos;
+        }
+        // Assert((*it)->arch == MachineBaseInstruction::RiscV);
+        auto rvlast = (RiscV64Instruction *)(*it);
+        if (rvlast->getOpcode() == RISCV_JALR) {
+            return it;
+        }
+        if (rvlast->getOpcode() == RISCV_JAL) {
+            jal_pos = it;
+            continue;
+        }
+        if (OpTable[rvlast->getOpcode()].ins_formattype == RvOpInfo::B_type) {
+            return it;
+        } else {
+            return jal_pos;
+        }
+    }
+    return it;
+}
+
+//新增：获取反向拓扑排序结果（开始节点在数组末尾）
+//节点u的支配集，等于其所有前驱节点支配集的交集再并上自己;确保前驱节点都被处理过
+void reverse_tuopu(int start, const std::vector<std::vector<MachineCFG::MachineCFGNode *>> &G, std::vector<int> &result,
+              std::vector<int> &vsd) {
+    std::stack<int> node_stack;//当前节点
+    std::stack<int> call_stack;//后继节点
+    node_stack.push(start);
+    call_stack.push(0);
+
+    while (!node_stack.empty()) {
+        int cur = node_stack.top();
+        int& call_index = call_stack.top();
+
+        if (call_index == 0) {
+            // 第一次访问该节点，将其标记为已访问
+            vsd[cur] = 1;
+        }
+
+        const auto& successors = G[cur];
+        if (call_index < successors.size()) {
+            //如果当前节点还有未被访问的后继节点，将后继节点压入栈中，并记录当前处理到的后继位置。
+            int next_block_id = successors[call_index]->Mblock->getLabelId();
+            ++call_index;//记录当前节点已经处理过后继的节点数
+
+            if (vsd[next_block_id] == 0) {
+                node_stack.push(next_block_id);
+                call_stack.push(0);
+            }
+        } else {
+            result.push_back(cur);
+            node_stack.pop();
+            call_stack.pop();
+        }
+    }
+}
+void MachineDominatorTree::BuildDominatorTree(bool reverse) {
+//     const auto* G = &(C->G);
+//     const auto* invG = &(C->invG);
+//     int begin_id = 0;
+
+//     if (reverse) {
+//         std::swap(G, invG);  // 交换 G 和 invG
+//         assert(C->ret_block != nullptr);
+//         begin_id = C->ret_block->Mblock->getLabelId();  // 反转时设置开始节点
+//     }
+
+//     int block_num = C->max_label + 1;
+//     std::vector<int> PostOrder_id;
+//     std::vector<int> vsd(block_num, 0);
+
+//     dom_tree.clear();
+//     dom_tree.resize(block_num);
+//     idom.clear();
+//     atdom.clear();
+//     atdom.resize(block_num, DynamicBitset(block_num));
+
+//     //二.求解支配集atdom(atdom[i],存储了支配i的点的集合，bit=1表示支配)
+//     //思路：节点u的支配集，等于其所有前驱节点支配集的交集再并上自己
+//     atdom[begin_id].setbit(begin_id, 1);  // 设置开始节点自己支配自己
+//     for (int i = 0; i < block_num; ++i) {
+//         if (i != begin_id) {
+//             atdom[i].setbit(i, 1);  // 初始化所有节点都支配自己
+//         }
+//     }
+
+//     reverse_tuopu(begin_id, *G, PostOrder_id, vsd);
+
+//     bool changed = true;
+//     while (changed) {
+//         changed = false;
+//         for (auto it = PostOrder_id.rbegin(); it != PostOrder_id.rend(); ++it) {
+//             int u = *it;
+//             DynamicBitset new_dom_u(block_num);
+
+//             if (!(*invG)[u].empty()) {
+//                 new_dom_u = atdom[(*((*invG)[u].begin()))->Mblock->getLabelId()];
+//                 for (const auto& pred : (*invG)[u]) {
+//                     new_dom_u = new_dom_u & atdom[pred->Mblock->getLabelId()];  // 取交集
+//                 }
+//             }
+//             new_dom_u.setbit(u, 1);  // 将自己加入支配集
+
+//             if (new_dom_u != atdom[u]) {
+//                 atdom[u] = new_dom_u;  // 更新支配集
+//                 changed = true;
+//             }
+//         }
+//     }
+
+//     //三、求解直接支配集合idom（u)，并构建支配树
+//     //思路：对于u的支配集S，如果w的支配集T与S只相差一个u，则w为直接支配点
+//     idom.resize(block_num, nullptr);
+//     for (int u = 0; u < block_num; ++u) {
+//         if (u == begin_id) continue;
+
+//         for (int v = 0; v < block_num; ++v) {
+//             if (atdom[u].getbit(v)) {
+//                 DynamicBitset tmp = (atdom[u] & atdom[v]) ^ atdom[u];
+//                 if (tmp.count() == 1 && tmp.getbit(u)) {
+//                     idom[u] = (C->block_map)[v]->Mblock;
+//                    dom_tree[v].push_back((C->block_map)[u]->Mblock);
+//                 }
+//             }
+//         }
+//     }
+
+//      // 计算支配前沿
+// //       -对于每个节点，遍历其所有的支配者。
+// //    - 对于每个支配者，检查它支配的所有后继节点。
+// //    - 如果一个后继节点由其他支配者支配并且不是当前节点的直接支配者，则将该后继节点加入当前支配者的支配前沿中。
+//     df.resize(block_num, DynamicBitset(block_num));
+//     for (int i = 0; i < block_num; ++i) {
+//         for (const auto& edge : (*G)[i]) {
+//             int a = i, b = edge->Mblock->getLabelId();
+//             int x = a;
+//             while (x != b && !IsDominate(x, b)) {
+//                 df[x].setbit(b, 1);
+//                 if (idom[x] != nullptr) {
+//                     x = idom[x]->getLabelId();
+//                 } else {
+//                     break;
+//                 }
+//             }
+//         }
+//     }
+    
+    auto const *G = &(C->G);
+    auto const *invG = &(C->invG);
+    auto begin_id = 0;
+    if (reverse) {
+        auto temp = G;
+        G = invG;
+        invG = temp;
+        Assert(C->ret_block != nullptr);
+        begin_id = C->ret_block->Mblock->getLabelId();
+    }
+
+    int block_num = C->max_label + 1;
+
+    std::vector<int> PostOrder_id;
+    std::vector<int> vsd;
+
+    dom_tree.clear();
+    dom_tree.resize(block_num);
+    idom.clear();
+    atdom.clear();
+
+    for (int i = 0; i <= C->max_label; i++) {
+        vsd.push_back(0);
+    }
+
+    reverse_tuopu(begin_id, (*G), PostOrder_id, vsd);
+
+    atdom.resize(block_num, DynamicBitset(block_num));
+    // dom[u][v] = 1 <==> v dom u <==> v is in set dom(u)
+    // atdom[0][0] = 1;
+    atdom[begin_id].setbit(begin_id, 1);
+    for (int i = 0; i <= C->max_label; i++) {
+        for (int j = 0; j <= C->max_label; j++) {
+            if (i != begin_id) {
+                atdom[i].setbit(j, 1);
+                // atdom[i][j] = 1;
+            }
+        }
+    }
+    bool changed = 1;
+    while (changed) {
+        changed = 0;
+        for (std::vector<int>::reverse_iterator it = PostOrder_id.rbegin(); it != PostOrder_id.rend(); ++it) {
+            auto u = *it;
+            DynamicBitset new_dom_u(block_num);
+
+            // Goal: calculate
+            // dom(u) |= {u} | {& dom(v)}
+            // First:
+            // dom(u) = {& dom(v)}, v is qianqu
+            if (!(*invG)[u].empty()) {
+                new_dom_u = atdom[(*((*invG)[u].begin()))->Mblock->getLabelId()];
+                for (auto v : (*invG)[u]) {
+                    // new_dom_u &= atdom[v->block_id];
+                    new_dom_u = new_dom_u & atdom[v->Mblock->getLabelId()];
+                }
+            }
+            // Second:
+            // dom(u) |= {u}
+            new_dom_u.setbit(u, 1);
+            if (new_dom_u != atdom[u]) {
+                atdom[u] = new_dom_u;
+                changed = 1;
+            }
+        }
+    }
+    idom.clear();
+    idom.resize(block_num);
+    // Goal calculate all immediate dom(idom)
+    for (auto [u, bb] : C->block_map) {
+        if (u == begin_id) {
+            continue;
+        }
+        for (int v = 0; v <= C->max_label; v++) {
+            // if v idom u, v must dom u
+            // if (atdom[u][v]) {
+            if (atdom[u].getbit(v)) {
+                // dom(u) = {u,???,v,{domv path}}
+                // dom(v) = {v,{domv path}}
+                // ??? = NULL set if v idom u
+
+                // equals dom(u)-dom(v)
+                auto tmp = (atdom[u] & atdom[v]) ^ atdom[u];
+                if (tmp.count() == 1 && tmp.getbit(u)) {
+                    idom[u] = (C->block_map)[v]->Mblock;
+                    dom_tree[v].push_back((C->block_map)[u]->Mblock);
+                }
+            }
+        }
+    }
+}
+
+void MachineDominatorTree::BuildPostDominatorTree() { BuildDominatorTree(true); }

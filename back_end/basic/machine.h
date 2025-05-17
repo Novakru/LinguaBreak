@@ -24,6 +24,7 @@ private:
 
 protected:
     std::list<MachineBaseInstruction *> instructions;
+    
 
 private:
     MachineFunction *parent;
@@ -31,7 +32,7 @@ private:
 public:
 
     int loop_depth = 0;
-
+    virtual std::list<MachineBaseInstruction *>::iterator getInsertBeforeBrIt() = 0;
     decltype(instructions) &GetInsList() { return instructions; }
     void clear() { instructions.clear(); }
     auto erase(decltype(instructions.begin()) it) { return instructions.erase(it); }
@@ -150,6 +151,121 @@ public:
     // 设置CFG
     void SetMachineCFG(MachineCFG *mcfg) { this->mcfg = mcfg; }
 };
+class DynamicBitset {
+private:
+    std::vector<uint64_t> bits;  // 使用 uint64_t 存储位数据，提高处理效率(单位是64个bit)
+
+    // 内部函数，用于设置某一位
+    void setBitInternal(int pos, bool value) {
+        int index = pos / 64;  // 每个 uint64_t 64 位
+        int offset = pos % 64;
+        if (value) {
+            bits[index] |= (1ULL << offset);
+        } else {
+            bits[index] &= ~(1ULL << offset);
+        }
+    }
+
+public:
+    DynamicBitset() {}
+
+    // 根据位宽度初始化位集
+    DynamicBitset(int bit_width) {
+        int size = (bit_width + 63) / 64; // 向上取整
+        bits.resize(size, 0); // 初始化为 0
+    }
+
+    int count() const {
+        int result = 0;
+        for (const auto& chunk : bits) {
+            result += __builtin_popcountll(chunk);  // 使用内建函数快速计算位数
+        }
+        return result;
+    }
+
+    void setbit(int pos, bool value) {
+        assert(pos < bits.size() * 64); // 检查位置有效性
+        setBitInternal(pos, value); // 直接调用内部函数
+    }
+
+    bool getbit(int pos) const {
+        assert(pos < bits.size() * 64); // 检查位置有效性
+        int index = pos / 64;
+        int offset = pos % 64;
+        return (bits[index] >> offset) & 1; // 直接返回位值
+    }
+
+    DynamicBitset operator&(const DynamicBitset& other) const {
+        assert(bits.size() == other.bits.size()); // 确保两者大小相同
+        DynamicBitset result(bits.size() * 64); // 创建结果位集
+
+        for (size_t i = 0; i < bits.size(); ++i) {
+            result.bits[i] = bits[i] & other.bits[i]; // 使用并行位操作
+        }
+        return result;
+    }
+
+    DynamicBitset operator|(const DynamicBitset& other) const {
+        assert(bits.size() == other.bits.size());
+        DynamicBitset result(bits.size() * 64);
+
+        for (size_t i = 0; i < bits.size(); ++i) {
+            result.bits[i] = bits[i] | other.bits[i];
+        }
+        return result;
+    }
+
+    DynamicBitset operator^(const DynamicBitset& other) const {
+        assert(bits.size() == other.bits.size());
+        DynamicBitset result(bits.size() * 64);
+        
+        for (size_t i = 0; i < bits.size(); ++i) {
+            result.bits[i] = bits[i] ^ other.bits[i];
+        }
+        return result;
+    }
+
+    DynamicBitset operator-(const DynamicBitset& other) const {
+        assert(bits.size() == other.bits.size());
+        DynamicBitset result(bits.size() * 64);
+        
+        for (size_t i = 0; i < bits.size(); ++i) {
+            result.bits[i] = bits[i] & (~other.bits[i]);
+        }
+        return result;
+    }
+
+    DynamicBitset& operator=(const DynamicBitset& other) {
+        if (this != &other) {
+            bits = other.bits; // 使用 std::vector 的赋值
+        }
+        return *this;
+    }
+
+    bool operator==(const DynamicBitset& other) const {
+        return bits == other.bits; // 直接比较
+    }
+
+    bool operator!=(const DynamicBitset& other) const {
+        return !(*this == other); // 反向比较
+    }
+
+    DynamicBitset(const DynamicBitset& other) : bits(other.bits) {}
+};
+class MachineDominatorTree {
+public:
+    MachineCFG *C;
+    std::vector<std::vector<MachineBlock *>> dom_tree{};
+    std::vector<MachineBlock *> idom{};
+    std::vector<DynamicBitset> df;//新增
+    std::vector<DynamicBitset> atdom;
+
+    void BuildDominatorTree(bool reverse = false);
+    void BuildPostDominatorTree();
+    bool IsDominate(int id1, int id2) {    // if blockid1 dominate blockid2, return true, else return false
+        return atdom[id2].getbit(id1);
+    }
+};
 class MachineCFG {
 
 public:
@@ -196,18 +312,8 @@ public:
         virtual void rewind() = 0;
         virtual void close() = 0;
     };
-     // 定义 MockIterator 继承自 Iterator
-     class MockIterator : public Iterator {
-    public:
-        MockIterator(MachineCFG* mcfg) : Iterator(mcfg) {}
-        void open() override { mcfg->bfs_open(); }
-        MachineCFG::MachineCFGNode *next() override { return mcfg->bfs_next(); }
-        bool hasNext() override { return mcfg->bfs_hasNext(); }
-        void rewind() override { mcfg->bfs_open(); }
-        void close() override { mcfg->bfs_close(); }
-    };
-    
-    
+
+
     MachineCFGNode *ret_block;//新增
     MachineCFG() : max_label(0){};
     void AssignEmptyNode(int id, MachineBlock *Mblk);
@@ -295,33 +401,28 @@ public:
 
     void seqscan_close() { seqscan_current = block_map.end(); }
 
-    // Reverse 相关成员函数
-    void reverse_open(Iterator* child) {
-        reverse_child = child;
-        reverse_child->open();
+    void reverse_open() {
+        bfs_open();
         reverse_cache.clear();
-        while (reverse_child->hasNext()) {
-            reverse_cache.push_back(reverse_child->next());
+        while (bfs_hasNext()) {
+            reverse_cache.push_back(bfs_next());
         }
         reverse_current_pos = reverse_cache.rbegin();
     }
-
     MachineCFGNode* reverse_next() { return *(reverse_current_pos++); }
 
     bool reverse_hasNext() { return reverse_current_pos != reverse_cache.rend(); }
 
     void reverse_rewind() {
         reverse_close();
-        reverse_open(reverse_child);
+        reverse_open();
     }
 
     void reverse_close() {
-        reverse_child->close();
+        bfs_close();
         reverse_cache.clear();
         reverse_current_pos = reverse_cache.rend();
     }
- private:
-    Iterator* reverse_child;
 
 public:
     void display() {
@@ -336,6 +437,18 @@ public:
         }
         std::cerr << std::endl;
     }
+     //新增
+    MachineDominatorTree DomTree, PostDomTree;
+    void BuildDominatoorTree(bool buildPost = true) {
+        DomTree.C = this;
+        DomTree.BuildDominatorTree();
+
+        PostDomTree.C = this;
+        if (buildPost) {
+            PostDomTree.BuildPostDominatorTree();
+        }
+    }
+
 };
 
 class RiscV64Block : public MachineBlock {

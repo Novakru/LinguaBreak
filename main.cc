@@ -34,6 +34,7 @@ extern void dumpTokens(FILE* output, int token, int line_number, char *yytext, Y
 extern std::vector<std::string> error_msgs;
 IdTable id_table;
 int line = 1;
+bool optimize_flag = false;
 
 // option table 
 #define nr_options 7 
