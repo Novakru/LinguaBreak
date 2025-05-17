@@ -14,6 +14,7 @@
 #include "llvm/optimize/transform/mem2reg.h"
 #include "llvm/optimize/transform/adce.h"
 #include "llvm/optimize/transform/peephole.h"
+#include "llvm/optimize/transform/tailcallelim.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -127,6 +128,7 @@ int main(int argc, char** argv) {
 		// 重建CFG
 		SimplifyCFGPass(&llvmIR).Execute();
 		PeepholePass(&llvmIR).ImmResultReplaceExecute();
+		// TailCallElimPass(&llvmIR).Execute();
     }
 
 	if (strcmp(argv[2], "-llvm") == 0) {
