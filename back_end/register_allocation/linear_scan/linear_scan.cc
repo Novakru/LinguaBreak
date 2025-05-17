@@ -27,8 +27,8 @@ bool IntervalsPrioCmp(LiveInterval a, LiveInterval b) { return a.begin()->begin 
 
 bool FastLinearScan::DoAllocInCurrentFunc() {
     bool spilled = false;
-    //auto mfun = current_func;
-    MachineFunction* mfun;
+    auto mfun = current_func;
+    //MachineFunction* mfun;
     // std::cerr<<"FastLinearScan: "<<mfun->getFunctionName()<<"\n";
     phy_regs_tools->clear();
     for (auto interval : intervals) {
