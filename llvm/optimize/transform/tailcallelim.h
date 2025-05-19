@@ -9,7 +9,7 @@ class TailCallElimPass : public IRPass {
 private:
 	
 public:
-	bool isTailCallFunc(CFG *C);
+	bool IsTailCallFunc(CFG *C);
     TailCallElimPass(LLVMIR *IR) : IRPass(IR) {}
     void TailCallElim(CFG *C);
     void Execute();

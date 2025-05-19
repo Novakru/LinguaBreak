@@ -1392,25 +1392,17 @@ void VarDef_no_init::codeIR() {
             ptrmap[name] = GetNewGlobalOperand(name->getName());
             dimcount = 1;
             std::vector<int> dim;
-            std::vector<int> noinitarrayint;
-            std::vector<float> noinitarrayfloat;
             for(auto exp : *dims){
                 exp->codeIR();
                 dim.push_back(currentint);
-                if(ty == BuiltinType::BuiltinKind::Int){
-                    noinitarrayint.push_back(0);
-                }else{
-                    noinitarrayfloat.push_back(0.0);
-                }
             }
 			irgen_table.symboldim_table.enter(name, dim);
             dimcount = 0; 
             if(ty == BuiltinType::BuiltinKind::Int){
-                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::I32, VarAttribute(dim,noinitarrayint));
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::I32, VarAttribute(dim, std::vector<int>({})));
             }else{
-                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::FLOAT32, VarAttribute(dim,noinitarrayfloat));
+                IRgenGlobalVarDefineArray(name->getName(), BasicInstruction::LLVMType::FLOAT32, VarAttribute(dim,std::vector<int>({})));
             }
-        
         }
 
     } else {
