@@ -120,12 +120,6 @@ public:
     // 设置MachineUnit
     void SetParent(MachineUnit *parent) { this->parent = parent; }
 
-	// 如果参数溢出到栈中，
-	// caller 需要在sp对应偏移处存储参数，instselect(构造寄存器) + lowerframe.exec(修改读写寄存器)
-	// callee 需要保存栈底fp (前一个栈帧的栈底), 还需要根据 fp 读取存储
-    bool isParaInStack() { return is_para_instack; }
-    void setIsParaInStack(bool is) { is_para_instack = is; }
-
     // 函数包含的所有块
     std::vector<MachineBlock *> blocks{};
 

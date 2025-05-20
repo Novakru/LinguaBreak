@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
 	llvmIR.CFGInit();
 	SimplifyCFGPass(&llvmIR).Execute();
 
-	// /* 【5】 opt */
+	/* 【5】 opt */
     if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
         // mem2reg
         DomAnalysis dom(&llvmIR);
@@ -137,6 +137,7 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+	/* 【6】 backend */
 	if (strcmp(argv[2], "-select") == 0) {
 		MachineUnit* m_unit=new RiscV64Unit(&llvmIR);
 		m_unit->SelectInstructionAndBuildCFG();

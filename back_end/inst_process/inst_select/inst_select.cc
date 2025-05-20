@@ -199,7 +199,7 @@ void RiscV64Unit::LowerFrame()
 
 				if (arg_off != 0) {
 					// std::cerr << "arg_off: " << arg_off << std::endl;
-                    cur_func->setIsParaInStack(true);
+                    cur_func->SetHasInParaInStack(true);
                 }
             }
         }
@@ -322,8 +322,7 @@ void RiscV64Unit::LowerStack()
                     //b->push_front(rvconstructor->ConstructUImm(RISCV_LI, stacksz_reg, func->GetStackSize()));
                 }
                 if (func->HasInParaInStack()) {
-                    b->push_front(rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_fp),
-                                                            GetPhysicalReg(RISCV_sp), GetPhysicalReg(RISCV_x0)));
+					b->push_front(rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_fp), GetPhysicalReg(RISCV_sp), GetPhysicalReg(RISCV_x0)));    // fp = sp 栈帧切换
                 }
                 // fp should always be restored at beginning now
                 if (restore_at_beginning) {

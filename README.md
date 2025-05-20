@@ -35,6 +35,14 @@ opt -opaque-pointers=1 -passes=tailcallelim input.ll -S -o output.ll # 以尾递
 opt -opaque-pointers=1 -passes=tailcallelim ./test_output/example/temp.ll -S -o ./test_output/example/temp-O1.ll
 ```
 
+### 编译并运行自己的汇编代码
+```bash
+./bin/SysYc ./test_output/example/temp.sy -target ./test_output/example/temp.out.S -O1
+riscv64-unknown-linux-gnu-gcc  "test_output/example/temp.out.S" -c -o "test_output/example/tmp.o"
+riscv64-unknown-linux-gnu-gcc -static "test_output/example/tmp.o" lib/libsysy_rv.a
+qemu-riscv64 ./a.out
+echo $?
+```
 
 ### 使用gdb调试
 ```bash
