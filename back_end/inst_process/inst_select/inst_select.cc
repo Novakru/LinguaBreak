@@ -306,91 +306,7 @@ void RiscV64Unit::LowerStack()
         // {//...
         // }
 
-        //  for (auto &b : func->blocks) {
-        //     cur_block = b;
-        //     if (b->getLabelId() == 0) {
-        //         if (func->GetStackSize() <= 2032) {
-        //             b->push_front(rvconstructor->ConstructIImm(RISCV_ADDI, GetPhysicalReg(RISCV_sp),
-        //                                                        GetPhysicalReg(RISCV_sp),
-        //                                                        -func->GetStackSize()));    // sub sp
-        //         } else {
-        //             auto stacksz_reg = GetPhysicalReg(RISCV_t0);
-        //             b->push_front(rvconstructor->ConstructR(RISCV_SUB, GetPhysicalReg(RISCV_sp),
-        //                                                     GetPhysicalReg(RISCV_sp), stacksz_reg));
-        //             auto addiw_instr1 = rvconstructor->ConstructUImm(RISCV_LUI, stacksz_reg,  (func->GetStackSize() + (1 << 11)) >> 12);//修改//////////////////////////
-        //             b->push_front(addiw_instr1);
-        //             auto addiw_instr2 = rvconstructor->ConstructIImm(RISCV_ORI, stacksz_reg, stacksz_reg,func->GetStackSize()& 0xfff);//修改//////////////////////////
-        //             b->push_front(addiw_instr2);
-        //             //b->push_front(rvconstructor->ConstructUImm(RISCV_LI, stacksz_reg, func->GetStackSize()));
-        //         }
-        //         if (func->HasInParaInStack()) {
-		// 			b->push_front(rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_fp), GetPhysicalReg(RISCV_sp), GetPhysicalReg(RISCV_x0)));    // fp = sp 栈帧切换
-        //         }
-        //         // fp should always be restored at beginning now
-        //         if (restore_at_beginning) {
-        //             int offset = 0;
-        //             for (int i = 0; i < 64; i++) {
-        //                 if (!saveregs_occurblockids[i].empty()) {
-        //                     int regno = i;
-        //                     offset -= 8;
-        //                     if (regno >= RISCV_x0 && regno <= RISCV_x31) {
-        //                         b->push_front(rvconstructor->ConstructSImm(RISCV_SD, GetPhysicalReg(regno),
-        //                                                                    GetPhysicalReg(RISCV_sp), offset));
-        //                     } else {
-        //                         b->push_front(rvconstructor->ConstructSImm(RISCV_FSD, GetPhysicalReg(regno),
-        //                                                                    GetPhysicalReg(RISCV_sp), offset));
-        //                     }
-        //                 }
-        //             }
-        //         } else if (func->HasInParaInStack()) {
-        //             b->push_front(rvconstructor->ConstructSImm(RISCV_SD, GetPhysicalReg(RISCV_fp),
-        //                                                        GetPhysicalReg(RISCV_sp), restore_offset[RISCV_fp]));
-        //         }
-        //     }
-        //     auto y_ins = *(b->ReverseBegin());
-        //     Assert(y_ins->arch == MachineBaseInstruction::RiscV);
-        //     auto riscv_y_ins = (RiscV64Instruction *)y_ins;
-        //     if (riscv_y_ins->getOpcode() == RISCV_JALR) {
-        //         if (riscv_y_ins->getRd() == GetPhysicalReg(RISCV_x0)) {
-        //             if (riscv_y_ins->getRs1() == GetPhysicalReg(RISCV_ra)) {
-        //                 Assert(riscv_y_ins->getImm() == 0);
-        //                 b->pop_back();
-        //                 // b->push_back(rvconstructor->ConstructComment("Lowerstack: add sp\n"));
-        //                 if (func->GetStackSize() <= 2032) {
-        //                     b->push_back(rvconstructor->ConstructIImm(RISCV_ADDI, GetPhysicalReg(RISCV_sp),
-        //                                                               GetPhysicalReg(RISCV_sp), func->GetStackSize()));
-        //                 } else {
-        //                     auto stacksz_reg = GetPhysicalReg(RISCV_t0);
-        //                     auto addiw_instr1 = rvconstructor->ConstructUImm(RISCV_LUI, stacksz_reg,  (func->GetStackSize() + (1 << 11)) >> 12);//修改//////////////////////////
-        //                     b->push_front(addiw_instr1);
-        //                     auto addiw_instr2 = rvconstructor->ConstructIImm(RISCV_ORI, stacksz_reg, stacksz_reg,func->GetStackSize()& 0xfff);//修改//////////////////////////
-        //                     b->push_front(addiw_instr2);
-        //                     //b->push_back(rvconstructor->ConstructUImm(RISCV_LI, stacksz_reg, func->GetStackSize()));
-        //                     b->push_back(rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_sp),
-        //                                                            GetPhysicalReg(RISCV_sp), stacksz_reg));
-        //                 }
-        //                 if (restore_at_beginning) {
-        //                     int offset = 0;
-        //                     for (int i = 0; i < 64; i++) {
-        //                         if (!saveregs_occurblockids[i].empty()) {
-        //                             int regno = i;
-        //                             offset -= 8;
-        //                             if (regno >= RISCV_x0 && regno <= RISCV_x31) {
-        //                                 b->push_back(rvconstructor->ConstructIImm(RISCV_LD, GetPhysicalReg(regno),
-        //                                                                           GetPhysicalReg(RISCV_sp), offset));
-        //                             } else {
-        //                                 b->push_back(rvconstructor->ConstructIImm(RISCV_FLD, GetPhysicalReg(regno),
-        //                                                                           GetPhysicalReg(RISCV_sp), offset));
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //                 b->push_back(riscv_y_ins);
-        //             }
-        //         }
-        //     }
-        //  }
-        for (auto &b : func->blocks) {
+         for (auto &b : func->blocks) {
             cur_block = b;
             if (b->getLabelId() == 0) {
                 if (func->GetStackSize() <= 2032) {
@@ -401,11 +317,20 @@ void RiscV64Unit::LowerStack()
                     auto stacksz_reg = GetPhysicalReg(RISCV_t0);
                     b->push_front(rvconstructor->ConstructR(RISCV_SUB, GetPhysicalReg(RISCV_sp),
                                                             GetPhysicalReg(RISCV_sp), stacksz_reg));
+                    // 修复1：先执行lui, 再执行ori, lui负责清空低12位
+					// auto addiw_instr1 = rvconstructor->ConstructUImm(RISCV_LUI, stacksz_reg,  (func->GetStackSize() + (1 << 11)) >> 12);
+                    // auto addiw_instr2 = rvconstructor->ConstructIImm(RISCV_ORI, stacksz_reg, stacksz_reg,func->GetStackSize()& 0xfff);
+                    // b->push_front(addiw_instr2);
+					// b->push_front(addiw_instr1);
+					
+					// 修复2：即使修复了lui和ori的顺序，但是爆了一个如下非法指令，4048明明是在12位限制内的
+					// test_output/example/temp.out.S:9: Error: illegal operands `ori t0,t0,4048'
+					// test_output/example/temp.out.S:74: Error: illegal operands `ori t0,t0,4048'
+					
                     b->push_front(rvconstructor->ConstructUImm(RISCV_LI, stacksz_reg, func->GetStackSize()));
                 }
                 if (func->HasInParaInStack()) {
-                    b->push_front(rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_fp),
-                                                            GetPhysicalReg(RISCV_sp), GetPhysicalReg(RISCV_x0)));
+					b->push_front(rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_fp), GetPhysicalReg(RISCV_sp), GetPhysicalReg(RISCV_x0)));    // fp = sp 栈帧切换
                 }
                 // fp should always be restored at beginning now
                 if (restore_at_beginning) {
@@ -428,13 +353,13 @@ void RiscV64Unit::LowerStack()
                                                                GetPhysicalReg(RISCV_sp), restore_offset[RISCV_fp]));
                 }
             }
-            auto last_ins = *(b->ReverseBegin());
-            Assert(last_ins->arch == MachineBaseInstruction::RiscV);
-            auto riscv_last_ins = (RiscV64Instruction *)last_ins;
-            if (riscv_last_ins->getOpcode() == RISCV_JALR) {
-                if (riscv_last_ins->getRd() == GetPhysicalReg(RISCV_x0)) {
-                    if (riscv_last_ins->getRs1() == GetPhysicalReg(RISCV_ra)) {
-                        Assert(riscv_last_ins->getImm() == 0);
+            auto y_ins = *(b->ReverseBegin());
+            Assert(y_ins->arch == MachineBaseInstruction::RiscV);
+            auto riscv_y_ins = (RiscV64Instruction *)y_ins;
+            if (riscv_y_ins->getOpcode() == RISCV_JALR) {
+                if (riscv_y_ins->getRd() == GetPhysicalReg(RISCV_x0)) {
+                    if (riscv_y_ins->getRs1() == GetPhysicalReg(RISCV_ra)) {
+                        Assert(riscv_y_ins->getImm() == 0);
                         b->pop_back();
                         // b->push_back(rvconstructor->ConstructComment("Lowerstack: add sp\n"));
                         if (func->GetStackSize() <= 2032) {
@@ -442,6 +367,11 @@ void RiscV64Unit::LowerStack()
                                                                       GetPhysicalReg(RISCV_sp), func->GetStackSize()));
                         } else {
                             auto stacksz_reg = GetPhysicalReg(RISCV_t0);
+							// bug 同上，故改用伪指令 li
+                            // auto lui_inst = rvconstructor->ConstructUImm(RISCV_LUI, stacksz_reg,  (func->GetStackSize() + (1 << 11)) >> 12);
+                            // auto ori_inst = rvconstructor->ConstructIImm(RISCV_ORI, stacksz_reg, stacksz_reg,func->GetStackSize()& 0xfff);
+                            // b->push_back(lui_inst);
+							// b->push_back(ori_inst);
                             b->push_back(rvconstructor->ConstructUImm(RISCV_LI, stacksz_reg, func->GetStackSize()));
                             b->push_back(rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_sp),
                                                                    GetPhysicalReg(RISCV_sp), stacksz_reg));
@@ -462,14 +392,15 @@ void RiscV64Unit::LowerStack()
                                 }
                             }
                         }
-                        b->push_back(riscv_last_ins);
+                        b->push_back(riscv_y_ins);
                     }
                 }
             }
-        }
+         }
     }
 
 }
+
 
 void RiscV64Unit::ClearFunctionSelectState() { 
     llvmReg_offset_map.clear();

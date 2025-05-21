@@ -487,7 +487,7 @@ void FastLinearScan::UpdateIntervalsInCurrentFunc() {
 // }
 const int MAX_TEMP_REGS=11;
 void FastLinearScan::SpillCodeGen(MachineFunction *function, std::map<Register, AllocResult> *alloc_result) {
-    std::cout<<"Optimized SpillCodeGen\n";
+    //std::cout<<"Optimized SpillCodeGen\n";
     auto mcfg = function->getMachineCFG();
     mcfg->seqscan_open();
     
@@ -551,7 +551,25 @@ void FastLinearScan::SpillCodeGen(MachineFunction *function, std::map<Register, 
         temp_reg_count = 0;
     }
 }
-
+// 显示alloc_result的全部内容（allocres）
+void FastLinearScan::ShowAllAllocResult() {
+	std::cout << "======== alloc_result 全部内容 ========" << std::endl;
+	for (auto &func_pair : alloc_result) {
+		auto *mfun = func_pair.first;
+		std::cout << "函数: " << mfun->getFunctionName() << std::endl;
+		for (auto &reg_pair : func_pair.second) {
+			auto vreg = reg_pair.first;
+			auto res = reg_pair.second;
+			std::cout << "  虚拟寄存器: " << vreg.reg_no << " -> ";
+			if (res.in_mem) {
+				std::cout << "栈偏移: " << res.stack_offset << std::endl;
+			} else {
+				std::cout << "物理寄存器: " << res.phy_reg_no << std::endl;
+			}
+		}
+	}
+	std::cout << "======================================" << std::endl;
+}
 // Register FastLinearScan::GenerateReadCode(std::list<MachineBaseInstruction *>::iterator &it, int raw_stk_offset,
 //                                           MachineDataType type) {
 //     auto read_mid_reg = current_func->GetNewRegister(type.data_type, type.data_length);
