@@ -552,95 +552,157 @@ void FastLinearScan::SpillCodeGen(MachineFunction *function, std::map<Register, 
     }
 }
 
+// Register FastLinearScan::GenerateReadCode(std::list<MachineBaseInstruction *>::iterator &it, int raw_stk_offset,
+//                                           MachineDataType type) {
+//     auto read_mid_reg = current_func->GetNewRegister(type.data_type, type.data_length);
+//     int offset=raw_stk_offset+current_func->GetParaSize();
+    
+//     // 优化大偏移量处理
+//     if(offset > 2047 || offset < -2048) {
+//         // 使用LUI+ADD策略，避免ORI限制
+//         auto imm_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
+//         auto offset_mid_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
+        
+//         // 计算高20位和低12位
+//         int high20 = (offset + 0x800) >> 12;
+//         int low12 = offset & 0xFFF;
+        
+//         cur_block->insert(it, rvconstructor->ConstructUImm(RISCV_LUI, imm_reg, high20));
+        
+//         // 根据低12位的值选择最佳指令
+//         if(low12 != 0) {
+//             if(low12 < 2048) {
+//                 cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_ADDI, imm_reg, imm_reg, low12));
+//             } else {
+//                 // 处理负数偏移
+//                 cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_ADDI, imm_reg, imm_reg, low12 - 4096));
+//             }
+//         }
+        
+//         //cur_block->insert(it, rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+        
+//         if (type == INT64) {
+//             cur_block->insert(it, rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+//             cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_LD, read_mid_reg, offset_mid_reg, 0));
+//         } else if (type == FLOAT64) {
+//             cur_block->insert(it, rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_fp), imm_reg));
+//             cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_FLD, read_mid_reg, offset_mid_reg, 0));
+//         }
+//     } else {
+//         // 小偏移量直接使用基址+偏移
+//         if(type==INT64) {
+//             cur_block->insert(it,rvconstructor->ConstructIImm(RISCV_LD,read_mid_reg,GetPhysicalReg(RISCV_sp),offset));
+//         } else if(type==FLOAT64) {
+//             cur_block->insert(it,rvconstructor->ConstructIImm(RISCV_FLD,read_mid_reg,GetPhysicalReg(RISCV_fp),offset));
+//         }
+//     }
+    
+//     return read_mid_reg;
+// }
+
+// Register FastLinearScan::GenerateWriteCode(std::list<MachineBaseInstruction *>::iterator &it, int raw_stk_offset,
+//                                            MachineDataType type) {
+//     auto write_mid_reg = current_func->GetNewRegister(type.data_type, type.data_length);
+//     int offset=raw_stk_offset+current_func->GetStackOffset();
+    
+//     ++it; // STORE指令需要加载在写指令之后
+    
+//     // 优化大偏移量处理
+//     if(offset > 2047 || offset < -2048) {
+//         auto imm_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
+//         auto offset_mid_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
+        
+//         // 计算高20位和低12位
+//         int high20 = (offset + 0x800) >> 12;
+//         int low12 = offset & 0xFFF;
+        
+//         cur_block->insert(it, rvconstructor->ConstructUImm(RISCV_LUI, imm_reg, high20));
+        
+//         // 根据低12位的值选择最佳指令
+//         if(low12 != 0) {
+//             if(low12 < 2048) {
+//                 cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_ADDI, imm_reg, imm_reg, low12));
+//             } else {
+//                 // 处理负数偏移
+//                 cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_ADDI, imm_reg, imm_reg, low12 - 4096));
+//             }
+//         }
+        
+//        // cur_block->insert(it, rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+        
+//         if (type == INT64) {
+//             cur_block->insert(it, rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+//             cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_SD, write_mid_reg, offset_mid_reg, 0));
+//         } else if (type == FLOAT64) {
+//             cur_block->insert(it, rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_fp), imm_reg));
+//             cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_FSD, write_mid_reg, offset_mid_reg, 0));
+//         }
+//     } else {
+//         if(type==INT64) {
+//             cur_block->insert(it,rvconstructor->ConstructSImm(RISCV_SD,write_mid_reg,GetPhysicalReg(RISCV_sp),offset));
+//         } else if(type==FLOAT64) {
+//             cur_block->insert(it,rvconstructor->ConstructSImm(RISCV_FSD,write_mid_reg,GetPhysicalReg(RISCV_fp),offset));
+//         }
+//     }
+    
+//     --it;
+//     return write_mid_reg;
+// }
+//使用助教的两个函数后，正确数从84变成了85
 Register FastLinearScan::GenerateReadCode(std::list<MachineBaseInstruction *>::iterator &it, int raw_stk_offset,
                                           MachineDataType type) {
     auto read_mid_reg = current_func->GetNewRegister(type.data_type, type.data_length);
-    int offset=raw_stk_offset+current_func->GetParaSize();
-    
-    // 优化大偏移量处理
-    if(offset > 2047 || offset < -2048) {
-        // 使用LUI+ADD策略，避免ORI限制
+    // missing lowerimm
+    // missing stack size adjust
+    int offset = raw_stk_offset + current_func->GetStackOffset();
+    // cur_block->insert(it, rvconstructor->ConstructComment("Read Spill\n"));
+    if (offset <= 2047 && offset >= -2048) {
+        if (type == INT64) {
+            cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_LD, read_mid_reg, GetPhysicalReg(RISCV_sp),
+                                                               offset));    // insert load
+        } else if (type == FLOAT64) {
+            cur_block->insert(it,
+                              rvconstructor->ConstructIImm(RISCV_FLD, read_mid_reg, GetPhysicalReg(RISCV_sp), offset));
+        }
+    } else {
         auto imm_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
         auto offset_mid_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
-        
-        // 计算高20位和低12位
-        int high20 = (offset + 0x800) >> 12;
-        int low12 = offset & 0xFFF;
-        
-        cur_block->insert(it, rvconstructor->ConstructUImm(RISCV_LUI, imm_reg, high20));
-        
-        // 根据低12位的值选择最佳指令
-        if(low12 != 0) {
-            if(low12 < 2048) {
-                cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_ADDI, imm_reg, imm_reg, low12));
-            } else {
-                // 处理负数偏移
-                cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_ADDI, imm_reg, imm_reg, low12 - 4096));
-            }
-        }
-        
+        cur_block->insert(it, rvconstructor->ConstructUImm(RISCV_LI, imm_reg, offset));
         cur_block->insert(it, rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
-        
         if (type == INT64) {
             cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_LD, read_mid_reg, offset_mid_reg, 0));
         } else if (type == FLOAT64) {
             cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_FLD, read_mid_reg, offset_mid_reg, 0));
         }
-    } else {
-        // 小偏移量直接使用基址+偏移
-        if(type==INT64) {
-            cur_block->insert(it,rvconstructor->ConstructIImm(RISCV_LD,read_mid_reg,GetPhysicalReg(RISCV_sp),offset));
-        } else if(type==FLOAT64) {
-            cur_block->insert(it,rvconstructor->ConstructIImm(RISCV_FLD,read_mid_reg,GetPhysicalReg(RISCV_sp),offset));
-        }
     }
-    
     return read_mid_reg;
 }
 
 Register FastLinearScan::GenerateWriteCode(std::list<MachineBaseInstruction *>::iterator &it, int raw_stk_offset,
                                            MachineDataType type) {
     auto write_mid_reg = current_func->GetNewRegister(type.data_type, type.data_length);
-    int offset=raw_stk_offset+current_func->GetStackOffset();
-    
-    ++it; // STORE指令需要加载在写指令之后
-    
-    // 优化大偏移量处理
-    if(offset > 2047 || offset < -2048) {
+    int offset = raw_stk_offset + current_func->GetStackOffset();
+    ++it;
+    // cur_block->insert(it, rvconstructor->ConstructComment("Write Spill\n"));
+    if (offset <= 2047 && offset >= -2048) {
+        if (type == INT64) {
+            cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_SD, write_mid_reg, GetPhysicalReg(RISCV_sp),
+                                                               offset));    // insert store
+        } else if (type == FLOAT64) {
+            cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_FSD, write_mid_reg, GetPhysicalReg(RISCV_sp),
+                                                               offset));    // insert store
+        }
+    } else {
         auto imm_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
         auto offset_mid_reg = current_func->GetNewRegister(INT64.data_type, INT64.data_length);
-        
-        // 计算高20位和低12位
-        int high20 = (offset + 0x800) >> 12;
-        int low12 = offset & 0xFFF;
-        
-        cur_block->insert(it, rvconstructor->ConstructUImm(RISCV_LUI, imm_reg, high20));
-        
-        // 根据低12位的值选择最佳指令
-        if(low12 != 0) {
-            if(low12 < 2048) {
-                cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_ADDI, imm_reg, imm_reg, low12));
-            } else {
-                // 处理负数偏移
-                cur_block->insert(it, rvconstructor->ConstructIImm(RISCV_ADDI, imm_reg, imm_reg, low12 - 4096));
-            }
-        }
-        
+        cur_block->insert(it, rvconstructor->ConstructUImm(RISCV_LI, imm_reg, offset));
         cur_block->insert(it, rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
-        
         if (type == INT64) {
             cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_SD, write_mid_reg, offset_mid_reg, 0));
         } else if (type == FLOAT64) {
             cur_block->insert(it, rvconstructor->ConstructSImm(RISCV_FSD, write_mid_reg, offset_mid_reg, 0));
         }
-    } else {
-        if(type==INT64) {
-            cur_block->insert(it,rvconstructor->ConstructSImm(RISCV_SD,write_mid_reg,GetPhysicalReg(RISCV_sp),offset));
-        } else if(type==FLOAT64) {
-            cur_block->insert(it,rvconstructor->ConstructSImm(RISCV_FSD,write_mid_reg,GetPhysicalReg(RISCV_sp),offset));
-        }
     }
-    
     --it;
     return write_mid_reg;
 }
