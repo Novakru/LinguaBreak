@@ -139,7 +139,7 @@ void InitializeSingleValue(InitValBase init, NodeAttribute &val, BuiltinType* in
         } else if (initval_type->builtinKind == BuiltinType::Float) {
            (init->getExp()->attribute.type->builtinKind == BuiltinType::Float) ? 
            val.FloatInitVals.push_back( init->getExp()->attribute.val.FloatVal ): 
-           val.FloatInitVals.push_back(     float(init->getExp()->attribute.val.IntVal));
+           val.FloatInitVals.push_back( float(init->getExp()->attribute.val.IntVal));
            val.val.FloatVal=val.FloatInitVals[0];
         }
     }

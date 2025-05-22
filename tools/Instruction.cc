@@ -417,7 +417,7 @@ int GlobalStringConstInstruction::GetDefRegno(){
 
 
 int CallInstruction::GetDefRegno(){
-    if(result->GetOperandType()==BasicOperand::REG){
+    if(result!=nullptr&&result->GetOperandType()==BasicOperand::REG){
         return ((RegOperand*)result)->GetRegNo();
     }
     return -1;
@@ -462,10 +462,6 @@ int ZextInstruction::GetDefRegno(){
     }
     return -1;
 }
-
-
-
-
 
 
 
@@ -674,3 +670,101 @@ BasicInstruction::FcmpCond mapToFcmpCond(OpType::Op kind) {
     }
 }
 
+int IcmpInstruction::CompConst(int value1, int value2) {
+        switch (cond) {
+            case IcmpCond::eq:
+                return value1 == value2;
+            case IcmpCond::ne:
+                return value1 != value2;
+            case IcmpCond::ugt:
+                return (uint32_t)value1 > (uint32_t)value2;
+            case IcmpCond::uge:
+                return (uint32_t)value1 >= (uint32_t)value2;
+            case IcmpCond::ult:
+                return (uint32_t)value1 < (uint32_t)value2;
+            case IcmpCond::ule:
+                return (uint32_t)value1 <= (uint32_t)value2;
+            case IcmpCond::sgt:
+                return value1 > value2;
+            case IcmpCond::sge:
+                return value1 >= value2;
+            case IcmpCond::slt:
+                return value1 <value2;
+            case IcmpCond::sle:
+                return value1 <= value2;
+        }
+        return 0;
+    }
+
+float FcmpInstruction::CompConst(float value1, float value2) {
+        assert(cond!= FcmpCond::FALSE&&cond!= FcmpCond::TRUE);
+        switch (cond) {
+            case FcmpCond::OEQ:
+                return value1 == value2;
+            case FcmpCond::OGT:
+                return value1 > value2;
+            case FcmpCond::OGE:
+                return value1 >= value2;
+            case FcmpCond::OLT:
+                return value1 < value2;
+            case FcmpCond::OLE:
+                return value1 <= value2;
+            case FcmpCond::ONE:
+                return value1 != value2;
+            case FcmpCond::ORD:
+                return 0;
+            case FcmpCond::UEQ:
+                return 0;
+            case FcmpCond::UGT:
+                return 0;
+            case FcmpCond::UGE:
+                return 0;
+            case FcmpCond::ULT:
+                return 0;
+            case FcmpCond::ULE:
+                return 0;
+            case FcmpCond::UNE:
+                return 0;
+            case FcmpCond::UNO:
+                return 0;
+            default:
+                assert(0);
+        }
+        return 0.0f;
+    }
+
+int ArithmeticInstruction::CompConst(int value1, int value2){
+    switch(opcode){
+        case LLVMIROpcode::ADD:
+            return value1 + value2;
+        case LLVMIROpcode::SUB:
+            return value1 - value2;
+        case LLVMIROpcode::MUL:
+            return value1 * value2;
+        case LLVMIROpcode::DIV:
+            assert(value2 != 0);
+            return value1 / value2;
+        case LLVMIROpcode::MOD:
+            assert(value2 != 0);
+            return value1 % value2;
+        default:
+            assert(0);
+            return -1;
+    }
+}
+float ArithmeticInstruction::CompConst(float value1, float value2){
+    switch(opcode){
+        case LLVMIROpcode::FADD:
+            return value1 + value2;
+        case LLVMIROpcode::FSUB:
+            return value1 - value2;
+        case LLVMIROpcode::FMUL:
+            return value1 * value2;
+        case LLVMIROpcode::FDIV:
+            assert(value2 != 0);
+            return value1 / value2;
+        default:
+            assert(0);
+            return -1;
+    }
+}

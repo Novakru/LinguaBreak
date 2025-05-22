@@ -101,6 +101,18 @@ std::set<LLVMBlock> CFG::GetSuccessor(LLVMBlock B) { return G[B->block_id]; }
 
 std::set<LLVMBlock> CFG::GetSuccessor(int bbid) { return G[bbid]; }
 
+void CFG::GetSSAGraphAllSucc(std::set<int>& succs, int regno){ 
+    if(succs.count(regno) > 0) return;
+    auto it = SSA_Graph.find(regno);
+    if(it != SSA_Graph.end()){
+        for(auto &s:it->second){
+            succs.insert(s);
+            GetSSAGraphAllSucc(succs,s);
+        }
+    }
+    return ;
+}
+
 void CFG::display(bool reverse) {
     std::cout << "\n=== Control Flow Graph Information ===" << std::endl;
     if (!reverse) {

@@ -1761,7 +1761,7 @@ void __FuncDef::codeIR() {
     }else{
         funcdefI = new FunctionDefineInstruction(BasicInstruction::VOID,name->getName());
     }
-    
+
     max_reg = -1;
     max_label = -1;
     paramptr.clear();

@@ -14,6 +14,7 @@
 #include "llvm/optimize/transform/mem2reg.h"
 #include "llvm/optimize/transform/adce.h"
 #include "llvm/optimize/transform/peephole.h"
+#include "llvm/optimize/transform/sccp.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -123,9 +124,13 @@ int main(int argc, char** argv) {
         DomAnalysis inv_dom(&llvmIR);
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
-		// 重建CFG
-		SimplifyCFGPass(&llvmIR).Execute();
+		// // // 重建CFG
+		// SimplifyCFGPass(&llvmIR).Execute();
 		PeepholePass(&llvmIR).ImmResultReplaceExecute();
+
+		SCCPPass(&llvmIR).Execute();
+		// llvmIR.CFGInit();
+		// SimplifyCFGPass(&llvmIR).Execute();
     }
 
 	if (strcmp(argv[2], "-llvm") == 0) {

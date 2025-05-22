@@ -251,6 +251,7 @@ public:
         GLOBAL_STR = 29,
     };
 
+
     // @Operand datatypes
     enum LLVMType { I32 = 1, FLOAT32 = 2, PTR = 3, VOID = 4, I8 = 5, I1 = 6, I64 = 7, DOUBLE = 8 };
 
@@ -363,13 +364,7 @@ public:
     }
 
     virtual void PrintIR(std::ostream &s);
-    
-    
-    
     Operand GetResult(){ return nullptr; };
-    
-    
-    
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
@@ -435,6 +430,8 @@ public:
             op2 = ops[1];
         }
     }
+    int CompConst(int value1, int value2);
+    float CompConst(float value1, float value2);
 };
 
 //<result>=icmp <cond> <ty> <op1>,<op2>
@@ -482,6 +479,7 @@ public:
             op2 = ops[1];
         }
     }
+    int CompConst(int value1, int value2);
 };
 
 //<result>=fcmp <cond> <ty> <op1>,<op2>
@@ -525,6 +523,8 @@ public:
             op2 = ops[1];
         }
     }
+    float CompConst(float value1,float value2);
+
 };
 
 // phi syntax:
@@ -830,13 +830,8 @@ public:
     void push_back_Parameter(std::pair<enum LLVMType, Operand> newPara) { args.push_back(newPara); }
     void push_back_Parameter(enum LLVMType type, Operand val) { args.push_back(std::make_pair(type, val)); }
     virtual void PrintIR(std::ostream &s);
-    
-    
     Operand GetResult(){ return result; };
     LLVMType GetRetType(){ return ret_type; };
-    
-    
-    
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
@@ -877,14 +872,8 @@ public:
     // Getters
     enum LLVMType GetType() { return ret_type; }
     Operand GetRetVal() { return ret_val; }
-
     virtual void PrintIR(std::ostream &s);
-    
-    
     Operand GetResult(){ return nullptr; };
-    
-    
-    
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;

@@ -3,11 +3,11 @@
 #include "../include/ir.h"
 #include <cstdint>
 #include <unordered_set>
-#include <cstdint>
 
 class IRPass {
 protected:
     LLVMIR *llvmIR;
+    
 
 public:
     virtual void Execute() = 0;
