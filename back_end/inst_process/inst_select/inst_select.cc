@@ -113,13 +113,16 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
             cur_offset = ((cur_offset + 7) / 8) * 8;
         }
 		// 设置临时变量开辟的栈空间
-        cur_func->SetStackSize(cur_offset + cur_func->GetParaSize());
+		int new_offset = ((cur_offset + cur_func->GetParaSize() + 7) / 8) * 8;
+        cur_func->SetStackSize(new_offset);
 
 		// 当参数溢出的时候，会影响局部变量的位置
 		// 难点.遍历完被调用的所有函数才能知道参数栈的偏移, 此时所有的指令都已经选择
 		// 解决方案：先预存所有的局部变量alloca指令，在最后的时候加上参数栈偏移
 		// cite from sysY
+		int paraSize = (cur_func->GetParaSize() + 7) / 8 * 8;
  		((RiscV64Function *)cur_func)->AddParameterSize(cur_func->GetParaSize());
+		// std::cerr << cur_func->getFunctionName() + "'s paraSize is "<<paraSize << std::endl;
 
 		// std::cerr << "stackSz: " << cur_offset << std::endl;
         // 控制流图连边
@@ -1350,6 +1353,9 @@ template <> void RiscV64Unit::ConvertAndAppend<CallInstruction *>(CallInstructio
 
 	// 调用 llvm.memset.p0.i32，将数组的前 10 个字节设置为 42
     // call void @llvm.memset.p0.i32(ptr %ptr, i8 42, i32 10, i1 0)TODO
+	// bug : 需要注意的是memset往往是给局部变量初始化，所以如果有参数溢出，需要在AddParameterSize函数添加偏移
+	// 如果采用insertingi32函数，可以确保加载的立即数范围超过12位，但是很难使用AddParameterSize函数添加偏移
+	// 解决方案：改用li指令，不需要再考虑4095的立即数限制，伪指令自动转换解析
     if (inst->GetFunctionName() == std::string("llvm.memset.p0.i32")) {
         // slove parameter 0
 		auto ptrreg_op = (RegOperand *)inst->GetParameterList()[0].second;
@@ -1362,12 +1368,20 @@ template <> void RiscV64Unit::ConvertAndAppend<CallInstruction *>(CallInstructio
 			cur_block->push_back(assign_a0_inst);
 		} else {  // 数组的初始位置 sp + offset
 			auto offset = llvmReg_offset_map[ptrreg_no];
-            auto offset_reg = GetNewTempRegister(INT64);
-            InsertImmI32Instruction(offset_reg, new ImmI32Operand(offset), cur_block);
-            // InsertImmI32Instruction();
+            // auto offset_reg = GetNewTempRegister(INT64);
+            // InsertImmI32Instruction(offset_reg, new ImmI32Operand(offset), cur_block);
+			// auto assign_a0_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a0), GetPhysicalReg(RISCV_sp), offset_reg);
+
+			// auto assign_a0_inst =rvconstructor->ConstructIImm(RISCV_ADDI, GetPhysicalReg(RISCV_a0), GetPhysicalReg(RISCV_sp), offset);
+			// cur_block->push_back(assign_a0_inst);
+			// ((RiscV64Function *)cur_func)->AddAllocaInst(assign_a0_inst);
+
+			auto offset_reg = GetNewTempRegister(INT64);
+			auto li_inst = rvconstructor->ConstructUImm(RISCV_LI, offset_reg, offset);
 			auto assign_a0_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a0), GetPhysicalReg(RISCV_sp), offset_reg);
+			cur_block->push_back(li_inst);
 			cur_block->push_back(assign_a0_inst);
-			((RiscV64Function *)cur_func)->AddAllocaInst(assign_a0_inst);
+			((RiscV64Function *)cur_func)->AddAllocaInst(li_inst);
 		}
         
         // slove parameter 1
@@ -1388,12 +1402,17 @@ template <> void RiscV64Unit::ConvertAndAppend<CallInstruction *>(CallInstructio
 			} else {
 				auto offset = llvmReg_offset_map[ptrreg_no];
 
-                auto offset_reg = GetNewTempRegister(INT64);
-                InsertImmI32Instruction(offset_reg, new ImmI32Operand(offset), cur_block);
-                auto assign_a2_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_sp), offset_reg);
+                // auto offset_reg = GetNewTempRegister(INT64);
+                // InsertImmI32Instruction(offset_reg, new ImmI32Operand(offset), cur_block);
+                // auto assign_a2_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_sp), offset_reg);
+
 				// auto assign_a2_inst = rvconstructor->ConstructIImm(RISCV_ADDI, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_sp), offset);
+				auto offset_reg = GetNewTempRegister(INT64);
+				auto li_inst = rvconstructor->ConstructUImm(RISCV_LI, offset_reg, offset);
+				auto assign_a2_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_sp), offset_reg);
+				cur_block->push_back(li_inst);
 				cur_block->push_back(assign_a2_inst);
-				((RiscV64Function *)cur_func)->AddAllocaInst(assign_a2_inst);
+				((RiscV64Function *)cur_func)->AddAllocaInst(li_inst);
 			}
 		}
         
@@ -1880,15 +1899,22 @@ template <> void RiscV64Unit::ConvertAndAppend<GetElementptrInstruction *>(GetEl
             auto add_instr = rvconstructor->ConstructR(RISCV_ADD, resultregister, GetNewRegister(base_regno, INT64), final_offset_register);
             cur_block->push_back(add_instr);
         }else{
-			Register addi_register = GetNewTempRegister(INT64);
-            InsertImmI32Instruction(offset_reg, new ImmI32Operand(llvmReg_offset_map[base_regno]), cur_block);
-            auto addi_instr = rvconstructor->ConstructR(RISCV_ADD, addi_register, GetPhysicalReg(RISCV_sp), offset_reg);
-            cur_block->push_back(addi_instr);
-			((RiscV64Function *)cur_func)->AddAllocaInst(addi_instr);
+			// Register addi_register = GetNewTempRegister(INT64);
+            // InsertImmI32Instruction(offset_reg, new ImmI32Operand(llvmReg_offset_map[base_regno]), cur_block);
+            // auto addi_instr = rvconstructor->ConstructR(RISCV_ADD, addi_register, GetPhysicalReg(RISCV_sp), offset_reg);
+            // cur_block->push_back(addi_instr);
+			// ((RiscV64Function *)cur_func)->AddAllocaInst(addi_instr);
+
+			Register addr_register = GetNewTempRegister(INT64);
+			auto li_inst = rvconstructor->ConstructUImm(RISCV_LI, offset_reg, llvmReg_offset_map[base_regno]);
+			cur_block->push_back(li_inst);
+			((RiscV64Function *)cur_func)->AddAllocaInst(li_inst);
+			auto addr_instr = rvconstructor->ConstructR(RISCV_ADD, addr_register, GetPhysicalReg(RISCV_sp), offset_reg);
+			cur_block->push_back(addr_instr);
             auto resultop = inst->GetResult();
             auto resultregno = ((RegOperand*)resultop)->GetRegNo();
             auto resultregister = GetNewRegister(resultregno, INT64);
-            auto add_instr = rvconstructor->ConstructR(RISCV_ADD, resultregister, addi_register, final_offset_register);
+            auto add_instr = rvconstructor->ConstructR(RISCV_ADD, resultregister, addr_register, final_offset_register);
             cur_block->push_back(add_instr);
         }
         
