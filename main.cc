@@ -15,6 +15,7 @@
 #include "llvm/optimize/transform/adce.h"
 #include "llvm/optimize/transform/peephole.h"
 #include "llvm/optimize/transform/sccp.h"
+#include "llvm/optimize/transform/tailcallelim.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -35,6 +36,7 @@ extern void dumpTokens(FILE* output, int token, int line_number, char *yytext, Y
 extern std::vector<std::string> error_msgs;
 IdTable id_table;
 int line = 1;
+bool optimize_flag =false;
 
 // option table 
 #define nr_options 7 
@@ -113,7 +115,7 @@ int main(int argc, char** argv) {
 	llvmIR.CFGInit();
 	SimplifyCFGPass(&llvmIR).Execute();
 
-	// /* 【5】 opt */
+	/* 【5】 opt */
     if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
         // mem2reg
         DomAnalysis dom(&llvmIR);
@@ -139,6 +141,7 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+	/* 【6】 backend */
 	if (strcmp(argv[2], "-select") == 0) {
 		MachineUnit* m_unit=new RiscV64Unit(&llvmIR);
 		m_unit->SelectInstructionAndBuildCFG();

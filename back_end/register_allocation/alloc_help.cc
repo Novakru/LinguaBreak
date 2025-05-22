@@ -26,73 +26,101 @@ template <class T> std::set<T> SetDiff(const std::set<T> &a, const std::set<T> &
     }
     return ret;
 }
-
+// DEF[B]: 在基本块B中定义，并且定义前在B中没有被使用的变量集合（！表示在块内最早定义且后续可能被覆盖的变量（需传播到后续块））
+// USE[B]: 在基本块B中使用，并且使用前在B中没有被定义的变量集合（！表示在块内使用前未被重新定义的变量（需从入口继承活跃性））
+// 更新每个基本块的DEF（定义集合）和USE（使用集合）
 void Liveness::UpdateDefUse() {
-
-    DEF.clear();
-    USE.clear();
-
-    auto mcfg = current_func->getMachineCFG();
-    // 顺序遍历每个基本块
-    mcfg->seqscan_open();
-    while (mcfg->seqscan_hasNext()) {
-        auto node = mcfg->seqscan_next();
-
-        // DEF[B]: 在基本块B中定义，并且定义前在B中没有被使用的变量集合
-        // USE[B]: 在基本块B中使用，并且使用前在B中没有被定义的变量集合
-        DEF[node->Mblock->getLabelId()].clear();
-        USE[node->Mblock->getLabelId()].clear();
-
-        auto &cur_def = DEF[node->Mblock->getLabelId()];
-        auto &cur_use = USE[node->Mblock->getLabelId()];
-
-        for (auto ins : *(node->Mblock)) {
-            for (auto reg_r : ins->GetReadReg()) {
-                if (cur_def.find(*reg_r) == cur_def.end()) {
-                    cur_use.insert(*reg_r);
+    //1.清空状态，重头计算（之前可能有函数计算过）
+    DEF.clear();  
+    USE.clear();  
+    //2.获取当前函数的CFG
+    auto mcfg = current_func->getMachineCFG(); 
+    mcfg->seqscan_open();// 顺序遍历所有基本块（按控制流正向顺序）
+    while (mcfg->seqscan_hasNext()) { // 循环处理每个基本块
+        //3.获取基本块及对应ID
+        auto node = mcfg->seqscan_next(); 
+        int block_id = node->Mblock->getLabelId(); 
+        // 4.清空当前块的状态，用更简洁的方式表示当前块的DEF与USE
+        DEF[block_id].clear(); 
+        USE[block_id].clear(); 
+        auto &cur_def = DEF[block_id];
+        auto &cur_use = USE[block_id];
+        // 5.遍历基本块内的所有指令（按执行顺序）
+        for (auto ins : *(node->Mblock)) { 
+            // 1）处理指令的读寄存器（使用操作）
+            for (auto reg_r : ins->GetReadReg()) { 
+                Register reg = *reg_r; 
+                // 如果该寄存器尚未被定义（不在DEF集合中）
+                if (cur_def.find(reg) == cur_def.end()) { 
+                    cur_use.insert(reg); // 添加到USE集合（使用前未定义）
                 }
             }
-            for (auto reg_w : ins->GetWriteReg()) {
-                if (cur_use.find(*reg_w) == cur_use.end()) {
-                    cur_def.insert(*reg_w);
+
+            // 2）处理指令的写寄存器（定义操作）
+            for (auto reg_w : ins->GetWriteReg()) { 
+                Register reg = *reg_w; // 获取寄存器对象
+                // 如果该寄存器尚未被使用（不在USE集合中）
+                if (cur_use.find(reg) == cur_use.end()) { 
+                    cur_def.insert(reg); // 添加到DEF集合（定义前未使用）
                 }
             }
         }
     }
-    mcfg->seqscan_close();
+    //mcfg->seqscan_close(); // 关闭顺序遍历模式
 }
 
+//OUT[B] = ∪ IN[S] （S 是 B 的所有后继块） 在基本块 B 出口处 活跃的变量集合。（它们的值在进入该基本块后会被使用。）
+//IN[B] = USE[B] ∪ (OUT[B] - DEF[B])  在基本块 B 入口处 活跃的变量集合（离开该基本块后会被后续的基本块使用）
+//OUT代表在基本块之外被使用（B的后继块的IN的并集）
+//IN的话代表活跃区间要延续到块B之后：代表在基本块内被使用,比如USE[B](使用前未重新定义)。或者OUT[B] - DEF[B]（在后继块被使用，且未被块B重新定义）
 void Liveness::Execute() {
-    UpdateDefUse();
+    //1.计算所有基本块的 DEF 和 USE 集合
+    UpdateDefUse(); 
+    //2.清空OUT,IN
+    OUT.clear();    
+    IN.clear();     
+    //3.获取当前函数的控制流图
+    auto mcfg = current_func->getMachineCFG(); 
+    bool changed = 1; // 标记是否发生数据流变化（需继续迭代）
 
-    OUT.clear();
-    IN.clear();
-
-    auto mcfg = current_func->getMachineCFG();
-    bool changed = 1;
-    // 基于数据流分析的活跃变量分析
+    // 4.迭代执行数据流分析，直到结果稳定（不动点）
     while (changed) {
-        changed = 0;
-        // 顺序遍历每个基本块
-        mcfg->seqscan_open();
+        //1)初始假设本轮无变化
+        changed = 0; 
+
+        //2)顺序遍历所有基本块（正向遍历）
+        mcfg->seqscan_open(); 
         while (mcfg->seqscan_hasNext()) {
-            auto node = mcfg->seqscan_next();
+            //3)获取基本块及对应ID
+            auto node = mcfg->seqscan_next(); 
+            int cur_id = node->Mblock->getLabelId(); 
+
+            // 4）计算 OUT[cur_id] = U IN[succ] （所有后继块的 IN 集合的并集）
             std::set<Register> out;
-            int cur_id = node->Mblock->getLabelId();
             for (auto succ : mcfg->GetSuccessorsByBlockId(cur_id)) {
-                out = SetUnion<Register>(out, IN[succ->Mblock->getLabelId()]);
+                int succ_id = succ->Mblock->getLabelId();
+                out = SetUnion<Register>(out, IN[succ_id]); // 集合并操作
             }
+
+            // 步骤2.1.2：若 OUT 集合变化，更新并标记后续需继续迭代
             if (out != OUT[cur_id]) {
                 OUT[cur_id] = out;
             }
-            std::set<Register> in = SetUnion<Register>(USE[cur_id], SetDiff<Register>(OUT[cur_id], DEF[cur_id]));
+
+            // 步骤2.1.3：计算 IN[cur_id] = USE[cur_id] U (OUT[cur_id] - DEF[cur_id])
+            std::set<Register> in = SetUnion<Register>(
+                USE[cur_id], 
+                SetDiff<Register>(OUT[cur_id], DEF[cur_id]) // 集合差操作
+            );
+
+            // 步骤2.1.4：若 IN 集合变化，标记 changed 为 true
             if (in != IN[cur_id]) {
-                changed = 1;
-                IN[cur_id] = in;
+                changed = 1; // 数据流发生变化，需要继续迭代
+                IN[cur_id] = in; // 更新 IN 集合
             }
         }
-        mcfg->seqscan_close();
-    }
+        mcfg->seqscan_close(); // 关闭顺序遍历模式
+    } // 结束迭代（当 changed 保持 0 时退出）
 }
 bool PhysicalRegistersAllocTools::OccupyReg(int phy_id, LiveInterval interval) {
     // 你需要保证interval不与phy_id已有的冲突
@@ -103,34 +131,130 @@ bool PhysicalRegistersAllocTools::OccupyReg(int phy_id, LiveInterval interval) {
 
 bool PhysicalRegistersAllocTools::ReleaseReg(int phy_id, LiveInterval interval) { 
     //TODO("ReleaseReg"); 
+    for(auto it=phy_occupied[phy_id].begin();it!=phy_occupied[phy_id].end();++it)
+    {
+        if((*it).getReg() == interval.getReg())//找到要释放的活跃区间
+        {
+            phy_occupied[phy_id].erase(it);
+            return true;
+        }
+    }
     return false; 
 }
 
 bool PhysicalRegistersAllocTools::OccupyMem(int offset, LiveInterval interval) {
     //TODO("OccupyMem");
+    auto cur_vreg=interval.getReg();
+    auto size=cur_vreg.getDataWidth()/4;
+    for(int i=offset;i<offset+size;i++)
+    {
+        while(i>=mem_occupied.size()){mem_occupied.push_back({});}
+        mem_occupied[i].push_back(interval);
+    }
     return true;
 }
 bool PhysicalRegistersAllocTools::ReleaseMem(int offset, LiveInterval interval) {
     //TODO("ReleaseMem");
-    return true;
+    auto cur_vreg=interval.getReg();
+    auto size=cur_vreg.getDataWidth()/4;
+    for(int i=offset;i<offset+size;i++)
+    { 
+        for(auto it=mem_occupied[i].begin();it!=mem_occupied[i].end();++it)
+        {
+            if((*it).getReg() == interval.getReg())
+            {
+                mem_occupied[i].erase(it);
+                break;
+            }
+        }
+    }
+     return true;
 }
 
 int PhysicalRegistersAllocTools::getIdleReg(LiveInterval interval) {
     //TODO("getIdleReg");
+    for(auto i:getValidRegs(interval))
+    {
+        int flag=true;
+        for(auto conflict_j:getAliasRegs(i))//其实只是获取自己
+        {
+            for(auto other_interval:phy_occupied[conflict_j])//自己的活跃区间不会重叠
+            {
+                if(interval&other_interval)//检查活跃区间是否重叠
+                {
+                    flag=false;
+                    break;
+                }
+            }
+        }
+        if(flag){return i;}
+    }
+
     return -1;
+    // PRINT("\nVreg: ");
+    // interval.Print();
+    // for(auto i:getValidRegs(interval))
+    // {
+    //     int ok=true;
+    //     for(auto conflict_j:getAliasRegs(i))
+    //     {
+    //         for(auto other_interval:phy_occupied[conflict_j])
+    //         {
+    //             PRINT("\nTry Phy %d",i);
+    //             PRINT("Other:");
+    //             other_interval.Print();
+    //             if(interval&other_interval)//检查活跃区间是否重叠
+    //             {
+    //                 PRINT("\n->Fail\n");
+    //                 ok=false;
+    //                 break;
+    //             }
+    //             else{PRINT("\n->Success\n");}
+    //         }
+    //     }
+    //     if(ok){return i;}
+    // }
+
+    // return -1;
 }
-int PhysicalRegistersAllocTools::getIdleMem(LiveInterval interval) { 
-    //TODO("getIdleMem"); 
-    return 0;
+
+//reference:https://github.com/yuhuifishash/SysY/target/common/machine_passes/register_alloc/physical_register.cc line128-line152
+int PhysicalRegistersAllocTools::getIdleMem(LiveInterval interval) //{ TODO("getIdleMem"); }
+{
+    std::vector<bool> ok;
+    ok.resize(mem_occupied.size(),true);
+    for(int i=0;i<mem_occupied.size();i++)
+    {
+        ok[i]=true;
+        for(auto other_interval:mem_occupied[i])
+        {
+            if(interval&other_interval)
+            {
+                ok[i]=false;//该内存处不可使用
+                break;
+            }
+        }
+    }
+    int free_cnt=0;
+    for(int offset=0;offset<ok.size();offset++)
+    {
+        if(ok[offset]){free_cnt++;}
+        else{free_cnt=0;}
+        if(free_cnt==interval.getReg().getDataWidth()/4)
+        {return offset-free_cnt+1;}//返回可用块的起始偏移量
+    }
+    return mem_occupied.size()-free_cnt;//返回最后的可用偏移
 }
 
 int PhysicalRegistersAllocTools::swapRegspill(int p_reg1, LiveInterval interval1, int offset_spill2, int size,
                                               LiveInterval interval2) {
 
     //TODO("swapRegspill");
+    ReleaseReg(p_reg1,interval1);
+    ReleaseMem(offset_spill2,interval2);
+    OccupyReg(p_reg1,interval2);
     return 0;
 }
-
 std::vector<LiveInterval> PhysicalRegistersAllocTools::getConflictIntervals(LiveInterval interval) {
     std::vector<LiveInterval> result;
     for (auto phy_intervals : phy_occupied) {

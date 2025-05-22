@@ -24,6 +24,7 @@ private:
 
 protected:
     std::list<MachineBaseInstruction *> instructions;
+    
 
 private:
     MachineFunction *parent;
@@ -31,7 +32,7 @@ private:
 public:
 
     int loop_depth = 0;
-
+    virtual std::list<MachineBaseInstruction *>::iterator getInsertBeforeBrIt() = 0;
     decltype(instructions) &GetInsList() { return instructions; }
     void clear() { instructions.clear(); }
     auto erase(decltype(instructions.begin()) it) { return instructions.erase(it); }
@@ -119,12 +120,6 @@ public:
     // 设置MachineUnit
     void SetParent(MachineUnit *parent) { this->parent = parent; }
 
-	// 如果参数溢出到栈中，
-	// caller 需要在sp对应偏移处存储参数，instselect(构造寄存器) + lowerframe.exec(修改读写寄存器)
-	// callee 需要保存栈底fp (前一个栈帧的栈底), 还需要根据 fp 读取存储
-    bool isParaInStack() { return is_para_instack; }
-    void setIsParaInStack(bool is) { is_para_instack = is; }
-
     // 函数包含的所有块
     std::vector<MachineBlock *> blocks{};
 
@@ -150,6 +145,7 @@ public:
     // 设置CFG
     void SetMachineCFG(MachineCFG *mcfg) { this->mcfg = mcfg; }
 };
+
 class MachineCFG {
 
 public:
@@ -196,18 +192,8 @@ public:
         virtual void rewind() = 0;
         virtual void close() = 0;
     };
-     // 定义 MockIterator 继承自 Iterator
-     class MockIterator : public Iterator {
-    public:
-        MockIterator(MachineCFG* mcfg) : Iterator(mcfg) {}
-        void open() override { mcfg->bfs_open(); }
-        MachineCFG::MachineCFGNode *next() override { return mcfg->bfs_next(); }
-        bool hasNext() override { return mcfg->bfs_hasNext(); }
-        void rewind() override { mcfg->bfs_open(); }
-        void close() override { mcfg->bfs_close(); }
-    };
-    
-    
+
+
     MachineCFGNode *ret_block;//新增
     MachineCFG() : max_label(0){};
     void AssignEmptyNode(int id, MachineBlock *Mblk);
@@ -295,33 +281,28 @@ public:
 
     void seqscan_close() { seqscan_current = block_map.end(); }
 
-    // Reverse 相关成员函数
-    void reverse_open(Iterator* child) {
-        reverse_child = child;
-        reverse_child->open();
+    void reverse_open() {
+        bfs_open();
         reverse_cache.clear();
-        while (reverse_child->hasNext()) {
-            reverse_cache.push_back(reverse_child->next());
+        while (bfs_hasNext()) {
+            reverse_cache.push_back(bfs_next());
         }
         reverse_current_pos = reverse_cache.rbegin();
     }
-
     MachineCFGNode* reverse_next() { return *(reverse_current_pos++); }
 
     bool reverse_hasNext() { return reverse_current_pos != reverse_cache.rend(); }
 
     void reverse_rewind() {
         reverse_close();
-        reverse_open(reverse_child);
+        reverse_open();
     }
 
     void reverse_close() {
-        reverse_child->close();
+        bfs_close();
         reverse_cache.clear();
         reverse_current_pos = reverse_cache.rend();
     }
- private:
-    Iterator* reverse_child;
 
 public:
     void display() {
@@ -336,6 +317,8 @@ public:
         }
         std::cerr << std::endl;
     }
+
+
 };
 
 class RiscV64Block : public MachineBlock {

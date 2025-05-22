@@ -313,7 +313,7 @@ Register MachineFunction::GetNewReg(MachineDataType type) { return GetNewRegiste
 
 MachineBlock *MachineFunction::InitNewBlock() {
     int new_id = ++max_exist_label;
-    MachineBlock *new_block =new MachineBlock(new_id);
+    MachineBlock *new_block =new RiscV64Block(new_id);
     new_block->setParent(this);
     blocks.push_back(new_block);
     mcfg->AssignEmptyNode(new_id, new_block);
@@ -331,3 +331,35 @@ void MachineBlock::display() {
         std::cerr << std::endl;
     }
 }
+//新增：
+std::list<MachineBaseInstruction *>::iterator RiscV64Block::getInsertBeforeBrIt() {
+    auto it = --instructions.end();
+    auto jal_pos = it;
+    if (instructions.empty()) {
+        return instructions.end();
+    }
+    for (auto it = --instructions.end(); it != --instructions.begin(); --it) {
+        if ((*it)->arch == MachineBaseInstruction::PHI) {
+            continue;
+        }
+        if ((*it)->arch != MachineBaseInstruction::RiscV) {
+            return jal_pos;
+        }
+        // Assert((*it)->arch == MachineBaseInstruction::RiscV);
+        auto rvlast = (RiscV64Instruction *)(*it);
+        if (rvlast->getOpcode() == RISCV_JALR) {
+            return it;
+        }
+        if (rvlast->getOpcode() == RISCV_JAL) {
+            jal_pos = it;
+            continue;
+        }
+        if (OpTable[rvlast->getOpcode()].ins_formattype == RvOpInfo::B_type) {
+            return it;
+        } else {
+            return jal_pos;
+        }
+    }
+    return it;
+}
+

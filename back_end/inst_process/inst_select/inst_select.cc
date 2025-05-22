@@ -113,13 +113,16 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
             cur_offset = ((cur_offset + 7) / 8) * 8;
         }
 		// 设置临时变量开辟的栈空间
-        cur_func->SetStackSize(cur_offset + cur_func->GetParaSize());
+		int new_offset = ((cur_offset + cur_func->GetParaSize() + 7) / 8) * 8;
+        cur_func->SetStackSize(new_offset);
 
 		// 当参数溢出的时候，会影响局部变量的位置
 		// 难点.遍历完被调用的所有函数才能知道参数栈的偏移, 此时所有的指令都已经选择
 		// 解决方案：先预存所有的局部变量alloca指令，在最后的时候加上参数栈偏移
 		// cite from sysY
+		int paraSize = (cur_func->GetParaSize() + 7) / 8 * 8;
  		((RiscV64Function *)cur_func)->AddParameterSize(cur_func->GetParaSize());
+		// std::cerr << cur_func->getFunctionName() + "'s paraSize is "<<paraSize << std::endl;
 
 		// std::cerr << "stackSz: " << cur_offset << std::endl;
         // 控制流图连边
@@ -159,6 +162,7 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
 }
 void RiscV64Unit::LowerFrame()
 {
+    //std::cout<<"LowerFrame() is called\n";
     // 在每个函数的开头处插入获取参数的指令
     for (auto func : functions) {
         cur_func = func;
@@ -169,6 +173,7 @@ void RiscV64Unit::LowerFrame()
 				int f32_cnt = 0;
 				int arg_off = 0;
                 for (auto para : func->GetParameters()) {    // 你需要在指令选择阶段正确设置parameters的值
+                    //std::cout<<arg_off<<std::endl;
                     // std::cerr<<"asd : "<<para.get_reg_no()<<'\n';
 					if (para.type.data_type == INT64.data_type) {	
                         if (i32_cnt < 8) {    // 插入使用寄存器传参的指令
@@ -199,17 +204,206 @@ void RiscV64Unit::LowerFrame()
 
 				if (arg_off != 0) {
 					// std::cerr << "arg_off: " << arg_off << std::endl;
-                    cur_func->setIsParaInStack(true);
+                    cur_func->SetHasInParaInStack(true);
                 }
             }
         }
     }
 }
+
+const int TotalRegs = 64;
+extern bool optimize_flag;//在main.cc中定义
 void RiscV64Unit::LowerStack()
 {
     //TODO
     //原架构中需要通过unit获取functions等信息，此处直接获取即可
+    for(auto func:functions)
+    {
+        cur_func=func;
+        std::vector<std::vector<int>> saveregs_occurblockids,saveregs_rwblockids;
+        //GatherUseSregs(func,saveregs_occurblockids,saveregs_rwblockids);
+        //1.搜集使用的寄存器信息
+        saveregs_occurblockids.resize(TotalRegs);
+        saveregs_rwblockids.resize(TotalRegs);
+
+        for(auto &b:func->blocks)
+        {
+            std::bitset<TotalRegs> RegNeedSaved;
+            RegNeedSaved.set(RISCV_s0);
+            RegNeedSaved.set(RISCV_s1);
+            RegNeedSaved.set(RISCV_s2);
+            RegNeedSaved.set(RISCV_s3);
+            RegNeedSaved.set(RISCV_s4);
+            RegNeedSaved.set(RISCV_s5);
+            RegNeedSaved.set(RISCV_s6);
+            RegNeedSaved.set(RISCV_s7);
+            RegNeedSaved.set(RISCV_s8);
+            RegNeedSaved.set(RISCV_s9);
+            RegNeedSaved.set(RISCV_s10);
+            RegNeedSaved.set(RISCV_s11);
+            RegNeedSaved.set(RISCV_fs0);
+            RegNeedSaved.set(RISCV_fs1);
+            RegNeedSaved.set(RISCV_fs2);
+            RegNeedSaved.set(RISCV_fs3);
+            RegNeedSaved.set(RISCV_fs4);
+            RegNeedSaved.set(RISCV_fs5);
+            RegNeedSaved.set(RISCV_fs6);
+            RegNeedSaved.set(RISCV_fs7);
+            RegNeedSaved.set(RISCV_fs8);
+            RegNeedSaved.set(RISCV_fs9);
+            RegNeedSaved.set(RISCV_fs10);
+            RegNeedSaved.set(RISCV_fs11);
+            RegNeedSaved.set(RISCV_ra);
+            std::bitset<TotalRegs> RegVisited; // 用于记录当前基本块中访问过的寄存器
+            for(auto ins:*b)
+            {
+                for (auto reg : ins->GetWriteReg()) 
+                {
+                    if (!reg->is_virtual && RegNeedSaved[reg->reg_no] && !RegVisited[reg->reg_no]) 
+                    {
+                        RegVisited[reg->reg_no] = true;
+                        saveregs_occurblockids[reg->reg_no].push_back(b->getLabelId());
+                        saveregs_rwblockids[reg->reg_no].push_back(b->getLabelId());
+                    }
+                }
+                for (auto reg : ins->GetReadReg()) 
+                {
+                    if (!reg->is_virtual && RegNeedSaved[reg->reg_no] && !RegVisited[reg->reg_no]) 
+                    {
+                        saveregs_rwblockids[reg->reg_no].push_back(b->getLabelId());
+                    }
+                }
+            }
+        }
+        
+        if (func->HasInParaInStack()) 
+        {
+            saveregs_occurblockids[RISCV_fp].push_back(0);
+            saveregs_rwblockids[RISCV_fp].push_back(0);
+        }
+
+        //2.分配栈空间
+        std::vector<int> sd_blocks;
+        std::vector<int> ld_blocks;
+        std::vector<int> restore_offset;
+        sd_blocks.resize(64);
+        ld_blocks.resize(64);
+        restore_offset.resize(64);
+        int saveregnum = 0, cur_restore_offset = 0;
+         for (int i = 0; i < saveregs_occurblockids.size(); i++) { // 遍历保存寄存器的出现块 ID
+            auto &vld = saveregs_rwblockids[i]; // 获取与当前保存寄存器相关的读写块 ID
+            if (!vld.empty()) { // 如果读写块不为空
+                saveregnum++; // 保存寄存器数量加1
+            }
+        }
+        func->AddStackSize(saveregnum*8);
+
+        //2.恢复栈空间
+        auto mcfg = func->getMachineCFG(); // 获取函数的机器控制流图
+        bool restore_at_beginning = (-8 + func->GetStackSize()) >= 2048; // 如果函数栈空间太大，需要在开始时恢复寄存器
+        if (!optimize_flag) { // 如果未启用优化标志
+            restore_at_beginning = true; // 强制在开始时恢复寄存器
+        }
+        //1）如果无需在开始时恢复寄存器
+        // if(!restore_at_beginning)
+        // {//...
+        // }
+
+         for (auto &b : func->blocks) {
+            cur_block = b;
+            if (b->getLabelId() == 0) {
+                if (func->GetStackSize() <= 2032) {
+                    b->push_front(rvconstructor->ConstructIImm(RISCV_ADDI, GetPhysicalReg(RISCV_sp),
+                                                               GetPhysicalReg(RISCV_sp),
+                                                               -func->GetStackSize()));    // sub sp
+                } else {
+                    auto stacksz_reg = GetPhysicalReg(RISCV_t0);
+                    b->push_front(rvconstructor->ConstructR(RISCV_SUB, GetPhysicalReg(RISCV_sp),
+                                                            GetPhysicalReg(RISCV_sp), stacksz_reg));
+                    // 修复1：先执行lui, 再执行ori, lui负责清空低12位
+					// auto addiw_instr1 = rvconstructor->ConstructUImm(RISCV_LUI, stacksz_reg,  (func->GetStackSize() + (1 << 11)) >> 12);
+                    // auto addiw_instr2 = rvconstructor->ConstructIImm(RISCV_ORI, stacksz_reg, stacksz_reg,func->GetStackSize()& 0xfff);
+                    // b->push_front(addiw_instr2);
+					// b->push_front(addiw_instr1);
+					
+					// 修复2：即使修复了lui和ori的顺序，但是爆了一个如下非法指令，4048明明是在12位限制内的
+					// test_output/example/temp.out.S:9: Error: illegal operands `ori t0,t0,4048'
+					// test_output/example/temp.out.S:74: Error: illegal operands `ori t0,t0,4048'
+					
+                    b->push_front(rvconstructor->ConstructUImm(RISCV_LI, stacksz_reg, func->GetStackSize()));
+                }
+                if (func->HasInParaInStack()) {
+					b->push_front(rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_fp), GetPhysicalReg(RISCV_sp), GetPhysicalReg(RISCV_x0)));    // fp = sp 栈帧切换
+                }
+                // fp should always be restored at beginning now
+                if (restore_at_beginning) {
+                    int offset = 0;
+                    for (int i = 0; i < 64; i++) {
+                        if (!saveregs_occurblockids[i].empty()) {
+                            int regno = i;
+                            offset -= 8;
+                            if (regno >= RISCV_x0 && regno <= RISCV_x31) {
+                                b->push_front(rvconstructor->ConstructSImm(RISCV_SD, GetPhysicalReg(regno),
+                                                                           GetPhysicalReg(RISCV_sp), offset));
+                            } else {
+                                b->push_front(rvconstructor->ConstructSImm(RISCV_FSD, GetPhysicalReg(regno),
+                                                                           GetPhysicalReg(RISCV_sp), offset));
+                            }
+                        }
+                    }
+                } else if (func->HasInParaInStack()) {
+                    b->push_front(rvconstructor->ConstructSImm(RISCV_SD, GetPhysicalReg(RISCV_fp),
+                                                               GetPhysicalReg(RISCV_sp), restore_offset[RISCV_fp]));
+                }
+            }
+            auto y_ins = *(b->ReverseBegin());
+            Assert(y_ins->arch == MachineBaseInstruction::RiscV);
+            auto riscv_y_ins = (RiscV64Instruction *)y_ins;
+            if (riscv_y_ins->getOpcode() == RISCV_JALR) {
+                if (riscv_y_ins->getRd() == GetPhysicalReg(RISCV_x0)) {
+                    if (riscv_y_ins->getRs1() == GetPhysicalReg(RISCV_ra)) {
+                        Assert(riscv_y_ins->getImm() == 0);
+                        b->pop_back();
+                        // b->push_back(rvconstructor->ConstructComment("Lowerstack: add sp\n"));
+                        if (func->GetStackSize() <= 2032) {
+                            b->push_back(rvconstructor->ConstructIImm(RISCV_ADDI, GetPhysicalReg(RISCV_sp),
+                                                                      GetPhysicalReg(RISCV_sp), func->GetStackSize()));
+                        } else {
+                            auto stacksz_reg = GetPhysicalReg(RISCV_t0);
+							// bug 同上，故改用伪指令 li
+                            // auto lui_inst = rvconstructor->ConstructUImm(RISCV_LUI, stacksz_reg,  (func->GetStackSize() + (1 << 11)) >> 12);
+                            // auto ori_inst = rvconstructor->ConstructIImm(RISCV_ORI, stacksz_reg, stacksz_reg,func->GetStackSize()& 0xfff);
+                            // b->push_back(lui_inst);
+							// b->push_back(ori_inst);
+                            b->push_back(rvconstructor->ConstructUImm(RISCV_LI, stacksz_reg, func->GetStackSize()));
+                            b->push_back(rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_sp),
+                                                                   GetPhysicalReg(RISCV_sp), stacksz_reg));
+                        }
+                        if (restore_at_beginning) {
+                            int offset = 0;
+                            for (int i = 0; i < 64; i++) {
+                                if (!saveregs_occurblockids[i].empty()) {
+                                    int regno = i;
+                                    offset -= 8;
+                                    if (regno >= RISCV_x0 && regno <= RISCV_x31) {
+                                        b->push_back(rvconstructor->ConstructIImm(RISCV_LD, GetPhysicalReg(regno),
+                                                                                  GetPhysicalReg(RISCV_sp), offset));
+                                    } else {
+                                        b->push_back(rvconstructor->ConstructIImm(RISCV_FLD, GetPhysicalReg(regno),
+                                                                                  GetPhysicalReg(RISCV_sp), offset));
+                                    }
+                                }
+                            }
+                        }
+                        b->push_back(riscv_y_ins);
+                    }
+                }
+            }
+         }
+    }
+
 }
+
 
 void RiscV64Unit::ClearFunctionSelectState() { 
     llvmReg_offset_map.clear();
@@ -1159,6 +1353,9 @@ template <> void RiscV64Unit::ConvertAndAppend<CallInstruction *>(CallInstructio
 
 	// 调用 llvm.memset.p0.i32，将数组的前 10 个字节设置为 42
     // call void @llvm.memset.p0.i32(ptr %ptr, i8 42, i32 10, i1 0)TODO
+	// bug : 需要注意的是memset往往是给局部变量初始化，所以如果有参数溢出，需要在AddParameterSize函数添加偏移
+	// 如果采用insertingi32函数，可以确保加载的立即数范围超过12位，但是很难使用AddParameterSize函数添加偏移
+	// 解决方案：改用li指令，不需要再考虑4095的立即数限制，伪指令自动转换解析
     if (inst->GetFunctionName() == std::string("llvm.memset.p0.i32")) {
         // slove parameter 0
 		auto ptrreg_op = (RegOperand *)inst->GetParameterList()[0].second;
@@ -1171,12 +1368,20 @@ template <> void RiscV64Unit::ConvertAndAppend<CallInstruction *>(CallInstructio
 			cur_block->push_back(assign_a0_inst);
 		} else {  // 数组的初始位置 sp + offset
 			auto offset = llvmReg_offset_map[ptrreg_no];
-            auto offset_reg = GetNewTempRegister(INT64);
-            InsertImmI32Instruction(offset_reg, new ImmI32Operand(offset), cur_block);
-            // InsertImmI32Instruction();
+            // auto offset_reg = GetNewTempRegister(INT64);
+            // InsertImmI32Instruction(offset_reg, new ImmI32Operand(offset), cur_block);
+			// auto assign_a0_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a0), GetPhysicalReg(RISCV_sp), offset_reg);
+
+			// auto assign_a0_inst =rvconstructor->ConstructIImm(RISCV_ADDI, GetPhysicalReg(RISCV_a0), GetPhysicalReg(RISCV_sp), offset);
+			// cur_block->push_back(assign_a0_inst);
+			// ((RiscV64Function *)cur_func)->AddAllocaInst(assign_a0_inst);
+
+			auto offset_reg = GetNewTempRegister(INT64);
+			auto li_inst = rvconstructor->ConstructUImm(RISCV_LI, offset_reg, offset);
 			auto assign_a0_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a0), GetPhysicalReg(RISCV_sp), offset_reg);
+			cur_block->push_back(li_inst);
 			cur_block->push_back(assign_a0_inst);
-			((RiscV64Function *)cur_func)->AddAllocaInst(assign_a0_inst);
+			((RiscV64Function *)cur_func)->AddAllocaInst(li_inst);
 		}
         
         // slove parameter 1
@@ -1197,12 +1402,17 @@ template <> void RiscV64Unit::ConvertAndAppend<CallInstruction *>(CallInstructio
 			} else {
 				auto offset = llvmReg_offset_map[ptrreg_no];
 
-                auto offset_reg = GetNewTempRegister(INT64);
-                InsertImmI32Instruction(offset_reg, new ImmI32Operand(offset), cur_block);
-                auto assign_a2_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_sp), offset_reg);
+                // auto offset_reg = GetNewTempRegister(INT64);
+                // InsertImmI32Instruction(offset_reg, new ImmI32Operand(offset), cur_block);
+                // auto assign_a2_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_sp), offset_reg);
+
 				// auto assign_a2_inst = rvconstructor->ConstructIImm(RISCV_ADDI, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_sp), offset);
+				auto offset_reg = GetNewTempRegister(INT64);
+				auto li_inst = rvconstructor->ConstructUImm(RISCV_LI, offset_reg, offset);
+				auto assign_a2_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_sp), offset_reg);
+				cur_block->push_back(li_inst);
 				cur_block->push_back(assign_a2_inst);
-				((RiscV64Function *)cur_func)->AddAllocaInst(assign_a2_inst);
+				((RiscV64Function *)cur_func)->AddAllocaInst(li_inst);
 			}
 		}
         
@@ -1689,15 +1899,22 @@ template <> void RiscV64Unit::ConvertAndAppend<GetElementptrInstruction *>(GetEl
             auto add_instr = rvconstructor->ConstructR(RISCV_ADD, resultregister, GetNewRegister(base_regno, INT64), final_offset_register);
             cur_block->push_back(add_instr);
         }else{
-			Register addi_register = GetNewTempRegister(INT64);
-            InsertImmI32Instruction(offset_reg, new ImmI32Operand(llvmReg_offset_map[base_regno]), cur_block);
-            auto addi_instr = rvconstructor->ConstructR(RISCV_ADD, addi_register, GetPhysicalReg(RISCV_sp), offset_reg);
-            cur_block->push_back(addi_instr);
-			((RiscV64Function *)cur_func)->AddAllocaInst(addi_instr);
+			// Register addi_register = GetNewTempRegister(INT64);
+            // InsertImmI32Instruction(offset_reg, new ImmI32Operand(llvmReg_offset_map[base_regno]), cur_block);
+            // auto addi_instr = rvconstructor->ConstructR(RISCV_ADD, addi_register, GetPhysicalReg(RISCV_sp), offset_reg);
+            // cur_block->push_back(addi_instr);
+			// ((RiscV64Function *)cur_func)->AddAllocaInst(addi_instr);
+
+			Register addr_register = GetNewTempRegister(INT64);
+			auto li_inst = rvconstructor->ConstructUImm(RISCV_LI, offset_reg, llvmReg_offset_map[base_regno]);
+			cur_block->push_back(li_inst);
+			((RiscV64Function *)cur_func)->AddAllocaInst(li_inst);
+			auto addr_instr = rvconstructor->ConstructR(RISCV_ADD, addr_register, GetPhysicalReg(RISCV_sp), offset_reg);
+			cur_block->push_back(addr_instr);
             auto resultop = inst->GetResult();
             auto resultregno = ((RegOperand*)resultop)->GetRegNo();
             auto resultregister = GetNewRegister(resultregno, INT64);
-            auto add_instr = rvconstructor->ConstructR(RISCV_ADD, resultregister, addi_register, final_offset_register);
+            auto add_instr = rvconstructor->ConstructR(RISCV_ADD, resultregister, addr_register, final_offset_register);
             cur_block->push_back(add_instr);
         }
         

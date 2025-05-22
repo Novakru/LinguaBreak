@@ -3,6 +3,7 @@
 #include"../alloc_help.h"
 #include<queue>
 #include"../../inst_process/inst_select/inst_select.h"
+#include "../../inst_process/inst_print/inst_print.h"
 
 bool IntervalsPrioCmp(LiveInterval a, LiveInterval b);
 //合并FastLinearScan与SpillCodeGen
@@ -74,6 +75,7 @@ public:
     void VirtualRegisterRewrite();
     void RewriteInFunc();
 
+	void ShowAllAllocResult();
 };
 
 
