@@ -9,11 +9,13 @@ private:
     void EliminateUnreachedBlocksInsts(CFG *C);
     void EliminateOneBrUncondBlocks(CFG *C);
     void EliminateOnePredPhi(CFG *C,LLVMBlock nowblock,std::unordered_set<int> regno_tobedeleted);
+    void EliminateNotExistPhi(CFG *C);
 public:
     SimplifyCFGPass(LLVMIR *IR) : IRPass(IR){}
     void Execute();//消除不可达块
     void EOBB(); //消除只有一条无条件跳转指令的基本块
     void EOPPhi();//消除无用Phi指令
+    void RebuildCFG();
 };
 
 #endif

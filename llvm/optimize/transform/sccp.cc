@@ -627,9 +627,3 @@ void SCCPPass::visit_other_operations(CFG* cfg,Instruction inst){
 void SCCPPass::Execute() {
     SCCP();
 }
-
-
-
-//1. 考虑如何真正地将不可达块从cfg中消除彻底
-//2. 必须新建一个“重建cfg”的逻辑，也许需要包含simplify的部分功能
-//3. 出现很多bruncond_block,需要消除;但是现有的ADCE没处理掉？？？

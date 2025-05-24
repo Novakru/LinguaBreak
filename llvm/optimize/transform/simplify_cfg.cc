@@ -1,5 +1,6 @@
 #include "simplify_cfg.h"
 #include "mem2reg.h"
+#include "assert.h"
 
 void SimplifyCFGPass::Execute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
@@ -23,13 +24,96 @@ void SimplifyCFGPass::EOPPhi() {
 }
 //1. 删除不可达基本块（不可达指令已在build cfg中删除）
 void SimplifyCFGPass::EliminateUnreachedBlocksInsts(CFG *C) {
+    //(1)删除不可达基本块
     for (auto it = C->block_map->begin(); it != C->block_map->end(); ) {
         if (!(it->second->dfs_id)) {
             it=C->block_map->erase(it); // 删除当前元素
         }else{
+            C->block_ids.insert(it->first); // 记录当前块id
             ++it; // 仅在未删除元素时移向下一个
         }
-        
+    }
+}
+void SimplifyCFGPass::EliminateNotExistPhi(CFG *C) {
+    //(2)清理不可达块后继中的phi指令:前提：需要保证当前phi指令中的冗余label皆是不可达块
+    for (auto &[bbid, bb] : *(C->block_map)) {
+        auto old_intr_list = bb->Instruction_list;
+        bb->Instruction_list.clear();
+        for (auto &intr : old_intr_list) {
+            if (intr->GetOpcode() == BasicInstruction::LLVMIROpcode::PHI) {
+                PhiInstruction *phi_intr = (PhiInstruction *)intr;
+                auto phi_list = phi_intr->GetPhiList();
+                std::vector<std::pair<Operand, Operand>> new_phi_list;
+                for (const auto &pair : phi_list) {
+                    int label_no = ((LabelOperand *)pair.first)->GetLabelNo();
+                    if (C->block_ids.count(label_no) > 0) {
+                        // 如果label存在于当前CFG的块中，则保留
+                        new_phi_list.push_back(pair);
+                    }
+                }
+                // 剩余phi_list不可能为0，否则其为不可达块，也不存在了
+                assert(new_phi_list.size()>0);
+                bool still_phi=false;
+                //[1] 剩余phi_list>=2，且不同
+                if(new_phi_list.size()>=2){
+                    Operand ave_operand=new_phi_list[0].second;
+                    for(int i=1;i<new_phi_list.size();i++){
+                        if(phi_intr->NotEqual(new_phi_list[i].second,ave_operand)){
+                            still_phi=true;
+                            break;
+                        }
+                    }
+                }
+                if(still_phi){
+                    phi_intr->SetPhiList(new_phi_list);
+                    bb->Instruction_list.push_back(intr);
+                //[2] 剩余phi_list>=2，且均相同； 或剩余phi_list=1
+                }else{
+                    Operand phi_source_op=new_phi_list[0].second;
+                    int def_regno=phi_intr->GetDefRegno();
+                    auto it=C->use_map.find(def_regno);
+                    if(it!=C->use_map.end()){
+                        //对于所有用到此phi_def_reg的指令，将操作数替换，并删除此phi指令
+                        std::vector<Instruction> intrs=it->second;
+                        for(auto &intr:intrs){
+                            auto operands=intr->GetNonResultOperands();
+                            std::vector<Operand> new_operands{};
+                            for(auto &operand:operands){
+                                if(operand->GetOperandType()==BasicOperand::REG){
+                                    int use_regno=((RegOperand*)operand)->GetRegNo();
+                                    if(use_regno==def_regno){
+                                        //匹配上了，替换值
+                                        new_operands.push_back(phi_source_op);
+                                    }else{
+                                        new_operands.push_back(operand);
+                                    }
+                                }else{
+                                    new_operands.push_back(operand);
+                                }
+                            }
+                            intr->SetNonResultOperands(new_operands);
+                        }
+                    }
+                }
+            }else{
+                bb->Instruction_list.push_back(intr);
+            }
+        }
+    }
+
+}
+void SimplifyCFGPass::RebuildCFG(){
+    for (auto &[defI,cfg] : llvmIR->llvm_cfg) {
+        // 重建CFG（遍历cfg，重建G与invG)
+        cfg->BuildCFG();
+        // 消除不可达块
+        EliminateUnreachedBlocksInsts(cfg);
+        // 处理随不可达块受影响的phi指令
+        EliminateNotExistPhi(cfg);
+        // // 重建支配树
+        // cfg->DomTree = nullptr; // 这里可以调用支配树重建函数
+        // cfg->PostDomTree = nullptr; // 这里可以调用后支配树重建函数
+
     }
 }
 

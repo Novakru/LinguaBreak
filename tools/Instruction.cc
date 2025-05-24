@@ -768,3 +768,32 @@ float ArithmeticInstruction::CompConst(float value1, float value2){
             return -1;
     }
 }
+
+bool PhiInstruction::NotEqual(Operand op1, Operand op2){
+    if(op1->GetOperandType()!=op2->GetOperandType()){
+        return true;
+    }
+    if(op1->GetOperandType()==BasicOperand::REG){
+        int regno1=((RegOperand*)op1)->GetRegNo();
+        int regno2=((RegOperand*)op2)->GetRegNo();
+        if(regno1!=regno2){
+            return true;
+        }
+        return false;
+    }else if(op1->GetOperandType()==BasicOperand::IMMI32){
+        int intval1=((ImmI32Operand*)op1)->GetIntImmVal();
+        int intval2=((ImmI32Operand*)op2)->GetIntImmVal();
+        if(intval1!=intval2){
+            return true;
+        }
+        return false;
+    }else if(op1->GetOperandType()==BasicOperand::IMMF32){
+        int floatval1=((ImmF32Operand*)op1)->GetFloatVal();
+        int floatval2=((ImmF32Operand*)op2)->GetFloatVal();
+        if(floatval1!=floatval2){
+            return true;
+        }
+        return false;
+    }
+    return false;
+}

@@ -11,7 +11,9 @@
 #include <map>
 #include <queue>
 #include <set>
+#include <unordered_set>
 #include <vector>
+#include <unordered_map>
 
 
 class DominatorTree;
@@ -27,6 +29,8 @@ public:
     /*this is the pointer to the value of LLVMIR.function_block_map
       you can see it in the LLVMIR::CFGInit()*/
     std::map<int, LLVMBlock> *block_map;
+    std::unordered_set<int> block_ids; // 所有基本块的id集合
+    std::unordered_map<int,std::vector<Instruction>> use_map;// phi-result-regno  --> the insts that use the regno
 
     // 使用邻接表存图
     std::unordered_map<int,std::set<LLVMBlock>> G{};       // control flow graph

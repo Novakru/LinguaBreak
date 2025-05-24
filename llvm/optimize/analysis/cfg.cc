@@ -42,6 +42,15 @@ void CFG::SearchB(LLVMBlock B){
         }
         //【2】条件跳转指令（与【1】类似，但是有两个目标块，都要维护）
         else if(intr->GetOpcode()==BasicInstruction::LLVMIROpcode::BR_COND){
+            //（1）记录use_map
+            auto use_regs = intr->GetNonResultOperands();
+            for(auto &operand:use_regs){
+                if(operand->GetOperandType()==BasicOperand::REG){
+                    int regno=((RegOperand*)operand)->GetRegNo();
+                    use_map[regno].push_back(intr);
+                }
+            }
+            //（2）维护分支关系
             Operand operand1 = ((BrCondInstruction*)intr)->GetTrueLabel();
             Operand operand2 = ((BrCondInstruction*)intr)->GetFalseLabel();
             int true_label = ((LabelOperand*)operand1)->GetLabelNo();
@@ -51,11 +60,9 @@ void CFG::SearchB(LLVMBlock B){
 
             G[B->block_id].insert(true_block);
             invG[true_label].insert(B);
-            //true_block->comment += ("L" + std::to_string(B->block_id) + ", ");
 
             G[B->block_id].insert(false_block);
             invG[false_label].insert(B);
-            //false_block->comment += ("L" + std::to_string(B->block_id) + ", ");
 
             SearchB(true_block);
             SearchB(false_block);
@@ -66,10 +73,26 @@ void CFG::SearchB(LLVMBlock B){
         }
         //ret指令
         else if(intr->GetOpcode()==BasicInstruction::LLVMIROpcode::RET){
-            //（1）删除当前块中跳转指令之后的所有指令
+            // (1) 记录use_map
+            auto use_regs = intr->GetNonResultOperands();
+            for(auto &operand:use_regs){
+                if(operand->GetOperandType()==BasicOperand::REG){
+                    int regno=((RegOperand*)operand)->GetRegNo();
+                    use_map[regno].push_back(intr);
+                }
+            }
+            //（2）删除当前块中跳转指令之后的所有指令
             if(std::next(it) != B->Instruction_list.end())
                 B->Instruction_list.erase(std::next(it), B->Instruction_list.end());
             return;
+        }else{
+            auto use_regs = intr->GetNonResultOperands();
+            for(auto &operand:use_regs){
+                if(operand->GetOperandType()==BasicOperand::REG){
+                    int regno=((RegOperand*)operand)->GetRegNo();
+                    use_map[regno].push_back(intr);
+                }
+            }
         }
     }
 }
@@ -77,8 +100,8 @@ void CFG::SearchB(LLVMBlock B){
 void CFG::BuildCFG() {
     G.clear();
     invG.clear();
-    //G.resize(max_label + 1);
-    //invG.resize(max_label + 1);
+    block_ids.clear();
+    use_map.clear();
     
     // 重置dfs编号
     dfs_num = 0;

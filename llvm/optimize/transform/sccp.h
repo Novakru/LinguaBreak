@@ -41,8 +41,6 @@ private:
     std::deque<BasicBlock*> CFGWorkList;
     std::deque<int> SSAWorkList;
 
-    //TODO: 1.新增变量标记block的executable状态;   2.新增结构记录CONST的常量值  3.考虑如何替换为常量LLVM IR Inst
-
     void buildSSAGraph(CFG* cfg);
     void SCCP();
     void visit_phi(CFG* cfg, PhiInstruction* phi);

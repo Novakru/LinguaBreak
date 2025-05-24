@@ -568,6 +568,14 @@ public:
     LLVMType GetResultType(){ return type; };
     void SetResult(Operand op){ result = op; }
     std::vector<std::pair<Operand, Operand>> GetPhiList(){ return phi_list; }
+    void SetPhiList(std::vector<std::pair<Operand, Operand>> new_list){ 
+        phi_list=new_list;
+        for(auto &[label,reg]:phi_list){
+            if(reg->GetOperandType()==BasicOperand::REG){
+                def_regno.insert(((RegOperand*)reg)->GetRegNo());
+            }
+        }
+    }
     void ChangePhiPair(int index, std::pair<Operand, Operand> new_pair){ 
         def_regno.erase(((RegOperand*)phi_list[index].second)->GetRegNo());
         phi_list[index] = new_pair; 
@@ -588,6 +596,7 @@ public:
             phi_list[i].second = ops[i];
         }
     }
+    bool NotEqual(Operand op1, Operand op2);
 };
 
 // alloca
