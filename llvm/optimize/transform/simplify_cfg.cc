@@ -106,6 +106,9 @@ void SimplifyCFGPass::RebuildCFG(){
     for (auto &[defI,cfg] : llvmIR->llvm_cfg) {
         // 重建CFG（遍历cfg，重建G与invG)
         cfg->BuildCFG();
+        //重建支配树 （正向）
+        DomInfo[cfg]->BuildDominatorTree(false);
+        cfg->DomTree = DomInfo[cfg]; 
         // 消除不可达块
         EliminateUnreachedBlocksInsts(cfg);
         // 处理随不可达块受影响的phi指令

@@ -2,7 +2,7 @@
 #define SIMPLIFY_CFG_H
 #include "../../include/ir.h"
 #include "../pass.h"
-#include "dominator_tree.h"
+#include "../analysis/dominator_tree.h"
 
 class SimplifyCFGPass : public IRPass {
 private:

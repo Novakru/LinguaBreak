@@ -32,7 +32,7 @@ void CFG::SearchB(LLVMBlock B){
             //（2）维护G/invG
              G[B->block_id].insert(next_block);
             invG[next_label].insert(B);
-            next_block->comment += ("L" + std::to_string(B->block_id) + ", ");
+            //next_block->comment += ("L" + std::to_string(B->block_id) + ", ");
             //（3）递归调用，搜索它的目标块
             SearchB(next_block);
             //（4）删除当前块中跳转指令之后的所有指令

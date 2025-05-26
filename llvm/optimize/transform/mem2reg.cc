@@ -1,8 +1,8 @@
 #include "mem2reg.h"
 #include <tuple>
 
-std::map<int, int> store_record_map; // 记录store的regno实际来自于哪一个reg，用于load/store的清除 <value_regno, pointer_regno>
-std::map<int, int> load_record_map; // 记录load的regno实际来自于哪一个reg，用于load/store的清除
+std::map<int, int> store_record_map; // 记录store的regno实际来自于哪一个reg，用于load/store的清除 <pointer_regno, value_regno>
+std::map<int, int> load_record_map; // 记录load的regno实际来自于哪一个reg，用于load/store的清除 <value_regno, pointer_regno>
 
 std::set<int> visited_blocks; // 记录在cfg深度优先搜索时已经访问过的块id
 std::map<int, std::map<int, int>> store_bb_map; // 重命名专用变量，记录每个block的store的regno实际来自哪个reg
@@ -39,7 +39,7 @@ pseudo IR is:
 */
 
 // vset is the set of alloca regno that load at least once
-void Mem2RegPass::Mem2RegNoUseAlloca(CFG *C, std::set<int> &vset) {
+void Mem2RegPass::Mem2RegNoUseAlloca(CFG *C, std::unordered_set<int> &vset) {
     for(auto &[label, block]: *(C->block_map)){
         std::deque<Instruction> old_Intrs = block->Instruction_list;
         block->Instruction_list.clear();
@@ -93,7 +93,7 @@ pseudo IR is:
 */
 
 // vset is the set of alloca regno that load and store are all in the BB block_id
-void Mem2RegPass::Mem2RegUseDefInSameBlock(CFG *C, std::set<int> &vset, int block_id) {
+void Mem2RegPass::Mem2RegUseDefInSameBlock(CFG *C, std::unordered_set<int> &vset, int block_id) {
     // 临时用来删除不要的alloca，后面再优化
     LLVMBlock zero_block = (*(C->block_map))[0];
     std::deque<Instruction> zero_block_Intrs = zero_block->Instruction_list;
@@ -118,7 +118,7 @@ void Mem2RegPass::Mem2RegUseDefInSameBlock(CFG *C, std::set<int> &vset, int bloc
             Operand v_operand = ((StoreInstruction*)intr)->GetValue();
             if(p_operand->GetOperandType()==BasicOperand::REG){
                 int p_regno = ((RegOperand*)p_operand)->GetRegNo();
-                // 假如不是目标寄存器，就把指令压入栈并退出
+                // 假如不是目标寄存器，就保存指令并退出
                 if(vset.find(p_regno)==vset.end()){
                     intr->ChangeReg(store_record_map, load_record_map);
                     block->Instruction_list.push_back(intr);
@@ -179,7 +179,7 @@ void Mem2RegPass::Mem2RegUseDefInSameBlock(CFG *C, std::set<int> &vset, int bloc
 // vset is the set of alloca regno that one store dominators all load instructions
 // 保证时间复杂度小于等于O(nlognlogn)
 // 只要仅在一个块内store就行
-void Mem2RegPass::Mem2RegOneDefDomAllUses(CFG *C, std::set<int> &vset, int block_id) {
+void Mem2RegPass::Mem2RegOneDefDomAllUses(CFG *C, std::unordered_set<int> &vset, int block_id) {
     Mem2RegUseDefInSameBlock(C,vset,block_id);
     for(auto &[label, block]: *(C->block_map)){
         std::deque<Instruction> old_Intrs = block->Instruction_list;
@@ -190,7 +190,7 @@ void Mem2RegPass::Mem2RegOneDefDomAllUses(CFG *C, std::set<int> &vset, int block
                 Operand r_operand = ((LoadInstruction*)intr)->GetResult();
                 if(p_operand->GetOperandType()==BasicOperand::REG){
                     int p_regno = ((RegOperand*)p_operand)->GetRegNo();
-                    // 假如不是目标寄存器，就把指令压入栈并退出
+                    // 假如不是目标寄存器，就保留指令并退出
                     if(vset.find(p_regno)==vset.end()){
                         block->Instruction_list.push_back(intr);
                         continue;
@@ -257,15 +257,15 @@ void Mem2RegPass::BasicMem2Reg(CFG *C){
     Mem2RegNoUseAlloca(C, loaded_regno);
 
     // 临时变量，记录一个块内有哪些regno可以优化掉load和store
-    std::map<int, std::set<int>> sameblock_bb_regno_map;//< block_id，这样的instructions>
-    std::map<int, std::set<int>> onedef_bb_regno_map;   
+    std::map<int, std::unordered_set<int>> sameblock_bb_regno_map;//< block_id，这样的instructions>
+    std::map<int, std::unordered_set<int>> onedef_bb_regno_map;   
 
     // 以use_map为基准遍历，顺便为phi插入收集需要处理的regno
     for(auto &[regno, bb_use_set]: use_map){
         // 一个regno的load仅出现在一个块内，且其store也只出现在同一个块内，说明可以在单个块内完成代码优化(basic情况)
         if(bb_use_set.size()==1){
             if(def_map.find(regno)!=def_map.end()){
-                std::set<int> bb_def_set = def_map[regno];
+                std::unordered_set<int> bb_def_set = def_map[regno];
                 if(bb_def_set.size()==1 && *(bb_def_set.begin())==*(bb_use_set.begin())){
                     int bb_label = *(bb_def_set.begin());
                     sameblock_bb_regno_map[bb_label].insert(regno);
@@ -275,7 +275,7 @@ void Mem2RegPass::BasicMem2Reg(CFG *C){
         // 一个regno的load最早在多个块内都有出现，但store只在一个块内存在，说明所有load都可以被优化
         else{
             if(def_map.find(regno)!=def_map.end()){
-                std::set<int> bb_def_set = def_map[regno];
+               std::unordered_set<int> bb_def_set = def_map[regno];
                 if(bb_def_set.size()==1){
                     int bb_label = *(bb_def_set.begin());
                     onedef_bb_regno_map[bb_label].insert(regno);
@@ -317,8 +317,8 @@ void Mem2RegPass::InsertPhi(CFG *C, int& max_reg) {
         int regno = ((RegOperand*)operand)->GetRegNo();
 
         // 开始插入phi指令
-        std::set<int> worklist = def_map[regno];
-        std::set<int> historylist;//记录此regno已经插入了phi的block，避免重复
+        std::unordered_set<int> worklist = def_map[regno];
+        std::unordered_set<int> historylist;//记录此regno已经插入了phi的block，避免重复
         //std::cout<<"regno: "<<regno<<std::endl;
         while(worklist.size()!=0){
             auto it = worklist.begin();

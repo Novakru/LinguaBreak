@@ -27,15 +27,13 @@ public:
     void display();                                   // 显示支配树结构
     void display_sdom_map();                          // 显示半支配点map 后续维护成idom
 };
-
+extern std::map<CFG *, DominatorTree *> DomInfo;
 class DomAnalysis : public IRPass {
-private:
-    std::map<CFG *, DominatorTree *> DomInfo;
-
 public:
     DomAnalysis(LLVMIR *IR) : IRPass(IR) {}
     void Execute();
     void invExecute();
     DominatorTree *GetDomTree(CFG *C) { return DomInfo[C]; }
 };
+
 #endif

@@ -126,12 +126,12 @@ int main(int argc, char** argv) {
         DomAnalysis inv_dom(&llvmIR);
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
+		//Peephole & SCCP
 		PeepholePass(&llvmIR).ImmResultReplaceExecute();
 		SCCPPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
 
-		//NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,不可达块消除以及相应的phi处理
-		//TODO：将支配树重建加入到RebuildCFG中
+		//NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     }
 
 	if (strcmp(argv[2], "-llvm") == 0) {

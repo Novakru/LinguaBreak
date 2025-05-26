@@ -2,6 +2,7 @@
 #include "../../include/ir.h"
 
 int inv_dfs_num = 0;
+std::map<CFG *, DominatorTree *> DomInfo;
 
 void DomAnalysis::Execute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
@@ -107,10 +108,6 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
             fa_map[block_id] = block_id==0?0:dfs_map[dfn-1];
         }
 
-        // debug
-        for(auto &[block_id, block]: *(C->block_map)){
-            block->comment += (" idom:" + std::to_string(sdom_map[block_id]));
-        }
 
         // 建立DF_map
         for(int i=0; i<C->invG.size(); i++){
@@ -119,7 +116,6 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
                     int runner = block->block_id;
                     while(runner!=sdom_map[i]){
                         DF_map[runner].insert(i);
-                        (*(C->block_map))[runner]->comment += " DF:" + std::to_string(i);
                         if(runner==0)break;
                         runner = sdom_map[runner];
                     }
@@ -180,10 +176,6 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
             fa_map[block_id] = block_id==0?0:dfs_map[dfn-1];
         }
 
-        // debug
-        for(auto &[block_id, block]: *(C->block_map)){
-            block->comment += (" inv_idom:" + std::to_string(sdom_map[block_id]));
-        }
 
         // 建立DF_map
         for(int i=0; i<C->G.size(); i++){
@@ -192,7 +184,6 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
                     int runner = block->block_id;
                     while(runner!=sdom_map[i]){
                         DF_map[runner].insert(i);
-                        (*(C->block_map))[runner]->comment += " inv_DF:" + std::to_string(i);
                         if(inv_start.find(runner)!=inv_start.end())
                             break;
                         runner = sdom_map[runner];
