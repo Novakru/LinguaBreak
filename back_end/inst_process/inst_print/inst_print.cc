@@ -143,7 +143,12 @@ template <> void RiscV64Printer::printAsm<RiscV64Instruction *>(RiscV64Instructi
         if (ins->getUseLabel()) {
             printRVfield(ins->getLabel());
         } else {
-            s << ins->getImm();
+			// special case : li 指令作为 u 型指令处理，但是可以传入无符号整数
+			if(ins->getOpcode() == RISCV_LI) {
+				s << ins->getImm();
+			} else { // 只保留20位无符号立即数
+				s << (0x000FFFFF & (unsigned int)ins->getImm());
+			}
         }
         break;
     case RvOpInfo::J_type:

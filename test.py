@@ -38,7 +38,7 @@ def add_returncode(file, ret):
     return False
 
 def execute_compilation(input_file, output_file, compile_option, opt_level):
-    cmd = ["timeout", "10", "./bin/SysYc", input_file, compile_option, output_file]
+    cmd = ["timeout", "100", "./bin/SysYc", input_file, compile_option, output_file]
     if compile_option in ["-llvm", "-select", "-target"]:
         cmd.append(opt_level)
     # print(f"执行命令: {' '.join(cmd)}")

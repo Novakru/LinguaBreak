@@ -476,7 +476,7 @@ static int double_floatConvert(long long doublebit){
     int origin_E = (doublebit << 1) >> 53;
     int E = (origin_E - ((1 << 10) - 1) + ((1 << 7) - 1)) & EIGHT_BITS;
     int F = (((doublebit << 12) >> 41) + ((1ll << 35) & doublebit)) & TWENTYTHERE_BITS;
-    int S = doublebit & (1ll << 63);
+    int S = (doublebit >> 63) & 1;
     int floatbit = F | (E << 23) | (S << 31);
     // std::cout << "E 十进制: " << E << " 转为十六进制大写: " 
     //           << std::hex << std::uppercase << E << std::endl;
