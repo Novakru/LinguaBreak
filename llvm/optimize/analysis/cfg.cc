@@ -10,6 +10,7 @@ void LLVMIR::CFGInit() {
         cfg->block_map = &bb_map;
         cfg->function_def = defI;
 		cfg->max_label = function_max_label[defI];
+		cfg->max_reg = function_max_reg[defI];
 
         cfg->BuildCFG();
         llvm_cfg[defI] = cfg;

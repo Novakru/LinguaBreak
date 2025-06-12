@@ -7,7 +7,6 @@
 class IRPass {
 protected:
     LLVMIR *llvmIR;
-    
 
 public:
     virtual void Execute() = 0;

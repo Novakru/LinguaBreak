@@ -1,261 +1,159 @@
 #include "tailcallelim.h"
 
 bool TailCallElimPass::IsTailCallFunc(CFG *C) {
-    auto FuncdefI = C->function_def;
-    if (FuncdefI->formals.size() > 5) {
-        return false;
-    }
-    // AllocaReg can't be use in call
-    auto bb0 = (*C->block_map->begin()).second;
-    int AllocaRegCnt = 0;
-    std::unordered_map<int, int> AllocaReg;
-    std::unordered_map<int, int> GEPMap;
-    for (auto I : bb0->Instruction_list) {
-        if (I->GetOpcode() != BasicInstruction::ALLOCA) {
-            continue;
-        }
-        auto AllocaI = (AllocaInstruction *)I;
-        if (AllocaI->GetDims().empty()) {
-            continue;
-        }
-        AllocaReg[((RegOperand*)AllocaI->GetResult())->GetRegNo()] = ++AllocaRegCnt;
-        // std::cout<<"asdads "<<AllocaI->GetResultRegNo()<<'\n';
-    }
+	// backend need more spill to solve this case
+	if(C->function_def->formals.size() > 5) {
+		return false;
+	}
 
-    // GETELEMENTPTR
-    if (!AllocaRegCnt) {
-        return true;
-    }
-    for (auto [id, bb] : *C->block_map) {
-        for (auto I : bb->Instruction_list) {
-            if (I->GetOpcode() != BasicInstruction::GETELEMENTPTR && I->GetOpcode() != BasicInstruction::CALL) {
-                continue;
-            }
+	// location varry alloca at block_in, may be create mistake. 00007_DP.sy
+	auto block_in = (*C->block_map)[0];
+	auto block_in_id = block_in->block_id;
+	std::unordered_set<int> formals_reg; 
+	for(auto inst : block_in->Instruction_list) {
+		if (auto store_inst = dynamic_cast<StoreInstruction*>(inst)) {
+			// store <ty> <value>, ptr<pointer>, ops {<pointer>, <value>}
+			std::vector<Operand> ops = store_inst->GetNonResultOperands();
+			auto pointer_op = (RegOperand*) ops[0];
+			formals_reg.insert(pointer_op->GetRegNo());
+		}
+	}
 
-            if (I->GetOpcode() == BasicInstruction::GETELEMENTPTR) {
-                auto GetelementptrI = (GetElementptrInstruction *)I;
-                auto PtrReg = ((RegOperand *)GetelementptrI->GetPtrVal())->GetRegNo();
-                auto ResultReg = ((RegOperand*)GetelementptrI->GetResult())->GetRegNo();
-                if (PtrReg == 0 || AllocaReg.find(PtrReg) == AllocaReg.end()) {
-                    continue;
-                }
-                GEPMap[ResultReg] = PtrReg;
-            } else {
-                auto CallI = (CallInstruction *)I;
-                for (auto args : CallI->GetParameterList()) {
-                    auto args_regno = ((RegOperand *)args.second)->GetRegNo();
-                    // std::cout<<args_regno<<'\n';
-                    if (GEPMap.find(args_regno) != GEPMap.end()) {
-                        return false;
+	for(auto inst : block_in->Instruction_list) {
+		if (auto alloca_inst = dynamic_cast<AllocaInstruction*>(inst)) {
+			auto res_op = (RegOperand*) alloca_inst->GetResult();
+			if(!formals_reg.count(res_op->GetRegNo())) {
+				return false;
+			}
+		}
+	}
+
+
+    for (auto [block_id, curr_block] : *C->block_map) {
+        for (auto it = curr_block->Instruction_list.begin(); it != curr_block->Instruction_list.end(); it++) {
+			auto inst = *it;
+            if (auto call_inst = dynamic_cast<CallInstruction*>(inst)) {
+                if (call_inst->GetFunctionName() == C->function_def->GetFunctionName()) {
+                    auto next_inst = *next(it);
+                    if (!next_inst || dynamic_cast<RetInstruction*>(next_inst)) {
+						return true;
                     }
-                }
+                } 
             }
         }
     }
-    return true;
+    return false;
 }
 
 void TailCallElimPass::TailCallElim(CFG *C) {
-	bool TRECheck = IsTailCallFunc(C);
-    if (!TRECheck) {
-        return;
-    }
-    auto FuncdefI = C->function_def;
-    auto bb0 = (*C->block_map->begin()).second;
-    bool NeedtoInsertPTR = 0;
-    std::deque<Instruction> StoreDeque;
-    std::deque<Instruction> AllocaDeque;
-    std::set<Instruction> EraseSet;
-    std::unordered_map<int, RegOperand *> PtrUsed;
-    // when exist call ptr, ret
-    // FuncdefI->PrintIR(std::cout);
-    //@NeedtoInsertPTR:check if ptr in function params need to be insert
-    for (auto [id, bb] : *C->block_map) {
-        if (bb->Instruction_list.back()->GetOpcode() != BasicInstruction::RET) {
-            continue;
-        }
-        auto retI = (RetInstruction *)bb->Instruction_list.back();
-        if (retI == nullptr) {
-            continue;
-        }
-        for (auto I : bb->Instruction_list) {
-            if (I->GetOpcode() != BasicInstruction::CALL) {
-                continue;
-            }
-            auto callI = (CallInstruction *)I;
-            if (callI == nullptr || callI->GetFunctionName() != FuncdefI->GetFunctionName()) {
-                continue;
-            }
-            bool opt1 =
-            callI->GetResult() != NULL && callI->GetResult()->GetFullName() == retI->GetRetVal()->GetFullName();
-            bool opt2 = callI->GetResult() == NULL && retI->GetType() == BasicInstruction::LLVMType::VOID;
-            if (opt1 || opt2) {
-                auto list_size = callI->GetParameterList().size();
-                for (auto i = 0; i < list_size; i++) {
-                    auto callI_reg = (RegOperand *)(callI->GetParameterList()[i].second);
-                    if (callI_reg->GetRegNo() == i) {
-                        continue;
-                    }    // funtion params id stand by i
-                    if (FuncdefI->formals[i] == BasicInstruction::LLVMType::PTR) {
-                        NeedtoInsertPTR = 1;
-                        if (PtrUsed.find(i) == PtrUsed.end()) {
-                            auto PtrReg = GetNewRegOperand(++C->max_reg);
-                            if (PtrReg != nullptr) {
-                                PtrUsed[i] = PtrReg;
-                            }
-                        }
-                        // break;
-                    }
-                }
-            }
-        }
-    }
-    if (NeedtoInsertPTR) {
-        // insert alloca and store instruction of ptr
-        for (u_int32_t i = 0; i < FuncdefI->formals.size(); ++i) {
-            if (FuncdefI->formals[i] == BasicInstruction::LLVMType::PTR && PtrUsed.find(i) != PtrUsed.end()) {
-                auto PtrReg = PtrUsed[i];
-                // std::cout<<PtrReg->GetFullName()<<'\n';
-                // std::cout<<i<<" "<<FuncdefI->formals_reg[i]<<'\n';
-                AllocaDeque.push_back(new AllocaInstruction(BasicInstruction::LLVMType::PTR, PtrReg));
-                StoreDeque.push_back(new StoreInstruction(BasicInstruction::LLVMType::PTR, PtrReg, FuncdefI->formals_reg[i]));
-            }
-        }
-        // insert load before new ptr
-        for (auto [id, bb] : *C->block_map) {
-            auto tmp_Instruction_list = bb->Instruction_list;
-            bb->Instruction_list.clear();
-            for (auto I : tmp_Instruction_list) {
-                auto ResultOperands = I->GetNonResultOperands();
-                bool NeedtoUpdate = 0;
-                // jump call self() ret
-                if (id != 0 && NeedtoInsertPTR && !ResultOperands.empty()) {
-                    for (u_int32_t i = 0; i < ResultOperands.size(); ++i) {
-                        auto ResultReg = ResultOperands[i];
-                        for (u_int32_t j = 0; j < FuncdefI->formals_reg.size(); ++j) {
-                            if (PtrUsed.find(j) == PtrUsed.end()) {
-                                continue;
-                            }
-                            auto DefReg = FuncdefI->formals_reg[j];
-                            if (ResultReg->GetFullName() == DefReg->GetFullName()) {
-                                NeedtoUpdate = 1;
-                                auto PtrReg = GetNewRegOperand(++C->max_reg);
-                                bb->InsertInstruction(1, new LoadInstruction(BasicInstruction::LLVMType::PTR, PtrUsed[j], PtrReg));
-                                ResultOperands[i] = PtrReg;
-                                break;
-                            }
-                        }
-                    }
-                    if (NeedtoUpdate) {
-                        I->SetNonResultOperands(ResultOperands);
-                    }
-                }
-                bb->InsertInstruction(1, I);
-            }
-        }
-    }
+	// std::cerr << "call TailCallElim()" << std::endl;
+	if(!IsTailCallFunc(C)) return;
+	// std::cerr << "IsTailCallFunc() = true, functionName = " + C->function_def->GetFunctionName() << std::endl;
 
-    while (!StoreDeque.empty()) {
-        auto I = StoreDeque.back();
-        if (I != nullptr) {
-            bb0->InsertInstruction(0, I);
+	/*  args that is not ptr, originally, auto create a ptr to store its value.
+		define float @DFS(i32 %r0,float %r1,float %r2,float %r3,ptr %r4)
+		L0: 
+		...
+		%r5 = alloca i32
+		store i32 %r0, ptr %r5
+		...
+	*/
+	auto block_in = (*C->block_map)[0];
+	auto block_in_id = block_in->block_id;
+	std::unordered_map<int, int> alloca_map; 
+	for(auto inst : block_in->Instruction_list) {
+		if (auto store_inst = dynamic_cast<StoreInstruction*>(inst)) {
+			// store <ty> <value>, ptr<pointer>, ops {<pointer>, <value>}
+			std::vector<Operand> ops = store_inst->GetNonResultOperands();
+			auto pointer_op = (RegOperand*) ops[0];
+			auto value_op = (RegOperand*) ops[1];
+			alloca_map[value_op->GetRegNo()] = pointer_op->GetRegNo();
+		}
+	}
+
+
+	/* check ptr, mem2reg need %ptr only define one time 
+	so, we can't %r2 = getelementptr %r20, to get new ptr value.
+	we shold get a new reg to store ptr at label 1.
+	> %ptr_storage = alloca ptr
+	> store ptr %initial_ptr, ptr %ptr_storage
+	when we visit ptr, we visit ptr_storage.
+	> %res = getelementptr i32, ptr %initial_ptr  |  > %new_ptr = load ptr, ptr %ptr_storage
+												  |  > %res = getelementptr i32, ptr %new_ptr
+	*/
+	std::unordered_map<int, int> ptr_map; 
+	FuncDefInstruction funcdef = C->function_def;
+	for(int i = 0; i < funcdef->formals.size(); i++) {
+		auto type = funcdef->formals[i];
+		auto op = (RegOperand*)funcdef->formals_reg[i];
+		if(type == BasicInstruction::LLVMType::PTR) {
+			ptr_map.insert(std::make_pair(op->GetRegNo(), ++C->max_reg));
+			auto ptr_storage = GetNewRegOperand(C->max_reg);
+			auto allca_inst = new AllocaInstruction(BasicInstruction::LLVMType::PTR, ptr_storage);
+			auto store_inst = new StoreInstruction(BasicInstruction::LLVMType::PTR, ptr_storage, op);
+			block_in->InsertInstruction(0, store_inst);
+			block_in->InsertInstruction(0, allca_inst);
+		}
+	}
+
+	for (auto [block_id, curr_block] : *C->block_map) {
+        for (auto it = curr_block->Instruction_list.begin(); it != curr_block->Instruction_list.end(); it++) {
+			auto inst = *it;
+			
+            if (auto call_inst = dynamic_cast<CallInstruction*>(inst)) {
+				auto next_inst = *next(it);
+				if (call_inst->GetFunctionName() != C->function_def->GetFunctionName()) { continue; }
+				if (!next_inst || !dynamic_cast<RetInstruction*>(next_inst)) { continue; }
+				auto para_list = call_inst->GetParameterList();
+				/*  origin 											  | 	optimize			
+				    %r16 = sub i32 %r14,%r15						  | 
+					%r17 = load i32, ptr %r4						  | 
+					%r18 = load i32, ptr %r3						  | 
+					%r19 = mul i32 %r17,%r18						  | 	store i32 %r16, ptr %r3
+					%r20 = getelementptr i32, ptr %r2				  | 	store i32 %r19, ptr %r4
+					%r21 = call i32 @fib(i32 %r16,i32 %r19,ptr %r20)  | 	store ptr %r20, ptr %r22
+					ret i32 %r21									  | 	br label %L1
+				*/
+
+				// erase call_inst & ret_inst
+				curr_block->Instruction_list.erase(it);
+				curr_block->Instruction_list.erase(next(it));
+				
+				for(int i = 0; i < para_list.size(); i++) {
+					auto para_type = para_list[i].first;
+					auto para_op = (RegOperand*) para_list[i].second;
+					auto formal_op = (RegOperand*) funcdef->formals_reg[i];
+					StoreInstruction* store_inst;
+					if(para_type == BasicInstruction::LLVMType::PTR) {
+						int ptr_storage_regNo = ptr_map[formal_op->GetRegNo()];
+						store_inst = new StoreInstruction(para_type, GetNewRegOperand(ptr_storage_regNo), para_op);
+					} else {
+						int ptr_storage_regNo = alloca_map[formal_op->GetRegNo()];
+						store_inst = new StoreInstruction(para_type, GetNewRegOperand(ptr_storage_regNo), para_op);
+					}
+					curr_block->InsertInstruction(1, store_inst);
+				}
+
+				// insert br_inst
+				auto br_inst = new BrUncondInstruction(GetNewLabelOperand(1));
+				curr_block->InsertInstruction(1, br_inst);
+				break;
+            } else if (auto gep_inst = dynamic_cast<GetElementptrInstruction*>(inst)) {
+				// > %res = getelementptr i32, ptr %initial_ptr  |  > %new_ptr = load ptr, ptr %ptr_storage
+				// 							 					 |  > %res = getelementptr i32, ptr %new_ptr
+				auto initial_ptr_op = (RegOperand*)gep_inst->GetPtrVal();
+				if(ptr_map.count(initial_ptr_op->GetRegNo())) {
+					size_t offset = it - curr_block->Instruction_list.begin();
+					auto ptr_storage_reg = GetNewRegOperand(ptr_map[initial_ptr_op->GetRegNo()]);
+					auto new_ptr_reg = GetNewRegOperand(++C->max_reg);
+					auto load_inst = new LoadInstruction(BasicInstruction::LLVMType::PTR, ptr_storage_reg, new_ptr_reg);
+					curr_block->Instruction_list.insert(it, load_inst);     // iterator is invalid when insert	
+					it = curr_block->Instruction_list.begin() + offset + 1; // recover
+					gep_inst->SetNonResultOperands({new_ptr_reg});
+				}
+			}
         }
-        StoreDeque.pop_back();
     }
-    for (auto *it : AllocaDeque) {
-        if (it != nullptr) {
-            bb0->InsertInstruction(0, it);
-        }
-    }
-    while (!AllocaDeque.empty()) {
-        AllocaDeque.pop_back();
-    }
-    for (auto [id, bb] : *C->block_map) {
-        if (bb->Instruction_list.back()->GetOpcode() != BasicInstruction::RET || bb->Instruction_list.size() <= 1) {
-            continue;
-        }
-        auto retI = (RetInstruction *)bb->Instruction_list.back();
-        if (retI == nullptr) {
-            continue;
-        }
-        auto I = *(--(--bb->Instruction_list.end()));
-        if (I == nullptr || I->GetOpcode() != BasicInstruction::CALL) {
-            continue;
-        }
-        auto callI = (CallInstruction *)I;
-        if (callI == nullptr || callI->GetFunctionName() != FuncdefI->GetFunctionName()) {
-            continue;
-        }
-        bool opt1 = callI->GetResult() != NULL && callI->GetResult()->GetFullName() == retI->GetRetVal()->GetFullName();
-        bool opt2 = callI->GetResult() == NULL && retI->GetType() == BasicInstruction::LLVMType::VOID;
-        if (opt1 || opt2) {
-            // std::cout<<id<<'\n';
-            // bb->printIR(std::cout);
-            EraseSet.insert(callI);
-            EraseSet.insert(retI);
-            auto list_size = callI->GetParameterList().size();
-            auto bb0_it = --bb0->Instruction_list.end();
-            auto bb0_ptr_it = bb0->Instruction_list.begin();
-            while ((*bb0_ptr_it)->GetOpcode() == BasicInstruction::ALLOCA) {
-                bb0_ptr_it++;
-            }
-            // if exist alloca ptr,bb0_ptr_it=the end of alloca ptr
-            for (auto i = 0; i < list_size; i++) {
-                // std::cout<<i<<'\n';
-                auto callI_type = callI->GetParameterList()[i].first;
-                auto callI_reg = (RegOperand *)(callI->GetParameterList()[i].second);
-                if (callI_reg->GetRegNo() == i || (callI_type == BasicInstruction::LLVMType::PTR && PtrUsed.find(i) == PtrUsed.end())) {
-                    continue;
-                }    // funtion params id stand by i
-                Instruction allocaI;
-                if (callI->GetParameterList()[i].first == BasicInstruction::LLVMType::PTR) {
-                    bb0_ptr_it--;
-                    allocaI = *bb0_ptr_it;
-                } else {
-                    bb0_it--;
-                    allocaI = *bb0_it;
-                    while (allocaI->GetOpcode() != BasicInstruction::ALLOCA) {
-                        bb0_it--;
-                        allocaI = *bb0_it;
-                    }
-                }
-                callI->PrintIR(std::cout);
-                allocaI->PrintIR(std::cout);
-                if (allocaI == nullptr || allocaI->GetResult() == nullptr) {
-                    continue;
-                }
-                auto storeI = new StoreInstruction(callI->GetParameterList()[i].first, allocaI->GetResult(),
-                                                   callI->GetParameterList()[i].second);
-                if (storeI != nullptr && bb != nullptr) {
-                    bb->InsertInstruction(1, storeI);
-                } else {
-                    delete storeI;  // 如果插入失败，确保释放内存
-                }
-            }
-            if (bb != nullptr) {
-                auto brInst = new BrUncondInstruction(GetNewLabelOperand(1));
-                if (brInst != nullptr) {
-                    bb->InsertInstruction(1, brInst);
-                } else {
-                    delete brInst;
-                }
-            }
-        }
-    }
-    // std::cout<<"HERE FUNCTION "<<FuncdefI->GetFunctionName()<<'\n';
-    for (auto [id, bb] : *C->block_map) {
-        auto tmp_Instruction_list = bb->Instruction_list;
-        bb->Instruction_list.clear();
-        for (auto I : tmp_Instruction_list) {
-            if (EraseSet.find(I) != EraseSet.end()) {
-                continue;
-            }
-            bb->InsertInstruction(1, I);
-        }
-        // bb->printIR(std::cout);
-    }
-    EraseSet.clear();
-    PtrUsed.clear();
 }
 
 void TailCallElimPass::Execute() {
@@ -263,4 +161,5 @@ void TailCallElimPass::Execute() {
 		TailCallElim(cfg);
 		cfg->BuildCFG();
     }
+	std::cerr << "TailCallElimPass end()" << std::endl;
 }

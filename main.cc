@@ -117,6 +117,8 @@ int main(int argc, char** argv) {
 
 	/* 【5】 opt */
     if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
+		// tailcallelim
+		TailCallElimPass(&llvmIR).Execute();
         // mem2reg
         DomAnalysis dom(&llvmIR);
         dom.Execute();   

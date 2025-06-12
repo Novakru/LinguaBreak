@@ -38,6 +38,7 @@ def add_returncode(file, ret):
     return False
 
 def execute_compilation(input_file, output_file, compile_option, opt_level):
+	# 此处修改编译时间限制
     cmd = ["timeout", "100", "./bin/SysYc", input_file, compile_option, output_file]
     if compile_option in ["-llvm", "-select", "-target"]:
         cmd.append(opt_level)
@@ -61,6 +62,7 @@ def execute_llvm(input_file, output_file, stdin, stdout, testout, opt_level):
 
     execute(["rm", "-rf", "tmp.o"])
 
+	# 此处修改运行时间限制
     cmd = f"timeout 10 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
     result = execute_with_stdin_out(cmd)
 
@@ -96,6 +98,7 @@ def execute_asm(input_file, output_file, stdin, stdout, testout, opt_level):
 
     execute(["rm", "-rf", "tmp.o"])
 
+	# 此处修改运行时间限制
     cmd = f"timeout 10 qemu-riscv64 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
     result = execute_with_stdin_out(cmd)
 

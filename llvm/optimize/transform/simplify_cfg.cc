@@ -119,7 +119,10 @@ void SimplifyCFGPass::RebuildCFG(){
 
 // 2. 删除只有一条无条件跳转指令的基本块
 void SimplifyCFGPass::EliminateOneBrUncondBlocks(CFG *C){
-    for(auto it = C->block_map->begin();it!=C->block_map->end();){
+	/* 第一个基本块不能删除, 否则会出现如下情况
+	L0:  ; %r20 不能被正确赋值
+    %r20 = phi i32 [%r1,%L0],[%r15,%L6]  */
+    for(auto it = next(C->block_map->begin());it!=C->block_map->end();){
         int id=it->first; LLVMBlock block=it->second;
         if(block->Instruction_list.size()==1){
             auto intr=*block->Instruction_list.begin();
