@@ -6,8 +6,8 @@ make parser # input: sysy_parser.y output: sysy_parser.tab.cc and sysy_parser.ta
 
 ### How to run LiguaBreak
 ```bash 
-./bin/SysYc [input_file] -option [output_file]
-./bin/SysYc ./testcase/example/temp.sy -lexer ./testcase/example/lexer_out.txt 
+./compiler -option -o [output_file] [input_file] 
+./compiler -lexer -o ./testcase/example/lexer_out.txt  ./testcase/example/temp.sy
 ```
 
 ### How to output file struct
@@ -18,12 +18,12 @@ tree -L 3
 ### 使用自动测试脚本
 ```bash
 mkdir -p test_output/functional_testIR/
-python grade.py 3 0 
+python grade.py 3 0 [curr/last]
 ```
 
 ### 测试自己的中间代码
 ```bash
-./bin/SysYc ./test_output/example/temp.sy -llvm ./test_output/example/temp.out.ll
+./compiler -llvm -o ./test_output/example/temp.out.ll ./test_output/example/temp.sy
 clang test_output/example/temp.out.ll -c -o test_output/example/temp.o -w
 clang -static  test_output/example/temp.o ./lib/libsysy_x86.a -o test_output/example/temp
 ./test_output/example/temp (< ./testcase/functional_test/Advanced/lisp2.in)
@@ -37,7 +37,7 @@ opt -opaque-pointers=1 -passes=tailcallelim ./test_output/example/temp.ll -S -o 
 
 ### 编译并运行自己的汇编代码
 ```bash
-./bin/SysYc ./test_output/example/temp.sy -target ./test_output/example/temp.out.S -O1
+./compiler -S -o ./test_output/example/temp.out.ll ./test_output/example/temp.sy -O1
 riscv64-unknown-linux-gnu-gcc  "test_output/example/temp.out.S" -c -o "test_output/example/tmp.o"
 riscv64-unknown-linux-gnu-gcc -static "test_output/example/tmp.o" lib/libsysy_riscv.a
 qemu-riscv64 ./a.out

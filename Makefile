@@ -12,6 +12,7 @@ SRCDIR += ./back_end/inst_process/phi_processing
 SRCDIR += ./back_end/inst_process
 SRCDIR += ./back_end/register_allocation/linear_scan
 SRCDIR += ./back_end/register_allocation
+
 # 显式列出所有源文件（确保包含实现文件）
 SRCS := $(wildcard *.cc)
 SRCS += $(wildcard llvm/generate/*.cc)
@@ -25,53 +26,44 @@ SRCS += $(wildcard back_end/inst_process/*.cc)
 SRCS += $(wildcard back_end/inst_process/phi_processing/*.cc)
 SRCS += $(wildcard back_end/register_allocation/linear_scan/*.cc)
 SRCS += $(wildcard back_end/register_allocation/*.cc)
-# 添加-Wall -Wextra警告选项
-# CFLAGS += -Wall -Wextra
 
-NAME = SysYc
-BIN_DIR ?= ./bin
+NAME = compiler
+BINARY = $(NAME)  # 直接生成在根目录
+
 OBJDIR ?= ./obj
-BINARY ?= $(BIN_DIR)/$(NAME)
-
-.DEFAULT_GOAL = SysYc
 
 CC = clang++
 LD = clang++
 INCLUDES = $(addprefix -I, $(SRCDIR))
 CFLAGS += -O2 -g -MMD -std=c++17 $(INCLUDES)
 
-# 自动搜索所有源文件
 SRCS := $(foreach dir,$(SRCDIR),$(wildcard $(dir)/*.cc))
 SRCS += front_end/sysy_lexer.cc front_end/sysy_parser.tab.cc
 
-# 生成对应的 .o 目标文件
 OBJS := $(patsubst %.cc, $(OBJDIR)/%.o, $(SRCS))
 
-# 生成 .d 依赖文件
--include $(OBJS:.o=.d)
+DEPS := $(OBJS:.o=.d)
+-include $(DEPS)
+
+.DEFAULT_GOAL = $(BINARY)
 
 $(OBJDIR)/%.o : %.cc
 	@echo + CC $<
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) -c -o $@ $<
 
-.PHONY: SysYc clean-obj clean-all lexer parser format
-
-SysYc: $(BINARY)
-
 $(BINARY): $(OBJS)
 	@echo + LD $@
-	@mkdir -p $(BIN_DIR)
-	@$(LD) $(OBJS) -o $(BINARY) -O2 -std=c++20
+	@$(LD) $(OBJS) -o $@ -O2 -std=c++20
 
 lexer: front_end/sysy_lexer.l
 	@echo "[FLEX] Generating lexer..."
-	flex -o front_end/sysy_lexer.cc front_end/sysy_lexer.l
+	@flex -o front_end/sysy_lexer.cc front_end/sysy_lexer.l
 	@echo "[FLEX] Lexer generated successfully"
 
 parser: front_end/sysy_parser.y
 	@echo "[BISON] Generating parser..."
-	bison -dv front_end/sysy_parser.y -o front_end/sysy_parser.tab.cc
+	@bison -dv front_end/sysy_parser.y -o front_end/sysy_parser.tab.cc
 	@rm -f front_end/sysy_parser.output
 	@sed -i '1s/^/#include "..\/include\/ast.h"\n/' front_end/sysy_parser.tab.hh
 	@echo "[BISON] Parser generated successfully"
@@ -80,31 +72,13 @@ clean-obj:
 	@echo "Cleaning object files..."
 	@rm -rf $(OBJDIR)/*
 
-clean-all:
-	@echo "Cleaning all build files..."
-	@rm -rf $(OBJDIR)/*
-	@rm -rf $(BIN_DIR)/*
+clean-all: clean-obj
+	@echo "Cleaning executable..."
+	@rm -f $(BINARY)
 
 format:
 	@echo "Formatting source files..."
-	clang-format -style=file -i $(SRCS)
-	clang-format -style=file -i $(foreach dir,$(SRCDIR),$(wildcard $(dir)/*.h))
+	@clang-format -style=file -i $(SRCS)
+	@clang-format -style=file -i $(foreach dir,$(SRCDIR),$(wildcard $(dir)/*.h))
 
-# # 生成调试版本 make debug
-# DEBUG_OBJDIR := ./obj/debug
-# DEBUG_OBJS := $(patsubst %.cc, $(DEBUG_OBJDIR)/%.o, $(SRCS))
-
-# debug: CFLAGS := -O0 -g -w -MMD -std=c++17 $(INCLUDES)
-# debug: BINARY := $(BIN_DIR)/$(NAME)-dbg
-# debug: $(BINARY)
-
-# $(BINARY): $(DEBUG_OBJS)
-# 	@echo + LD $@
-# 	@mkdir -p $(BIN_DIR)
-# 	@$(LD) $(DEBUG_OBJS) -o $@ -O0 -std=c++17
-
-# $(DEBUG_OBJDIR)/%.o : %.cc
-# 	@echo + CC [debug] $<
-# 	@mkdir -p $(dir $@)
-# 	@$(CC) $(CFLAGS) -c -o $@ $<
-
+.PHONY: all clean-obj clean-all lexer parser format
