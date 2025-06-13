@@ -39,7 +39,7 @@ opt -opaque-pointers=1 -passes=tailcallelim ./test_output/example/temp.ll -S -o 
 ```bash
 ./bin/SysYc ./test_output/example/temp.sy -target ./test_output/example/temp.out.S -O1
 riscv64-unknown-linux-gnu-gcc  "test_output/example/temp.out.S" -c -o "test_output/example/tmp.o"
-riscv64-unknown-linux-gnu-gcc -static "test_output/example/tmp.o" lib/libsysy_rv.a
+riscv64-unknown-linux-gnu-gcc -static "test_output/example/tmp.o" lib/libsysy_riscv.a
 qemu-riscv64 ./a.out
 echo $?
 ```

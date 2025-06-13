@@ -418,6 +418,7 @@ void GenUnaryAddSubIR(OpType::Op kind, NodeAttribute attribute, ExprBase unaryEx
     unaryExp->codeIR();
     auto &entrybb = GetCurrentBlock();
 	auto unaryExpType = unaryExp->attribute.type->getType();
+	if(currentop == nullptr) return;
     if(unaryExpType == BuiltinType::BuiltinKind::Int || unaryExpType == BuiltinType::BuiltinKind::Bool){
         
         if(optype_map[((RegOperand*)currentop)->GetRegNo()] == operand_type::I32){
