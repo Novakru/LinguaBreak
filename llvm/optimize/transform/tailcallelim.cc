@@ -161,5 +161,4 @@ void TailCallElimPass::Execute() {
 		TailCallElim(cfg);
 		cfg->BuildCFG();
     }
-	std::cerr << "TailCallElimPass end()" << std::endl;
 }

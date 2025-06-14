@@ -37,7 +37,7 @@ opt -opaque-pointers=1 -passes=tailcallelim ./test_output/example/temp.ll -S -o 
 
 ### 编译并运行自己的汇编代码
 ```bash
-./compiler -S -o ./test_output/example/temp.out.ll ./test_output/example/temp.sy -O1
+./compiler -S -o ./test_output/example/temp.out.S ./test_output/example/temp.sy -O1
 riscv64-unknown-linux-gnu-gcc  "test_output/example/temp.out.S" -c -o "test_output/example/tmp.o"
 riscv64-unknown-linux-gnu-gcc -static "test_output/example/tmp.o" lib/libsysy_riscv.a
 qemu-riscv64 ./a.out

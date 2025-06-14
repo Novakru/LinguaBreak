@@ -189,7 +189,8 @@ int main(int argc, char** argv) {
     SimplifyCFGPass(&llvmIR).Execute();
 
     // 【5】优化
-    if (optimize) {
+	// 提交到 oj 时需要默认优化全开
+    // if (optimize) {
         TailCallElimPass(&llvmIR).Execute();
         DomAnalysis dom(&llvmIR);
         dom.Execute();
@@ -201,7 +202,7 @@ int main(int argc, char** argv) {
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
         SCCPPass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFG();
-    }
+    // }
 
     if (option == 3) {
         llvmIR.printIR(out);
