@@ -35,7 +35,7 @@ OBJDIR ?= ./obj
 CC = clang++
 LD = clang++
 INCLUDES = $(addprefix -I, $(SRCDIR))
-CFLAGS += -O2 -MMD -mcmodel=medany -std=c++17 $(INCLUDES) 
+CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES)
 
 SRCS := $(foreach dir,$(SRCDIR),$(wildcard $(dir)/*.cc))
 SRCS += front_end/sysy_lexer.cc front_end/sysy_parser.tab.cc
@@ -54,7 +54,7 @@ $(OBJDIR)/%.o : %.cc
 
 $(BINARY): $(OBJS)
 	@echo + LD $@
-	@$(LD) $(OBJS) -o $@ -O2 -std=c++17 -mcmodel=medany
+	@$(LD) $(OBJS) -o $@ -O2  -std=c++17
 
 lexer: front_end/sysy_lexer.l
 	@echo "[FLEX] Generating lexer..."

@@ -646,15 +646,18 @@ int RiscV64Unit::InsertArgInStack(BasicInstruction::LLVMType type, Operand arg_o
 				insert_block->push_back(
 				rvconstructor->ConstructSImm(RISCV_SD, imm_reg, GetPhysicalReg(RISCV_sp), arg_off));
 			} else if (arg_op->GetOperandType() == BasicOperand::GLOBAL) {
-				auto glb_reg1 = GetNewTempRegister(INT64);
-				auto glb_reg2 = GetNewTempRegister(INT64);
+				// auto glb_reg1 = GetNewTempRegister(INT64);
+				// auto glb_reg2 = GetNewTempRegister(INT64);
 				auto arg_glbop = (GlobalOperand *)arg_op;
+				// insert_block->push_back(
+				// rvconstructor->ConstructULabel(RISCV_AUIPC, glb_reg1, RiscVLabel(arg_glbop->GetName(), true)));
+				// insert_block->push_back(rvconstructor->ConstructILabel(RISCV_ADDI, glb_reg2, glb_reg1,
+				// 													RiscVLabel(arg_glbop->GetName(), false)));
+				auto ptr_reg = GetNewTempRegister(INT64);
+				auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(arg_glbop->GetName(), true));
+				cur_block->push_back(la_inst);
 				insert_block->push_back(
-				rvconstructor->ConstructULabel(RISCV_LUI, glb_reg1, RiscVLabel(arg_glbop->GetName(), true)));
-				insert_block->push_back(rvconstructor->ConstructILabel(RISCV_ADDI, glb_reg2, glb_reg1,
-																	RiscVLabel(arg_glbop->GetName(), false)));
-				insert_block->push_back(
-				rvconstructor->ConstructSImm(RISCV_SD, glb_reg2, GetPhysicalReg(RISCV_sp), arg_off));
+				rvconstructor->ConstructSImm(RISCV_SD, ptr_reg, GetPhysicalReg(RISCV_sp), arg_off));
 			}
 			arg_off += 8;
 		}
@@ -829,17 +832,17 @@ template <> void RiscV64Unit::ConvertAndAppend<LoadInstruction*>(LoadInstruction
 		}
 
     } else if (inst->GetPointer()->GetOperandType() == BasicOperand::GLOBAL) {
-		// lui %1, %hi(a)
-		// lw %2,%lo(a)(%1)  #riscv
+		// auipc %1, %pcrel_hi(a)
+		// lw %2,%pcrel_lo(a)(%1)  #riscv
         auto global_op = (GlobalOperand *)inst->GetPointer();
         auto rd_op = (RegOperand *)inst->GetResult();
 		Register rd = GetNewRegister(rd_op->GetRegNo(), target_type);
 
         Register ptr_reg = GetNewTempRegister(INT64);
-		auto lui_inst = rvconstructor->ConstructULabel(RISCV_LUI, ptr_reg, RiscVLabel(global_op->GetName(), true));
-		auto lw_inst = rvconstructor->ConstructILabel(op_code, rd, ptr_reg, RiscVLabel(global_op->GetName(), false));
+		auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(global_op->GetName(), true));
+		auto lw_inst = rvconstructor->ConstructIImm(op_code, rd, ptr_reg, 0);
 
-		cur_block->push_back(lui_inst);
+		cur_block->push_back(la_inst);
 		cur_block->push_back(lw_inst);
     }
 }
@@ -892,13 +895,11 @@ template <> void RiscV64Unit::ConvertAndAppend<StoreInstruction*>(StoreInstructi
 		GlobalOperand* global_op = (GlobalOperand *)inst->GetPointer();
 
 		auto ptr_reg = GetNewTempRegister(INT64);
-		// lui ptr_reg, %hi(a)
-		auto lui_inst = rvconstructor->ConstructULabel(RISCV_LUI, ptr_reg, RiscVLabel(global_op->GetName(), true));
-		cur_block->push_back(lui_inst);
+		auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(global_op->GetName(), true));
+		auto sw_inst = rvconstructor->ConstructSImm(op_code, value_reg, ptr_reg, 0);
 
-		// sw (fsw) value_reg, %lo(a)(ptr_reg)
-		auto store_inst = rvconstructor->ConstructSLabel(op_code, value_reg, ptr_reg, RiscVLabel(global_op->GetName(), false));
-		cur_block->push_back(store_inst);
+		cur_block->push_back(la_inst);
+		cur_block->push_back(sw_inst);
 	}
 }
 
@@ -1921,15 +1922,18 @@ template <> void RiscV64Unit::ConvertAndAppend<GetElementptrInstruction *>(GetEl
     }else{
         // 全局数组
         GlobalOperand* global_op = (GlobalOperand *)inst->GetPtrVal();
-        auto lui_register = GetNewTempRegister(INT64);
-        auto lui_instr = rvconstructor->ConstructULabel(RISCV_LUI, lui_register, RiscVLabel(global_op->GetName(), true));
-        cur_block->push_back(lui_instr);
-        Register addi_register = GetNewTempRegister(INT64);
-        auto addi_instr = rvconstructor->ConstructILabel(RISCV_ADDI, addi_register, lui_register, RiscVLabel(global_op->GetName(), false));
-        cur_block->push_back(addi_instr);
+        // auto lui_register = GetNewTempRegister(INT64);
+        // auto lui_instr = rvconstructor->ConstructULabel(RISCV_LUI, lui_register, RiscVLabel(global_op->GetName(), true));
+        // cur_block->push_back(lui_instr);
+        // Register addi_register = GetNewTempRegister(INT64);
+        // auto addi_instr = rvconstructor->ConstructILabel(RISCV_ADDI, addi_register, lui_register, RiscVLabel(global_op->GetName(), false));
+        // cur_block->push_back(addi_instr);
+		Register ptr_reg = GetNewTempRegister(INT64);
+		auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(global_op->GetName(), true));
+		cur_block->push_back(la_inst);
         auto resultop = inst->GetResult();
         auto resultregno = ((RegOperand*)resultop)->GetRegNo();
-        auto add_instr = rvconstructor->ConstructR(RISCV_ADD, GetNewRegister(resultregno, INT64), final_offset_register, addi_register);
+        auto add_instr = rvconstructor->ConstructR(RISCV_ADD, GetNewRegister(resultregno, INT64), final_offset_register, ptr_reg);
         cur_block->push_back(add_instr);
     }
     

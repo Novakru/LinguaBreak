@@ -225,6 +225,7 @@ std::unordered_map<int, RvOpInfo> OpTable = {
     {RISCV_FCVT_LU_S,{RvOpInfo::R2_type,"fcvt.lu.s",4}},
     {RISCV_FCVT_LU_D,{RvOpInfo::R2_type,"fcvt.lu.d",4}},
     {RISCV_LI,      {RvOpInfo::U_type,   "li",     1}},
+	{RISCV_LA,      {RvOpInfo::U_type,   "la",     1}},
     {RISCV_CALL,    {RvOpInfo::CALL_type,"call",   1}},
     {RISCV_BGT,     {RvOpInfo::B_type,   "bgt",    1}},
     {RISCV_BLE,     {RvOpInfo::B_type,   "ble",    1}},

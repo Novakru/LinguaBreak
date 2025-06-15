@@ -49,11 +49,11 @@ def execute_llvm(input_file, output_file, stdin, stdout, testout, opt_level):
         print(f"\033[93mCompile Error on \033[0m{input_file}")
         return 0
 
-    if execute(["clang-15", output_file, "-c", "-o", "tmp.o", "-w"]).returncode != 0:
+    if execute(["clang", output_file, "-c", "-o", "tmp.o", "-w"]).returncode != 0:
         print(f"\033[93mOutput Error on \033[0m{input_file}")
         return 0
 
-    if execute(["clang-15", "-static", "tmp.o", "lib/libsysy_x86.a"]).returncode != 0:
+    if execute(["clang", "-static", "tmp.o", "lib/libsysy_x86.a"]).returncode != 0:
         execute(["rm", "-rf", "tmp.o"])
         print(f"\033[93mLink Error on \033[0m{input_file}")
         return 0

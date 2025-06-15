@@ -141,7 +141,10 @@ template <> void RiscV64Printer::printAsm<RiscV64Instruction *>(RiscV64Instructi
         printRVfield(ins->getRd());
         s << ",";
         if (ins->getUseLabel()) {
-            printRVfield(ins->getLabel());
+			if(ins->getOpcode() == RISCV_LA) 
+				s << ins->getLabel().get_data_name();
+			else 
+				printRVfield(ins->getLabel());
         } else {
 			// special case : li 指令作为 u 型指令处理，但是可以传入无符号整数
 			if(ins->getOpcode() == RISCV_LI) {
