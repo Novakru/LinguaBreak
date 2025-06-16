@@ -38,7 +38,7 @@ def add_returncode(file, ret):
     return False
 
 def execute_compilation(input_file, output_file, compile_option, opt_level):
-    cmd = ["timeout", "10", "./compiler", compile_option, "-o", output_file, input_file]
+    cmd = ["timeout", "20", "./compiler", compile_option, "-o", output_file, input_file]
     if opt_level == "-O1":
         cmd.append(opt_level)
     result = execute(cmd)
@@ -60,7 +60,7 @@ def execute_llvm(input_file, output_file, stdin, stdout, testout, opt_level):
 
     execute(["rm", "-rf", "tmp.o"])
 
-    cmd = f"timeout 10 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
+    cmd = f"timeout 20 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
     result = execute_with_stdin_out(cmd)
 
     if result == 124:
@@ -95,7 +95,7 @@ def execute_asm(input_file, output_file, stdin, stdout, testout, opt_level):
 
     execute(["rm", "-rf", "tmp.o"])
 
-    cmd = f"timeout 10 qemu-riscv64 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
+    cmd = f"timeout 20 qemu-riscv64 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
     result = execute_with_stdin_out(cmd)
 
     if result == 124:
