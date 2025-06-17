@@ -5,7 +5,7 @@ class Machine_Peehole:MachinePass {
 
 
 public:
-    void Execute() ;
     Machine_Peehole(MachineUnit *unit) : MachinePass(unit) {}
+    void Execute() ;
 };
 #endif

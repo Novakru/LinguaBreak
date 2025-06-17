@@ -4,8 +4,8 @@
 class MachinePass {
 protected:
     MachineUnit *unit;
-    MachineFunction *current_func;
-    MachineBlock *cur_block;
+    // MachineFunction *current_func;
+    // MachineBlock *cur_block;
 
 public:
     virtual void Execute() = 0;

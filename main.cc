@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
             m_unit->LowerStack();
         }
         //optimizer
-        
+        Machine_Peehole(m_unit).Execute();
 
         RiscV64Printer(out, m_unit).emit();
         fclose(input);
