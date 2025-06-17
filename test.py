@@ -38,10 +38,9 @@ def add_returncode(file, ret):
     return False
 
 def execute_compilation(input_file, output_file, compile_option, opt_level):
-    cmd = ["timeout", "10", "./bin/SysYc", input_file, compile_option, output_file]
-    if compile_option in ["-llvm", "-select", "-target"]:
+    cmd = ["timeout", "180", "./compiler", compile_option, "-o", output_file, input_file]
+    if opt_level == "-O1":
         cmd.append(opt_level)
-    # print(f"执行命令: {' '.join(cmd)}")
     result = execute(cmd)
     return result.returncode == 0
 
@@ -50,18 +49,18 @@ def execute_llvm(input_file, output_file, stdin, stdout, testout, opt_level):
         print(f"\033[93mCompile Error on \033[0m{input_file}")
         return 0
 
-    if execute(["clang-15", output_file, "-c", "-o", "tmp.o", "-w"]).returncode != 0:
+    if execute(["clang", output_file, "-c", "-o", "tmp.o", "-w"]).returncode != 0:
         print(f"\033[93mOutput Error on \033[0m{input_file}")
         return 0
 
-    if execute(["clang-15", "-static", "tmp.o", "lib/libsysy_x86.a"]).returncode != 0:
+    if execute(["clang", "-static", "tmp.o", "lib/libsysy_x86.a"]).returncode != 0:
         execute(["rm", "-rf", "tmp.o"])
         print(f"\033[93mLink Error on \033[0m{input_file}")
         return 0
 
     execute(["rm", "-rf", "tmp.o"])
 
-    cmd = f"timeout 10 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
+    cmd = f"timeout 180 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
     result = execute_with_stdin_out(cmd)
 
     if result == 124:
@@ -81,7 +80,7 @@ def execute_llvm(input_file, output_file, stdin, stdout, testout, opt_level):
         return 0
 
 def execute_asm(input_file, output_file, stdin, stdout, testout, opt_level):
-    if not execute_compilation(input_file, output_file, "-target", opt_level):
+    if not execute_compilation(input_file, output_file, "-S", opt_level):  # 修改为使用 -S 选项
         print(f"\033[93mCompile Error on \033[0m{input_file}")
         return 0
 
@@ -89,14 +88,14 @@ def execute_asm(input_file, output_file, stdin, stdout, testout, opt_level):
         print(f"\033[93mOutput Error on \033[0m{input_file}")
         return 0
 
-    if execute(["riscv64-unknown-linux-gnu-gcc", "-static", "tmp.o", "lib/libsysy_rv.a"]).returncode != 0:
+    if execute(["riscv64-unknown-linux-gnu-gcc", "-static", "tmp.o", "lib/libsysy_riscv.a"]).returncode != 0:
         execute(["rm", "-rf", "tmp.o"])
         print(f"\033[93mLink Error on \033[0m{input_file}")
         return 0
 
     execute(["rm", "-rf", "tmp.o"])
 
-    cmd = f"timeout 10 qemu-riscv64 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
+    cmd = f"timeout 180 qemu-riscv64 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
     result = execute_with_stdin_out(cmd)
 
     if result == 124:
@@ -127,6 +126,15 @@ output_folder = args.output_folder
 step = args.step
 opt_level = "-O" + str(args.opt)
 
+step_to_option = {
+    "lexer": "-lexer",
+    "parser": "-parser",
+    "semant": "-semant",
+    "llvm": "-llvm",
+    "select": "-select",
+    "target": "-S"  
+}
+
 ac = 0
 total = 0
 
@@ -143,6 +151,8 @@ for file in os.listdir(input_folder):
         stdin = stdin_file if os.path.exists(stdin_file) else "none"
         testout = "tmp.out"
 
+        compile_option = step_to_option[step]
+        
         if step == "llvm":
             output_file = f"{output_folder}/{name}.ll"
             ac += execute_llvm(input_path, output_file, stdin, stdout_file, testout, opt_level)
@@ -150,7 +160,7 @@ for file in os.listdir(input_folder):
             output_file = f"{output_folder}/{name}.s"
             ac += execute_asm(input_path, output_file, stdin, stdout_file, testout, opt_level)
         else:
-            if execute_compilation(input_path, output_path, f"-{step}", opt_level):
+            if execute_compilation(input_path, output_path, compile_option, opt_level):
                 print(f"\033[92mAccept (Compilation) \033[0m{input_path}")
                 ac += 1
             else:

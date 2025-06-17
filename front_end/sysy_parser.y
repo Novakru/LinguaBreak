@@ -8,6 +8,7 @@ int yylex();
 void yyerror(char *s, ...);
 int error_num = 0;
 Program ASTroot;
+
 extern int line;
 // extern std::ofstream fout;
 %}
@@ -174,18 +175,18 @@ UnaryExp
 |IDENT '(' ')'{
     // 将sylib.h中的宏定义starttime()替换为_sysy_starttime(line)
     if($1->getName() == "starttime"){
-        // auto params = new std::vector<ExprBase>;
-        // params->push_back(new IntConst(line));
-        // ExprBase temp = new FuncRParams(params);
-        // $$ = new FuncCall(id_table.add_id("_sysy_starttime"),temp);
-        // $$->SetLineNumber(line);
+        auto params = new std::vector<ExprBase>;
+        params->push_back(new IntConst(line));
+        ExprBase temp = new FuncRParams(params);
+        $$ = new FuncCall(new Symbol("_sysy_starttime"),temp);
+        $$->SetLineNumber(line);
     }
     else if($1->getName() == "stoptime"){
-        // auto params = new std::vector<ExprBase>;
-        // params->push_back(new IntConst(line));
-        // ExprBase temp = new FuncRParams(params);
-        // $$ = new FuncCall(id_table.add_id("_sysy_stoptime"),temp);
-        // $$->SetLineNumber(line);
+        auto params = new std::vector<ExprBase>;
+        params->push_back(new IntConst(line));
+        ExprBase temp = new FuncRParams(params);
+        $$ = new FuncCall(new Symbol("_sysy_stoptime"),temp);
+        $$->SetLineNumber(line);
     }
     else{
         $$ = new FuncCall($1,nullptr);

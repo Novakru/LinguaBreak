@@ -1,0 +1,2635 @@
+终端机在文法中未使用
+
+    NOT
+    ERROR
+
+
+语法
+
+    0 $accept: Program $end
+
+    1 Program: Comp_list
+
+    2 CompUnit: Decl
+    3         | FuncDef
+
+    4 Comp_list: CompUnit
+    5          | Comp_list CompUnit
+
+    6 Exp_list: Exp
+    7         | Exp_list ',' Exp
+
+    8 Exp: AddExp
+
+    9 ConstExp: AddExp
+
+   10 MulExp: UnaryExp
+   11       | MulExp '*' UnaryExp
+   12       | MulExp '/' UnaryExp
+   13       | MulExp '%' UnaryExp
+
+   14 AddExp: MulExp
+   15       | AddExp '+' MulExp
+   16       | AddExp '-' MulExp
+
+   17 RelExp: AddExp
+   18       | RelExp '<' AddExp
+   19       | RelExp '>' AddExp
+   20       | RelExp LEQ AddExp
+   21       | RelExp GEQ AddExp
+
+   22 EqExp: RelExp
+   23      | EqExp EQ RelExp
+   24      | EqExp NE RelExp
+
+   25 LAndExp: EqExp
+   26        | LAndExp AND EqExp
+
+   27 LOrExp: LAndExp
+   28       | LOrExp OR LAndExp
+
+   29 Cond: LOrExp
+
+   30 PrimaryExp: IntConst
+   31           | FloatConst
+   32           | Lval
+   33           | '(' Exp ')'
+
+   34 IntConst: INT_CONST
+
+   35 FloatConst: FLOAT_CONST
+
+   36 Lval: IDENT
+   37     | IDENT ArrayDim_list
+
+   38 UnaryExp: PrimaryExp
+   39         | IDENT '(' FuncRParams ')'
+   40         | IDENT '(' ')'
+   41         | '+' UnaryExp
+   42         | '-' UnaryExp
+   43         | '!' UnaryExp
+
+   44 FuncRParams: Exp_list
+
+   45 FuncFParams: FuncFParam
+   46            | FuncFParams ',' FuncFParam
+
+   47 FuncFParam: INT IDENT
+   48           | FLOAT IDENT
+   49           | INT IDENT '[' ']'
+   50           | FLOAT IDENT '[' ']'
+   51           | INT IDENT '[' ']' ArrayDim_list
+   52           | FLOAT IDENT '[' ']' ArrayDim_list
+
+   53 FuncDef: INT IDENT '(' FuncFParams ')' Block
+   54        | INT IDENT '(' ')' Block
+   55        | FLOAT IDENT '(' FuncFParams ')' Block
+   56        | FLOAT IDENT '(' ')' Block
+   57        | NONE_TYPE IDENT '(' FuncFParams ')' Block
+   58        | NONE_TYPE IDENT '(' ')' Block
+
+   59 Stmt: Lval '=' Exp ';'
+   60     | Exp ';'
+   61     | ';'
+   62     | Block
+   63     | IF '(' Cond ')' Stmt
+   64     | IF '(' Cond ')' Stmt ELSE Stmt
+   65     | WHILE '(' Cond ')' Stmt
+   66     | BREAK ';'
+   67     | CONTINUE ';'
+   68     | RETURN Exp ';'
+   69     | RETURN ';'
+
+   70 ConstInitVal_list: ConstInitVal
+   71                  | ConstInitVal_list ',' ConstInitVal
+
+   72 ConstInitVal: ConstExp
+   73             | '{' ConstInitVal_list '}'
+   74             | '{' '}'
+
+   75 VarInitVal_list: VarInitVal
+   76                | VarInitVal_list ',' VarInitVal
+
+   77 VarInitVal: Exp
+   78           | '{' VarInitVal_list '}'
+   79           | '{' '}'
+
+   80 VarDef: IDENT '=' VarInitVal
+   81       | IDENT
+   82       | IDENT ArrayDim_list
+   83       | IDENT ArrayDim_list '=' VarInitVal
+
+   84 ConstDef: IDENT '=' ConstInitVal
+   85         | IDENT ArrayDim_list '=' ConstInitVal
+
+   86 ArrayDim: '[' ConstExp ']'
+
+   87 ArrayDim_list: ArrayDim
+   88              | ArrayDim_list ArrayDim
+
+   89 Decl: VarDecl
+   90     | ConstDecl
+
+   91 VarDecl: INT VarDef_list ';'
+   92        | FLOAT VarDef_list ';'
+
+   93 VarDef_list: VarDef
+   94            | VarDef_list ',' VarDef
+
+   95 ConstDecl: CONST INT ConstDef_list ';'
+   96          | CONST FLOAT ConstDef_list ';'
+
+   97 ConstDef_list: ConstDef
+   98              | ConstDef_list ',' ConstDef
+
+   99 Block: '{' BlockItem_list '}'
+  100      | '{' '}'
+
+  101 BlockItem_list: BlockItem
+  102               | BlockItem_list BlockItem
+
+  103 BlockItem: Decl
+  104          | Stmt
+
+
+终结语词，附有它们出现处的规则
+
+    $end (0) 0
+    '!' (33) 43
+    '%' (37) 13
+    '(' (40) 33 39 40 53 54 55 56 57 58 63 64 65
+    ')' (41) 33 39 40 53 54 55 56 57 58 63 64 65
+    '*' (42) 11
+    '+' (43) 15 41
+    ',' (44) 7 46 71 76 94 98
+    '-' (45) 16 42
+    '/' (47) 12
+    ';' (59) 59 60 61 66 67 68 69 91 92 95 96
+    '<' (60) 18
+    '=' (61) 59 80 83 84 85
+    '>' (62) 19
+    '[' (91) 49 50 51 52 86
+    ']' (93) 49 50 51 52 86
+    '{' (123) 73 74 78 79 99 100
+    '}' (125) 73 74 78 79 99 100
+    error (256)
+    IDENT <symbol_token> (258) 36 37 39 40 47 48 49 50 51 52 53 54 55 56 57 58 80 81 82 83 84 85
+    FLOAT_CONST <float_token> (259) 35
+    INT_CONST <int_token> (260) 34
+    LEQ (261) 20
+    GEQ (262) 21
+    EQ (263) 23
+    NE (264) 24
+    AND (265) 26
+    OR (266) 28
+    NOT (267)
+    CONST (268) 95 96
+    IF (269) 63 64
+    ELSE (270) 64
+    WHILE (271) 65
+    NONE_TYPE (272) 57 58
+    INT (273) 47 49 51 53 54 91 95
+    FLOAT (274) 48 50 52 55 56 92 96
+    RETURN (275) 68 69
+    BREAK (276) 66
+    CONTINUE (277) 67
+    ERROR (278)
+    THEN (279)
+
+
+非终结语词，附有它们出现处的规则
+
+    $accept (42)
+        on left: 0
+    Program <program> (43)
+        on left: 1
+        on right: 0
+    CompUnit <comp_unit> (44)
+        on left: 2 3
+        on right: 4 5
+    Comp_list <comp_list> (45)
+        on left: 4 5
+        on right: 1 5
+    Exp_list <expression_list> (46)
+        on left: 6 7
+        on right: 7 44
+    Exp <expression> (47)
+        on left: 8
+        on right: 6 7 33 59 60 68 77
+    ConstExp <expression> (48)
+        on left: 9
+        on right: 72 86
+    MulExp <expression> (49)
+        on left: 10 11 12 13
+        on right: 11 12 13 14 15 16
+    AddExp <expression> (50)
+        on left: 14 15 16
+        on right: 8 9 15 16 17 18 19 20 21
+    RelExp <expression> (51)
+        on left: 17 18 19 20 21
+        on right: 18 19 20 21 22 23 24
+    EqExp <expression> (52)
+        on left: 22 23 24
+        on right: 23 24 25 26
+    LAndExp <expression> (53)
+        on left: 25 26
+        on right: 26 27 28
+    LOrExp <expression> (54)
+        on left: 27 28
+        on right: 28 29
+    Cond <expression> (55)
+        on left: 29
+        on right: 63 64 65
+    PrimaryExp <expression> (56)
+        on left: 30 31 32 33
+        on right: 38
+    IntConst <expression> (57)
+        on left: 34
+        on right: 30
+    FloatConst <expression> (58)
+        on left: 35
+        on right: 31
+    Lval <expression> (59)
+        on left: 36 37
+        on right: 32 59
+    UnaryExp <expression> (60)
+        on left: 38 39 40 41 42 43
+        on right: 10 11 12 13 41 42 43
+    FuncRParams <expression> (61)
+        on left: 44
+        on right: 39
+    FuncFParams <formal_list> (62)
+        on left: 45 46
+        on right: 46 53 55 57
+    FuncFParam <formal> (63)
+        on left: 47 48 49 50 51 52
+        on right: 45 46
+    FuncDef <func_def> (64)
+        on left: 53 54 55 56 57 58
+        on right: 3
+    Stmt <stmt> (65)
+        on left: 59 60 61 62 63 64 65 66 67 68 69
+        on right: 63 64 65 104
+    ConstInitVal_list <initval_list> (66)
+        on left: 70 71
+        on right: 71 73
+    ConstInitVal <initval> (67)
+        on left: 72 73 74
+        on right: 70 71 84 85
+    VarInitVal_list <initval_list> (68)
+        on left: 75 76
+        on right: 76 78
+    VarInitVal <initval> (69)
+        on left: 77 78 79
+        on right: 75 76 80 83
+    VarDef <def> (70)
+        on left: 80 81 82 83
+        on right: 93 94
+    ConstDef <def> (71)
+        on left: 84 85
+        on right: 97 98
+    ArrayDim <expression> (72)
+        on left: 86
+        on right: 87 88
+    ArrayDim_list <expression_list> (73)
+        on left: 87 88
+        on right: 37 51 52 82 83 85 88
+    Decl <decl> (74)
+        on left: 89 90
+        on right: 2 103
+    VarDecl <decl> (75)
+        on left: 91 92
+        on right: 89
+    VarDef_list <def_list> (76)
+        on left: 93 94
+        on right: 91 92 94
+    ConstDecl <decl> (77)
+        on left: 95 96
+        on right: 90
+    ConstDef_list <def_list> (78)
+        on left: 97 98
+        on right: 95 96 98
+    Block <block> (79)
+        on left: 99 100
+        on right: 53 54 55 56 57 58 62
+    BlockItem_list <block_item_list> (80)
+        on left: 101 102
+        on right: 99 102
+    BlockItem <block_item> (81)
+        on left: 103 104
+        on right: 101 102
+
+
+状态 0
+
+    0 $accept: • Program $end
+
+    CONST      偏移，并进入状态 1
+    NONE_TYPE  偏移，并进入状态 2
+    INT        偏移，并进入状态 3
+    FLOAT      偏移，并进入状态 4
+
+    Program    转到状态 5
+    CompUnit   转到状态 6
+    Comp_list  转到状态 7
+    FuncDef    转到状态 8
+    Decl       转到状态 9
+    VarDecl    转到状态 10
+    ConstDecl  转到状态 11
+
+
+状态 1
+
+   95 ConstDecl: CONST • INT ConstDef_list ';'
+   96          | CONST • FLOAT ConstDef_list ';'
+
+    INT    偏移，并进入状态 12
+    FLOAT  偏移，并进入状态 13
+
+
+状态 2
+
+   57 FuncDef: NONE_TYPE • IDENT '(' FuncFParams ')' Block
+   58        | NONE_TYPE • IDENT '(' ')' Block
+
+    IDENT  偏移，并进入状态 14
+
+
+状态 3
+
+   53 FuncDef: INT • IDENT '(' FuncFParams ')' Block
+   54        | INT • IDENT '(' ')' Block
+   91 VarDecl: INT • VarDef_list ';'
+
+    IDENT  偏移，并进入状态 15
+
+    VarDef       转到状态 16
+    VarDef_list  转到状态 17
+
+
+状态 4
+
+   55 FuncDef: FLOAT • IDENT '(' FuncFParams ')' Block
+   56        | FLOAT • IDENT '(' ')' Block
+   92 VarDecl: FLOAT • VarDef_list ';'
+
+    IDENT  偏移，并进入状态 18
+
+    VarDef       转到状态 16
+    VarDef_list  转到状态 19
+
+
+状态 5
+
+    0 $accept: Program • $end
+
+    $end  偏移，并进入状态 20
+
+
+状态 6
+
+    4 Comp_list: CompUnit •
+
+    $default  使用规则 4 以归约 (Comp_list)
+
+
+状态 7
+
+    1 Program: Comp_list •
+    5 Comp_list: Comp_list • CompUnit
+
+    CONST      偏移，并进入状态 1
+    NONE_TYPE  偏移，并进入状态 2
+    INT        偏移，并进入状态 3
+    FLOAT      偏移，并进入状态 4
+
+    $default  使用规则 1 以归约 (Program)
+
+    CompUnit   转到状态 21
+    FuncDef    转到状态 8
+    Decl       转到状态 9
+    VarDecl    转到状态 10
+    ConstDecl  转到状态 11
+
+
+状态 8
+
+    3 CompUnit: FuncDef •
+
+    $default  使用规则 3 以归约 (CompUnit)
+
+
+状态 9
+
+    2 CompUnit: Decl •
+
+    $default  使用规则 2 以归约 (CompUnit)
+
+
+状态 10
+
+   89 Decl: VarDecl •
+
+    $default  使用规则 89 以归约 (Decl)
+
+
+状态 11
+
+   90 Decl: ConstDecl •
+
+    $default  使用规则 90 以归约 (Decl)
+
+
+状态 12
+
+   95 ConstDecl: CONST INT • ConstDef_list ';'
+
+    IDENT  偏移，并进入状态 22
+
+    ConstDef       转到状态 23
+    ConstDef_list  转到状态 24
+
+
+状态 13
+
+   96 ConstDecl: CONST FLOAT • ConstDef_list ';'
+
+    IDENT  偏移，并进入状态 22
+
+    ConstDef       转到状态 23
+    ConstDef_list  转到状态 25
+
+
+状态 14
+
+   57 FuncDef: NONE_TYPE IDENT • '(' FuncFParams ')' Block
+   58        | NONE_TYPE IDENT • '(' ')' Block
+
+    '('  偏移，并进入状态 26
+
+
+状态 15
+
+   53 FuncDef: INT IDENT • '(' FuncFParams ')' Block
+   54        | INT IDENT • '(' ')' Block
+   80 VarDef: IDENT • '=' VarInitVal
+   81       | IDENT •
+   82       | IDENT • ArrayDim_list
+   83       | IDENT • ArrayDim_list '=' VarInitVal
+
+    '('  偏移，并进入状态 27
+    '['  偏移，并进入状态 28
+    '='  偏移，并进入状态 29
+
+    $default  使用规则 81 以归约 (VarDef)
+
+    ArrayDim       转到状态 30
+    ArrayDim_list  转到状态 31
+
+
+状态 16
+
+   93 VarDef_list: VarDef •
+
+    $default  使用规则 93 以归约 (VarDef_list)
+
+
+状态 17
+
+   91 VarDecl: INT VarDef_list • ';'
+   94 VarDef_list: VarDef_list • ',' VarDef
+
+    ','  偏移，并进入状态 32
+    ';'  偏移，并进入状态 33
+
+
+状态 18
+
+   55 FuncDef: FLOAT IDENT • '(' FuncFParams ')' Block
+   56        | FLOAT IDENT • '(' ')' Block
+   80 VarDef: IDENT • '=' VarInitVal
+   81       | IDENT •
+   82       | IDENT • ArrayDim_list
+   83       | IDENT • ArrayDim_list '=' VarInitVal
+
+    '('  偏移，并进入状态 34
+    '['  偏移，并进入状态 28
+    '='  偏移，并进入状态 29
+
+    $default  使用规则 81 以归约 (VarDef)
+
+    ArrayDim       转到状态 30
+    ArrayDim_list  转到状态 31
+
+
+状态 19
+
+   92 VarDecl: FLOAT VarDef_list • ';'
+   94 VarDef_list: VarDef_list • ',' VarDef
+
+    ','  偏移，并进入状态 32
+    ';'  偏移，并进入状态 35
+
+
+状态 20
+
+    0 $accept: Program $end •
+
+    $default  接受
+
+
+状态 21
+
+    5 Comp_list: Comp_list CompUnit •
+
+    $default  使用规则 5 以归约 (Comp_list)
+
+
+状态 22
+
+   84 ConstDef: IDENT • '=' ConstInitVal
+   85         | IDENT • ArrayDim_list '=' ConstInitVal
+
+    '['  偏移，并进入状态 28
+    '='  偏移，并进入状态 36
+
+    ArrayDim       转到状态 30
+    ArrayDim_list  转到状态 37
+
+
+状态 23
+
+   97 ConstDef_list: ConstDef •
+
+    $default  使用规则 97 以归约 (ConstDef_list)
+
+
+状态 24
+
+   95 ConstDecl: CONST INT ConstDef_list • ';'
+   98 ConstDef_list: ConstDef_list • ',' ConstDef
+
+    ','  偏移，并进入状态 38
+    ';'  偏移，并进入状态 39
+
+
+状态 25
+
+   96 ConstDecl: CONST FLOAT ConstDef_list • ';'
+   98 ConstDef_list: ConstDef_list • ',' ConstDef
+
+    ','  偏移，并进入状态 38
+    ';'  偏移，并进入状态 40
+
+
+状态 26
+
+   57 FuncDef: NONE_TYPE IDENT '(' • FuncFParams ')' Block
+   58        | NONE_TYPE IDENT '(' • ')' Block
+
+    INT    偏移，并进入状态 41
+    FLOAT  偏移，并进入状态 42
+    ')'    偏移，并进入状态 43
+
+    FuncFParams  转到状态 44
+    FuncFParam   转到状态 45
+
+
+状态 27
+
+   53 FuncDef: INT IDENT '(' • FuncFParams ')' Block
+   54        | INT IDENT '(' • ')' Block
+
+    INT    偏移，并进入状态 41
+    FLOAT  偏移，并进入状态 42
+    ')'    偏移，并进入状态 46
+
+    FuncFParams  转到状态 47
+    FuncFParam   转到状态 45
+
+
+状态 28
+
+   86 ArrayDim: '[' • ConstExp ']'
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    ConstExp    转到状态 55
+    MulExp      转到状态 56
+    AddExp      转到状态 57
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 29
+
+   80 VarDef: IDENT '=' • VarInitVal
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    '{'          偏移，并进入状态 63
+
+    Exp         转到状态 64
+    MulExp      转到状态 56
+    AddExp      转到状态 65
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+    VarInitVal  转到状态 66
+
+
+状态 30
+
+   87 ArrayDim_list: ArrayDim •
+
+    $default  使用规则 87 以归约 (ArrayDim_list)
+
+
+状态 31
+
+   82 VarDef: IDENT ArrayDim_list •
+   83       | IDENT ArrayDim_list • '=' VarInitVal
+   88 ArrayDim_list: ArrayDim_list • ArrayDim
+
+    '['  偏移，并进入状态 28
+    '='  偏移，并进入状态 67
+
+    $default  使用规则 82 以归约 (VarDef)
+
+    ArrayDim  转到状态 68
+
+
+状态 32
+
+   94 VarDef_list: VarDef_list ',' • VarDef
+
+    IDENT  偏移，并进入状态 69
+
+    VarDef  转到状态 70
+
+
+状态 33
+
+   91 VarDecl: INT VarDef_list ';' •
+
+    $default  使用规则 91 以归约 (VarDecl)
+
+
+状态 34
+
+   55 FuncDef: FLOAT IDENT '(' • FuncFParams ')' Block
+   56        | FLOAT IDENT '(' • ')' Block
+
+    INT    偏移，并进入状态 41
+    FLOAT  偏移，并进入状态 42
+    ')'    偏移，并进入状态 71
+
+    FuncFParams  转到状态 72
+    FuncFParam   转到状态 45
+
+
+状态 35
+
+   92 VarDecl: FLOAT VarDef_list ';' •
+
+    $default  使用规则 92 以归约 (VarDecl)
+
+
+状态 36
+
+   84 ConstDef: IDENT '=' • ConstInitVal
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    '{'          偏移，并进入状态 73
+
+    ConstExp      转到状态 74
+    MulExp        转到状态 56
+    AddExp        转到状态 57
+    PrimaryExp    转到状态 58
+    IntConst      转到状态 59
+    FloatConst    转到状态 60
+    Lval          转到状态 61
+    UnaryExp      转到状态 62
+    ConstInitVal  转到状态 75
+
+
+状态 37
+
+   85 ConstDef: IDENT ArrayDim_list • '=' ConstInitVal
+   88 ArrayDim_list: ArrayDim_list • ArrayDim
+
+    '['  偏移，并进入状态 28
+    '='  偏移，并进入状态 76
+
+    ArrayDim  转到状态 68
+
+
+状态 38
+
+   98 ConstDef_list: ConstDef_list ',' • ConstDef
+
+    IDENT  偏移，并进入状态 22
+
+    ConstDef  转到状态 77
+
+
+状态 39
+
+   95 ConstDecl: CONST INT ConstDef_list ';' •
+
+    $default  使用规则 95 以归约 (ConstDecl)
+
+
+状态 40
+
+   96 ConstDecl: CONST FLOAT ConstDef_list ';' •
+
+    $default  使用规则 96 以归约 (ConstDecl)
+
+
+状态 41
+
+   47 FuncFParam: INT • IDENT
+   49           | INT • IDENT '[' ']'
+   51           | INT • IDENT '[' ']' ArrayDim_list
+
+    IDENT  偏移，并进入状态 78
+
+
+状态 42
+
+   48 FuncFParam: FLOAT • IDENT
+   50           | FLOAT • IDENT '[' ']'
+   52           | FLOAT • IDENT '[' ']' ArrayDim_list
+
+    IDENT  偏移，并进入状态 79
+
+
+状态 43
+
+   58 FuncDef: NONE_TYPE IDENT '(' ')' • Block
+
+    '{'  偏移，并进入状态 80
+
+    Block  转到状态 81
+
+
+状态 44
+
+   46 FuncFParams: FuncFParams • ',' FuncFParam
+   57 FuncDef: NONE_TYPE IDENT '(' FuncFParams • ')' Block
+
+    ','  偏移，并进入状态 82
+    ')'  偏移，并进入状态 83
+
+
+状态 45
+
+   45 FuncFParams: FuncFParam •
+
+    $default  使用规则 45 以归约 (FuncFParams)
+
+
+状态 46
+
+   54 FuncDef: INT IDENT '(' ')' • Block
+
+    '{'  偏移，并进入状态 80
+
+    Block  转到状态 84
+
+
+状态 47
+
+   46 FuncFParams: FuncFParams • ',' FuncFParam
+   53 FuncDef: INT IDENT '(' FuncFParams • ')' Block
+
+    ','  偏移，并进入状态 82
+    ')'  偏移，并进入状态 85
+
+
+状态 48
+
+   36 Lval: IDENT •
+   37     | IDENT • ArrayDim_list
+   39 UnaryExp: IDENT • '(' FuncRParams ')'
+   40         | IDENT • '(' ')'
+
+    '('  偏移，并进入状态 86
+    '['  偏移，并进入状态 28
+
+    $default  使用规则 36 以归约 (Lval)
+
+    ArrayDim       转到状态 30
+    ArrayDim_list  转到状态 87
+
+
+状态 49
+
+   35 FloatConst: FLOAT_CONST •
+
+    $default  使用规则 35 以归约 (FloatConst)
+
+
+状态 50
+
+   34 IntConst: INT_CONST •
+
+    $default  使用规则 34 以归约 (IntConst)
+
+
+状态 51
+
+   41 UnaryExp: '+' • UnaryExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 88
+
+
+状态 52
+
+   42 UnaryExp: '-' • UnaryExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 89
+
+
+状态 53
+
+   33 PrimaryExp: '(' • Exp ')'
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    Exp         转到状态 90
+    MulExp      转到状态 56
+    AddExp      转到状态 65
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 54
+
+   43 UnaryExp: '!' • UnaryExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 91
+
+
+状态 55
+
+   86 ArrayDim: '[' ConstExp • ']'
+
+    ']'  偏移，并进入状态 92
+
+
+状态 56
+
+   11 MulExp: MulExp • '*' UnaryExp
+   12       | MulExp • '/' UnaryExp
+   13       | MulExp • '%' UnaryExp
+   14 AddExp: MulExp •
+
+    '*'  偏移，并进入状态 93
+    '/'  偏移，并进入状态 94
+    '%'  偏移，并进入状态 95
+
+    $default  使用规则 14 以归约 (AddExp)
+
+
+状态 57
+
+    9 ConstExp: AddExp •
+   15 AddExp: AddExp • '+' MulExp
+   16       | AddExp • '-' MulExp
+
+    '+'  偏移，并进入状态 96
+    '-'  偏移，并进入状态 97
+
+    $default  使用规则 9 以归约 (ConstExp)
+
+
+状态 58
+
+   38 UnaryExp: PrimaryExp •
+
+    $default  使用规则 38 以归约 (UnaryExp)
+
+
+状态 59
+
+   30 PrimaryExp: IntConst •
+
+    $default  使用规则 30 以归约 (PrimaryExp)
+
+
+状态 60
+
+   31 PrimaryExp: FloatConst •
+
+    $default  使用规则 31 以归约 (PrimaryExp)
+
+
+状态 61
+
+   32 PrimaryExp: Lval •
+
+    $default  使用规则 32 以归约 (PrimaryExp)
+
+
+状态 62
+
+   10 MulExp: UnaryExp •
+
+    $default  使用规则 10 以归约 (MulExp)
+
+
+状态 63
+
+   78 VarInitVal: '{' • VarInitVal_list '}'
+   79           | '{' • '}'
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    '{'          偏移，并进入状态 63
+    '}'          偏移，并进入状态 98
+
+    Exp              转到状态 64
+    MulExp           转到状态 56
+    AddExp           转到状态 65
+    PrimaryExp       转到状态 58
+    IntConst         转到状态 59
+    FloatConst       转到状态 60
+    Lval             转到状态 61
+    UnaryExp         转到状态 62
+    VarInitVal_list  转到状态 99
+    VarInitVal       转到状态 100
+
+
+状态 64
+
+   77 VarInitVal: Exp •
+
+    $default  使用规则 77 以归约 (VarInitVal)
+
+
+状态 65
+
+    8 Exp: AddExp •
+   15 AddExp: AddExp • '+' MulExp
+   16       | AddExp • '-' MulExp
+
+    '+'  偏移，并进入状态 96
+    '-'  偏移，并进入状态 97
+
+    $default  使用规则 8 以归约 (Exp)
+
+
+状态 66
+
+   80 VarDef: IDENT '=' VarInitVal •
+
+    $default  使用规则 80 以归约 (VarDef)
+
+
+状态 67
+
+   83 VarDef: IDENT ArrayDim_list '=' • VarInitVal
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    '{'          偏移，并进入状态 63
+
+    Exp         转到状态 64
+    MulExp      转到状态 56
+    AddExp      转到状态 65
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+    VarInitVal  转到状态 101
+
+
+状态 68
+
+   88 ArrayDim_list: ArrayDim_list ArrayDim •
+
+    $default  使用规则 88 以归约 (ArrayDim_list)
+
+
+状态 69
+
+   80 VarDef: IDENT • '=' VarInitVal
+   81       | IDENT •
+   82       | IDENT • ArrayDim_list
+   83       | IDENT • ArrayDim_list '=' VarInitVal
+
+    '['  偏移，并进入状态 28
+    '='  偏移，并进入状态 29
+
+    $default  使用规则 81 以归约 (VarDef)
+
+    ArrayDim       转到状态 30
+    ArrayDim_list  转到状态 31
+
+
+状态 70
+
+   94 VarDef_list: VarDef_list ',' VarDef •
+
+    $default  使用规则 94 以归约 (VarDef_list)
+
+
+状态 71
+
+   56 FuncDef: FLOAT IDENT '(' ')' • Block
+
+    '{'  偏移，并进入状态 80
+
+    Block  转到状态 102
+
+
+状态 72
+
+   46 FuncFParams: FuncFParams • ',' FuncFParam
+   55 FuncDef: FLOAT IDENT '(' FuncFParams • ')' Block
+
+    ','  偏移，并进入状态 82
+    ')'  偏移，并进入状态 103
+
+
+状态 73
+
+   73 ConstInitVal: '{' • ConstInitVal_list '}'
+   74             | '{' • '}'
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    '{'          偏移，并进入状态 73
+    '}'          偏移，并进入状态 104
+
+    ConstExp           转到状态 74
+    MulExp             转到状态 56
+    AddExp             转到状态 57
+    PrimaryExp         转到状态 58
+    IntConst           转到状态 59
+    FloatConst         转到状态 60
+    Lval               转到状态 61
+    UnaryExp           转到状态 62
+    ConstInitVal_list  转到状态 105
+    ConstInitVal       转到状态 106
+
+
+状态 74
+
+   72 ConstInitVal: ConstExp •
+
+    $default  使用规则 72 以归约 (ConstInitVal)
+
+
+状态 75
+
+   84 ConstDef: IDENT '=' ConstInitVal •
+
+    $default  使用规则 84 以归约 (ConstDef)
+
+
+状态 76
+
+   85 ConstDef: IDENT ArrayDim_list '=' • ConstInitVal
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    '{'          偏移，并进入状态 73
+
+    ConstExp      转到状态 74
+    MulExp        转到状态 56
+    AddExp        转到状态 57
+    PrimaryExp    转到状态 58
+    IntConst      转到状态 59
+    FloatConst    转到状态 60
+    Lval          转到状态 61
+    UnaryExp      转到状态 62
+    ConstInitVal  转到状态 107
+
+
+状态 77
+
+   98 ConstDef_list: ConstDef_list ',' ConstDef •
+
+    $default  使用规则 98 以归约 (ConstDef_list)
+
+
+状态 78
+
+   47 FuncFParam: INT IDENT •
+   49           | INT IDENT • '[' ']'
+   51           | INT IDENT • '[' ']' ArrayDim_list
+
+    '['  偏移，并进入状态 108
+
+    $default  使用规则 47 以归约 (FuncFParam)
+
+
+状态 79
+
+   48 FuncFParam: FLOAT IDENT •
+   50           | FLOAT IDENT • '[' ']'
+   52           | FLOAT IDENT • '[' ']' ArrayDim_list
+
+    '['  偏移，并进入状态 109
+
+    $default  使用规则 48 以归约 (FuncFParam)
+
+
+状态 80
+
+   99 Block: '{' • BlockItem_list '}'
+  100      | '{' • '}'
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    CONST        偏移，并进入状态 1
+    IF           偏移，并进入状态 110
+    WHILE        偏移，并进入状态 111
+    INT          偏移，并进入状态 112
+    FLOAT        偏移，并进入状态 113
+    RETURN       偏移，并进入状态 114
+    BREAK        偏移，并进入状态 115
+    CONTINUE     偏移，并进入状态 116
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    ';'          偏移，并进入状态 117
+    '{'          偏移，并进入状态 80
+    '}'          偏移，并进入状态 118
+
+    Exp             转到状态 119
+    MulExp          转到状态 56
+    AddExp          转到状态 65
+    PrimaryExp      转到状态 58
+    IntConst        转到状态 59
+    FloatConst      转到状态 60
+    Lval            转到状态 120
+    UnaryExp        转到状态 62
+    Stmt            转到状态 121
+    Decl            转到状态 122
+    VarDecl         转到状态 10
+    ConstDecl       转到状态 11
+    Block           转到状态 123
+    BlockItem_list  转到状态 124
+    BlockItem       转到状态 125
+
+
+状态 81
+
+   58 FuncDef: NONE_TYPE IDENT '(' ')' Block •
+
+    $default  使用规则 58 以归约 (FuncDef)
+
+
+状态 82
+
+   46 FuncFParams: FuncFParams ',' • FuncFParam
+
+    INT    偏移，并进入状态 41
+    FLOAT  偏移，并进入状态 42
+
+    FuncFParam  转到状态 126
+
+
+状态 83
+
+   57 FuncDef: NONE_TYPE IDENT '(' FuncFParams ')' • Block
+
+    '{'  偏移，并进入状态 80
+
+    Block  转到状态 127
+
+
+状态 84
+
+   54 FuncDef: INT IDENT '(' ')' Block •
+
+    $default  使用规则 54 以归约 (FuncDef)
+
+
+状态 85
+
+   53 FuncDef: INT IDENT '(' FuncFParams ')' • Block
+
+    '{'  偏移，并进入状态 80
+
+    Block  转到状态 128
+
+
+状态 86
+
+   39 UnaryExp: IDENT '(' • FuncRParams ')'
+   40         | IDENT '(' • ')'
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    ')'          偏移，并进入状态 129
+    '!'          偏移，并进入状态 54
+
+    Exp_list     转到状态 130
+    Exp          转到状态 131
+    MulExp       转到状态 56
+    AddExp       转到状态 65
+    PrimaryExp   转到状态 58
+    IntConst     转到状态 59
+    FloatConst   转到状态 60
+    Lval         转到状态 61
+    UnaryExp     转到状态 62
+    FuncRParams  转到状态 132
+
+
+状态 87
+
+   37 Lval: IDENT ArrayDim_list •
+   88 ArrayDim_list: ArrayDim_list • ArrayDim
+
+    '['  偏移，并进入状态 28
+
+    $default  使用规则 37 以归约 (Lval)
+
+    ArrayDim  转到状态 68
+
+
+状态 88
+
+   41 UnaryExp: '+' UnaryExp •
+
+    $default  使用规则 41 以归约 (UnaryExp)
+
+
+状态 89
+
+   42 UnaryExp: '-' UnaryExp •
+
+    $default  使用规则 42 以归约 (UnaryExp)
+
+
+状态 90
+
+   33 PrimaryExp: '(' Exp • ')'
+
+    ')'  偏移，并进入状态 133
+
+
+状态 91
+
+   43 UnaryExp: '!' UnaryExp •
+
+    $default  使用规则 43 以归约 (UnaryExp)
+
+
+状态 92
+
+   86 ArrayDim: '[' ConstExp ']' •
+
+    $default  使用规则 86 以归约 (ArrayDim)
+
+
+状态 93
+
+   11 MulExp: MulExp '*' • UnaryExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 134
+
+
+状态 94
+
+   12 MulExp: MulExp '/' • UnaryExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 135
+
+
+状态 95
+
+   13 MulExp: MulExp '%' • UnaryExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 136
+
+
+状态 96
+
+   15 AddExp: AddExp '+' • MulExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    MulExp      转到状态 137
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 97
+
+   16 AddExp: AddExp '-' • MulExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    MulExp      转到状态 138
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 98
+
+   79 VarInitVal: '{' '}' •
+
+    $default  使用规则 79 以归约 (VarInitVal)
+
+
+状态 99
+
+   76 VarInitVal_list: VarInitVal_list • ',' VarInitVal
+   78 VarInitVal: '{' VarInitVal_list • '}'
+
+    ','  偏移，并进入状态 139
+    '}'  偏移，并进入状态 140
+
+
+状态 100
+
+   75 VarInitVal_list: VarInitVal •
+
+    $default  使用规则 75 以归约 (VarInitVal_list)
+
+
+状态 101
+
+   83 VarDef: IDENT ArrayDim_list '=' VarInitVal •
+
+    $default  使用规则 83 以归约 (VarDef)
+
+
+状态 102
+
+   56 FuncDef: FLOAT IDENT '(' ')' Block •
+
+    $default  使用规则 56 以归约 (FuncDef)
+
+
+状态 103
+
+   55 FuncDef: FLOAT IDENT '(' FuncFParams ')' • Block
+
+    '{'  偏移，并进入状态 80
+
+    Block  转到状态 141
+
+
+状态 104
+
+   74 ConstInitVal: '{' '}' •
+
+    $default  使用规则 74 以归约 (ConstInitVal)
+
+
+状态 105
+
+   71 ConstInitVal_list: ConstInitVal_list • ',' ConstInitVal
+   73 ConstInitVal: '{' ConstInitVal_list • '}'
+
+    ','  偏移，并进入状态 142
+    '}'  偏移，并进入状态 143
+
+
+状态 106
+
+   70 ConstInitVal_list: ConstInitVal •
+
+    $default  使用规则 70 以归约 (ConstInitVal_list)
+
+
+状态 107
+
+   85 ConstDef: IDENT ArrayDim_list '=' ConstInitVal •
+
+    $default  使用规则 85 以归约 (ConstDef)
+
+
+状态 108
+
+   49 FuncFParam: INT IDENT '[' • ']'
+   51           | INT IDENT '[' • ']' ArrayDim_list
+
+    ']'  偏移，并进入状态 144
+
+
+状态 109
+
+   50 FuncFParam: FLOAT IDENT '[' • ']'
+   52           | FLOAT IDENT '[' • ']' ArrayDim_list
+
+    ']'  偏移，并进入状态 145
+
+
+状态 110
+
+   63 Stmt: IF • '(' Cond ')' Stmt
+   64     | IF • '(' Cond ')' Stmt ELSE Stmt
+
+    '('  偏移，并进入状态 146
+
+
+状态 111
+
+   65 Stmt: WHILE • '(' Cond ')' Stmt
+
+    '('  偏移，并进入状态 147
+
+
+状态 112
+
+   91 VarDecl: INT • VarDef_list ';'
+
+    IDENT  偏移，并进入状态 69
+
+    VarDef       转到状态 16
+    VarDef_list  转到状态 17
+
+
+状态 113
+
+   92 VarDecl: FLOAT • VarDef_list ';'
+
+    IDENT  偏移，并进入状态 69
+
+    VarDef       转到状态 16
+    VarDef_list  转到状态 19
+
+
+状态 114
+
+   68 Stmt: RETURN • Exp ';'
+   69     | RETURN • ';'
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    ';'          偏移，并进入状态 148
+
+    Exp         转到状态 149
+    MulExp      转到状态 56
+    AddExp      转到状态 65
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 115
+
+   66 Stmt: BREAK • ';'
+
+    ';'  偏移，并进入状态 150
+
+
+状态 116
+
+   67 Stmt: CONTINUE • ';'
+
+    ';'  偏移，并进入状态 151
+
+
+状态 117
+
+   61 Stmt: ';' •
+
+    $default  使用规则 61 以归约 (Stmt)
+
+
+状态 118
+
+  100 Block: '{' '}' •
+
+    $default  使用规则 100 以归约 (Block)
+
+
+状态 119
+
+   60 Stmt: Exp • ';'
+
+    ';'  偏移，并进入状态 152
+
+
+状态 120
+
+   32 PrimaryExp: Lval •
+   59 Stmt: Lval • '=' Exp ';'
+
+    '='  偏移，并进入状态 153
+
+    $default  使用规则 32 以归约 (PrimaryExp)
+
+
+状态 121
+
+  104 BlockItem: Stmt •
+
+    $default  使用规则 104 以归约 (BlockItem)
+
+
+状态 122
+
+  103 BlockItem: Decl •
+
+    $default  使用规则 103 以归约 (BlockItem)
+
+
+状态 123
+
+   62 Stmt: Block •
+
+    $default  使用规则 62 以归约 (Stmt)
+
+
+状态 124
+
+   99 Block: '{' BlockItem_list • '}'
+  102 BlockItem_list: BlockItem_list • BlockItem
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    CONST        偏移，并进入状态 1
+    IF           偏移，并进入状态 110
+    WHILE        偏移，并进入状态 111
+    INT          偏移，并进入状态 112
+    FLOAT        偏移，并进入状态 113
+    RETURN       偏移，并进入状态 114
+    BREAK        偏移，并进入状态 115
+    CONTINUE     偏移，并进入状态 116
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    ';'          偏移，并进入状态 117
+    '{'          偏移，并进入状态 80
+    '}'          偏移，并进入状态 154
+
+    Exp         转到状态 119
+    MulExp      转到状态 56
+    AddExp      转到状态 65
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 120
+    UnaryExp    转到状态 62
+    Stmt        转到状态 121
+    Decl        转到状态 122
+    VarDecl     转到状态 10
+    ConstDecl   转到状态 11
+    Block       转到状态 123
+    BlockItem   转到状态 155
+
+
+状态 125
+
+  101 BlockItem_list: BlockItem •
+
+    $default  使用规则 101 以归约 (BlockItem_list)
+
+
+状态 126
+
+   46 FuncFParams: FuncFParams ',' FuncFParam •
+
+    $default  使用规则 46 以归约 (FuncFParams)
+
+
+状态 127
+
+   57 FuncDef: NONE_TYPE IDENT '(' FuncFParams ')' Block •
+
+    $default  使用规则 57 以归约 (FuncDef)
+
+
+状态 128
+
+   53 FuncDef: INT IDENT '(' FuncFParams ')' Block •
+
+    $default  使用规则 53 以归约 (FuncDef)
+
+
+状态 129
+
+   40 UnaryExp: IDENT '(' ')' •
+
+    $default  使用规则 40 以归约 (UnaryExp)
+
+
+状态 130
+
+    7 Exp_list: Exp_list • ',' Exp
+   44 FuncRParams: Exp_list •
+
+    ','  偏移，并进入状态 156
+
+    $default  使用规则 44 以归约 (FuncRParams)
+
+
+状态 131
+
+    6 Exp_list: Exp •
+
+    $default  使用规则 6 以归约 (Exp_list)
+
+
+状态 132
+
+   39 UnaryExp: IDENT '(' FuncRParams • ')'
+
+    ')'  偏移，并进入状态 157
+
+
+状态 133
+
+   33 PrimaryExp: '(' Exp ')' •
+
+    $default  使用规则 33 以归约 (PrimaryExp)
+
+
+状态 134
+
+   11 MulExp: MulExp '*' UnaryExp •
+
+    $default  使用规则 11 以归约 (MulExp)
+
+
+状态 135
+
+   12 MulExp: MulExp '/' UnaryExp •
+
+    $default  使用规则 12 以归约 (MulExp)
+
+
+状态 136
+
+   13 MulExp: MulExp '%' UnaryExp •
+
+    $default  使用规则 13 以归约 (MulExp)
+
+
+状态 137
+
+   11 MulExp: MulExp • '*' UnaryExp
+   12       | MulExp • '/' UnaryExp
+   13       | MulExp • '%' UnaryExp
+   15 AddExp: AddExp '+' MulExp •
+
+    '*'  偏移，并进入状态 93
+    '/'  偏移，并进入状态 94
+    '%'  偏移，并进入状态 95
+
+    $default  使用规则 15 以归约 (AddExp)
+
+
+状态 138
+
+   11 MulExp: MulExp • '*' UnaryExp
+   12       | MulExp • '/' UnaryExp
+   13       | MulExp • '%' UnaryExp
+   16 AddExp: AddExp '-' MulExp •
+
+    '*'  偏移，并进入状态 93
+    '/'  偏移，并进入状态 94
+    '%'  偏移，并进入状态 95
+
+    $default  使用规则 16 以归约 (AddExp)
+
+
+状态 139
+
+   76 VarInitVal_list: VarInitVal_list ',' • VarInitVal
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    '{'          偏移，并进入状态 63
+
+    Exp         转到状态 64
+    MulExp      转到状态 56
+    AddExp      转到状态 65
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+    VarInitVal  转到状态 158
+
+
+状态 140
+
+   78 VarInitVal: '{' VarInitVal_list '}' •
+
+    $default  使用规则 78 以归约 (VarInitVal)
+
+
+状态 141
+
+   55 FuncDef: FLOAT IDENT '(' FuncFParams ')' Block •
+
+    $default  使用规则 55 以归约 (FuncDef)
+
+
+状态 142
+
+   71 ConstInitVal_list: ConstInitVal_list ',' • ConstInitVal
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    '{'          偏移，并进入状态 73
+
+    ConstExp      转到状态 74
+    MulExp        转到状态 56
+    AddExp        转到状态 57
+    PrimaryExp    转到状态 58
+    IntConst      转到状态 59
+    FloatConst    转到状态 60
+    Lval          转到状态 61
+    UnaryExp      转到状态 62
+    ConstInitVal  转到状态 159
+
+
+状态 143
+
+   73 ConstInitVal: '{' ConstInitVal_list '}' •
+
+    $default  使用规则 73 以归约 (ConstInitVal)
+
+
+状态 144
+
+   49 FuncFParam: INT IDENT '[' ']' •
+   51           | INT IDENT '[' ']' • ArrayDim_list
+
+    '['  偏移，并进入状态 28
+
+    $default  使用规则 49 以归约 (FuncFParam)
+
+    ArrayDim       转到状态 30
+    ArrayDim_list  转到状态 160
+
+
+状态 145
+
+   50 FuncFParam: FLOAT IDENT '[' ']' •
+   52           | FLOAT IDENT '[' ']' • ArrayDim_list
+
+    '['  偏移，并进入状态 28
+
+    $default  使用规则 50 以归约 (FuncFParam)
+
+    ArrayDim       转到状态 30
+    ArrayDim_list  转到状态 161
+
+
+状态 146
+
+   63 Stmt: IF '(' • Cond ')' Stmt
+   64     | IF '(' • Cond ')' Stmt ELSE Stmt
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    MulExp      转到状态 56
+    AddExp      转到状态 162
+    RelExp      转到状态 163
+    EqExp       转到状态 164
+    LAndExp     转到状态 165
+    LOrExp      转到状态 166
+    Cond        转到状态 167
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 147
+
+   65 Stmt: WHILE '(' • Cond ')' Stmt
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    MulExp      转到状态 56
+    AddExp      转到状态 162
+    RelExp      转到状态 163
+    EqExp       转到状态 164
+    LAndExp     转到状态 165
+    LOrExp      转到状态 166
+    Cond        转到状态 168
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 148
+
+   69 Stmt: RETURN ';' •
+
+    $default  使用规则 69 以归约 (Stmt)
+
+
+状态 149
+
+   68 Stmt: RETURN Exp • ';'
+
+    ';'  偏移，并进入状态 169
+
+
+状态 150
+
+   66 Stmt: BREAK ';' •
+
+    $default  使用规则 66 以归约 (Stmt)
+
+
+状态 151
+
+   67 Stmt: CONTINUE ';' •
+
+    $default  使用规则 67 以归约 (Stmt)
+
+
+状态 152
+
+   60 Stmt: Exp ';' •
+
+    $default  使用规则 60 以归约 (Stmt)
+
+
+状态 153
+
+   59 Stmt: Lval '=' • Exp ';'
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    Exp         转到状态 170
+    MulExp      转到状态 56
+    AddExp      转到状态 65
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 154
+
+   99 Block: '{' BlockItem_list '}' •
+
+    $default  使用规则 99 以归约 (Block)
+
+
+状态 155
+
+  102 BlockItem_list: BlockItem_list BlockItem •
+
+    $default  使用规则 102 以归约 (BlockItem_list)
+
+
+状态 156
+
+    7 Exp_list: Exp_list ',' • Exp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    Exp         转到状态 171
+    MulExp      转到状态 56
+    AddExp      转到状态 65
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 157
+
+   39 UnaryExp: IDENT '(' FuncRParams ')' •
+
+    $default  使用规则 39 以归约 (UnaryExp)
+
+
+状态 158
+
+   76 VarInitVal_list: VarInitVal_list ',' VarInitVal •
+
+    $default  使用规则 76 以归约 (VarInitVal_list)
+
+
+状态 159
+
+   71 ConstInitVal_list: ConstInitVal_list ',' ConstInitVal •
+
+    $default  使用规则 71 以归约 (ConstInitVal_list)
+
+
+状态 160
+
+   51 FuncFParam: INT IDENT '[' ']' ArrayDim_list •
+   88 ArrayDim_list: ArrayDim_list • ArrayDim
+
+    '['  偏移，并进入状态 28
+
+    $default  使用规则 51 以归约 (FuncFParam)
+
+    ArrayDim  转到状态 68
+
+
+状态 161
+
+   52 FuncFParam: FLOAT IDENT '[' ']' ArrayDim_list •
+   88 ArrayDim_list: ArrayDim_list • ArrayDim
+
+    '['  偏移，并进入状态 28
+
+    $default  使用规则 52 以归约 (FuncFParam)
+
+    ArrayDim  转到状态 68
+
+
+状态 162
+
+   15 AddExp: AddExp • '+' MulExp
+   16       | AddExp • '-' MulExp
+   17 RelExp: AddExp •
+
+    '+'  偏移，并进入状态 96
+    '-'  偏移，并进入状态 97
+
+    $default  使用规则 17 以归约 (RelExp)
+
+
+状态 163
+
+   18 RelExp: RelExp • '<' AddExp
+   19       | RelExp • '>' AddExp
+   20       | RelExp • LEQ AddExp
+   21       | RelExp • GEQ AddExp
+   22 EqExp: RelExp •
+
+    LEQ  偏移，并进入状态 172
+    GEQ  偏移，并进入状态 173
+    '<'  偏移，并进入状态 174
+    '>'  偏移，并进入状态 175
+
+    $default  使用规则 22 以归约 (EqExp)
+
+
+状态 164
+
+   23 EqExp: EqExp • EQ RelExp
+   24      | EqExp • NE RelExp
+   25 LAndExp: EqExp •
+
+    EQ  偏移，并进入状态 176
+    NE  偏移，并进入状态 177
+
+    $default  使用规则 25 以归约 (LAndExp)
+
+
+状态 165
+
+   26 LAndExp: LAndExp • AND EqExp
+   27 LOrExp: LAndExp •
+
+    AND  偏移，并进入状态 178
+
+    $default  使用规则 27 以归约 (LOrExp)
+
+
+状态 166
+
+   28 LOrExp: LOrExp • OR LAndExp
+   29 Cond: LOrExp •
+
+    OR  偏移，并进入状态 179
+
+    $default  使用规则 29 以归约 (Cond)
+
+
+状态 167
+
+   63 Stmt: IF '(' Cond • ')' Stmt
+   64     | IF '(' Cond • ')' Stmt ELSE Stmt
+
+    ')'  偏移，并进入状态 180
+
+
+状态 168
+
+   65 Stmt: WHILE '(' Cond • ')' Stmt
+
+    ')'  偏移，并进入状态 181
+
+
+状态 169
+
+   68 Stmt: RETURN Exp ';' •
+
+    $default  使用规则 68 以归约 (Stmt)
+
+
+状态 170
+
+   59 Stmt: Lval '=' Exp • ';'
+
+    ';'  偏移，并进入状态 182
+
+
+状态 171
+
+    7 Exp_list: Exp_list ',' Exp •
+
+    $default  使用规则 7 以归约 (Exp_list)
+
+
+状态 172
+
+   20 RelExp: RelExp LEQ • AddExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    MulExp      转到状态 56
+    AddExp      转到状态 183
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 173
+
+   21 RelExp: RelExp GEQ • AddExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    MulExp      转到状态 56
+    AddExp      转到状态 184
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 174
+
+   18 RelExp: RelExp '<' • AddExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    MulExp      转到状态 56
+    AddExp      转到状态 185
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 175
+
+   19 RelExp: RelExp '>' • AddExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    MulExp      转到状态 56
+    AddExp      转到状态 186
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 176
+
+   23 EqExp: EqExp EQ • RelExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    MulExp      转到状态 56
+    AddExp      转到状态 162
+    RelExp      转到状态 187
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 177
+
+   24 EqExp: EqExp NE • RelExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    MulExp      转到状态 56
+    AddExp      转到状态 162
+    RelExp      转到状态 188
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 178
+
+   26 LAndExp: LAndExp AND • EqExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    MulExp      转到状态 56
+    AddExp      转到状态 162
+    RelExp      转到状态 163
+    EqExp       转到状态 189
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 179
+
+   28 LOrExp: LOrExp OR • LAndExp
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+
+    MulExp      转到状态 56
+    AddExp      转到状态 162
+    RelExp      转到状态 163
+    EqExp       转到状态 164
+    LAndExp     转到状态 190
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 61
+    UnaryExp    转到状态 62
+
+
+状态 180
+
+   63 Stmt: IF '(' Cond ')' • Stmt
+   64     | IF '(' Cond ')' • Stmt ELSE Stmt
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    IF           偏移，并进入状态 110
+    WHILE        偏移，并进入状态 111
+    RETURN       偏移，并进入状态 114
+    BREAK        偏移，并进入状态 115
+    CONTINUE     偏移，并进入状态 116
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    ';'          偏移，并进入状态 117
+    '{'          偏移，并进入状态 80
+
+    Exp         转到状态 119
+    MulExp      转到状态 56
+    AddExp      转到状态 65
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 120
+    UnaryExp    转到状态 62
+    Stmt        转到状态 191
+    Block       转到状态 123
+
+
+状态 181
+
+   65 Stmt: WHILE '(' Cond ')' • Stmt
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    IF           偏移，并进入状态 110
+    WHILE        偏移，并进入状态 111
+    RETURN       偏移，并进入状态 114
+    BREAK        偏移，并进入状态 115
+    CONTINUE     偏移，并进入状态 116
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    ';'          偏移，并进入状态 117
+    '{'          偏移，并进入状态 80
+
+    Exp         转到状态 119
+    MulExp      转到状态 56
+    AddExp      转到状态 65
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 120
+    UnaryExp    转到状态 62
+    Stmt        转到状态 192
+    Block       转到状态 123
+
+
+状态 182
+
+   59 Stmt: Lval '=' Exp ';' •
+
+    $default  使用规则 59 以归约 (Stmt)
+
+
+状态 183
+
+   15 AddExp: AddExp • '+' MulExp
+   16       | AddExp • '-' MulExp
+   20 RelExp: RelExp LEQ AddExp •
+
+    '+'  偏移，并进入状态 96
+    '-'  偏移，并进入状态 97
+
+    $default  使用规则 20 以归约 (RelExp)
+
+
+状态 184
+
+   15 AddExp: AddExp • '+' MulExp
+   16       | AddExp • '-' MulExp
+   21 RelExp: RelExp GEQ AddExp •
+
+    '+'  偏移，并进入状态 96
+    '-'  偏移，并进入状态 97
+
+    $default  使用规则 21 以归约 (RelExp)
+
+
+状态 185
+
+   15 AddExp: AddExp • '+' MulExp
+   16       | AddExp • '-' MulExp
+   18 RelExp: RelExp '<' AddExp •
+
+    '+'  偏移，并进入状态 96
+    '-'  偏移，并进入状态 97
+
+    $default  使用规则 18 以归约 (RelExp)
+
+
+状态 186
+
+   15 AddExp: AddExp • '+' MulExp
+   16       | AddExp • '-' MulExp
+   19 RelExp: RelExp '>' AddExp •
+
+    '+'  偏移，并进入状态 96
+    '-'  偏移，并进入状态 97
+
+    $default  使用规则 19 以归约 (RelExp)
+
+
+状态 187
+
+   18 RelExp: RelExp • '<' AddExp
+   19       | RelExp • '>' AddExp
+   20       | RelExp • LEQ AddExp
+   21       | RelExp • GEQ AddExp
+   23 EqExp: EqExp EQ RelExp •
+
+    LEQ  偏移，并进入状态 172
+    GEQ  偏移，并进入状态 173
+    '<'  偏移，并进入状态 174
+    '>'  偏移，并进入状态 175
+
+    $default  使用规则 23 以归约 (EqExp)
+
+
+状态 188
+
+   18 RelExp: RelExp • '<' AddExp
+   19       | RelExp • '>' AddExp
+   20       | RelExp • LEQ AddExp
+   21       | RelExp • GEQ AddExp
+   24 EqExp: EqExp NE RelExp •
+
+    LEQ  偏移，并进入状态 172
+    GEQ  偏移，并进入状态 173
+    '<'  偏移，并进入状态 174
+    '>'  偏移，并进入状态 175
+
+    $default  使用规则 24 以归约 (EqExp)
+
+
+状态 189
+
+   23 EqExp: EqExp • EQ RelExp
+   24      | EqExp • NE RelExp
+   26 LAndExp: LAndExp AND EqExp •
+
+    EQ  偏移，并进入状态 176
+    NE  偏移，并进入状态 177
+
+    $default  使用规则 26 以归约 (LAndExp)
+
+
+状态 190
+
+   26 LAndExp: LAndExp • AND EqExp
+   28 LOrExp: LOrExp OR LAndExp •
+
+    AND  偏移，并进入状态 178
+
+    $default  使用规则 28 以归约 (LOrExp)
+
+
+状态 191
+
+   63 Stmt: IF '(' Cond ')' Stmt •
+   64     | IF '(' Cond ')' Stmt • ELSE Stmt
+
+    ELSE  偏移，并进入状态 193
+
+    $default  使用规则 63 以归约 (Stmt)
+
+
+状态 192
+
+   65 Stmt: WHILE '(' Cond ')' Stmt •
+
+    $default  使用规则 65 以归约 (Stmt)
+
+
+状态 193
+
+   64 Stmt: IF '(' Cond ')' Stmt ELSE • Stmt
+
+    IDENT        偏移，并进入状态 48
+    FLOAT_CONST  偏移，并进入状态 49
+    INT_CONST    偏移，并进入状态 50
+    IF           偏移，并进入状态 110
+    WHILE        偏移，并进入状态 111
+    RETURN       偏移，并进入状态 114
+    BREAK        偏移，并进入状态 115
+    CONTINUE     偏移，并进入状态 116
+    '+'          偏移，并进入状态 51
+    '-'          偏移，并进入状态 52
+    '('          偏移，并进入状态 53
+    '!'          偏移，并进入状态 54
+    ';'          偏移，并进入状态 117
+    '{'          偏移，并进入状态 80
+
+    Exp         转到状态 119
+    MulExp      转到状态 56
+    AddExp      转到状态 65
+    PrimaryExp  转到状态 58
+    IntConst    转到状态 59
+    FloatConst  转到状态 60
+    Lval        转到状态 120
+    UnaryExp    转到状态 62
+    Stmt        转到状态 194
+    Block       转到状态 123
+
+
+状态 194
+
+   64 Stmt: IF '(' Cond ')' Stmt ELSE Stmt •
+
+    $default  使用规则 64 以归约 (Stmt)

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <cstring>
@@ -36,131 +37,199 @@ extern void dumpTokens(FILE* output, int token, int line_number, char *yytext, Y
 extern std::vector<std::string> error_msgs;
 IdTable id_table;
 int line = 1;
-bool optimize_flag =false;
+bool optimize_flag = false;
 
-// option table 
-#define nr_options 7 
-const char *valid_options[] = {"-lexer", "-parser", "-semant", "-llvm", "-select", "-target", "-O1"};
+void print_usage() {
+    std::cerr << "Usage:\n";
+    std::cerr << "  compiler -S [-o output_file] input_file [-O1]\n";
+    std::cerr << "  compiler -lexer [-o output_file] input_file\n";
+    std::cerr << "  compiler -parser [-o output_file] input_file\n";
+    std::cerr << "  compiler -semant [-o output_file] input_file\n";
+    std::cerr << "  compiler -llvm [-o output_file] input_file\n";
+    std::cerr << "  compiler -select [-o output_file] input_file\n";
+}
 
 int main(int argc, char** argv) {
-	/* argc = 4 or 5 : ./bin/SysYc input_file -llvm output_file [-O1] */
-    if (argc != 4 && argc != 5) return 1;
+    char* input_file = nullptr;
+    char* output_file = nullptr;
+    bool optimize = false;
+    int option = -1;  // -1: invalid, 0: -lexer, 1: -parser, etc.
 
-    FILE* input = fopen(argv[1], "r");
-    FILE* output = stdout;
-    
-	/* option check */
-	bool is_valid_option = false;
-	for (int i = 0; i < nr_options; i++) {
-		if (strcmp(argv[2], valid_options[i]) == 0) {
-			is_valid_option = true;
-			break;
-		}
-	}
+    for (int i = 1; i < argc; ) {
+        if (strcmp(argv[i], "-lexer") == 0) {
+            option = 0;
+            i++;
+        } else if (strcmp(argv[i], "-parser") == 0) {
+            option = 1;
+            i++;
+        } else if (strcmp(argv[i], "-semant") == 0) {
+            option = 2;
+            i++;
+        } else if (strcmp(argv[i], "-llvm") == 0) {
+            option = 3;
+            i++;
+        } else if (strcmp(argv[i], "-select") == 0) {
+            option = 4;
+            i++;
+        } else if (strcmp(argv[i], "-S") == 0) {
+            option = 5;
+            i++;
+        } else if (strcmp(argv[i], "-O1") == 0) {
+            optimize = true;
+            i++;
+        } else if (strcmp(argv[i], "-o") == 0) {
+            if (i + 1 >= argc) {
+                std::cerr << "Error: -o requires an output file\n";
+                print_usage();
+                return 1;
+            }
+            output_file = argv[i+1];
+            i += 2;
+        } else if (argv[i][0] != '-') {
+            input_file = argv[i];
+            i++;
+        } else {
+            std::cerr << "Error: Unknown option " << argv[i] << "\n";
+            print_usage();
+            return 1;
+        }
+    }
 
-	if (!output || !input || !is_valid_option) {
-		perror("can't open input/output file or input an invalid option.");
-		return 1;
-	} 
-	
-	
-	/* 【1】lexer */
-	int token;
-	yyin = input;
-	if (strcmp(argv[2], "-lexer") == 0) {
-		output = fopen(argv[3], "w");
-		fprintf(output, "%-10s %-20s %-15s %-10s\n", "line", "token", "type", "value");
-		fprintf(output, "------------------------------------------------------\n");
-		while ((token = yylex()) != 0) {
-        	dumpTokens(output, token, line, yytext, yylval);
-	    }
-		fclose(input), fclose(output);
-		return 0;
-	} 
-
-	std::ofstream fout(argv[3]);
-	if (!fout) {
-        std::cerr << "Could not open file: " << argv[3] << std::endl;
+    // 验证参数
+    if (!input_file) {
+        std::cerr << "Error: No input file specified\n";
+        print_usage();
         return 1;
     }
-	/* 【2】parser */
-	yyparse();
-	if (error_num > 0) {
-		fout<<"Parser error in line "<<line<<std::endl;
-        fclose(input);fout.close();
-        return 0;
-    }
-	if(strcmp(argv[2], "-parser") == 0) {
-		ASTroot->printAST(fout,0);
-		return 0;
-	}
 
-	/* 【3】 semant */
-	ASTroot->TypeCheck();
-    if (error_msgs.size() > 0) {
-		fprintf(output,"Semant error\n");
-        for (auto msg : error_msgs) {
-            fout << msg << std::endl;
+    if (option == -1) {
+        std::cerr << "Error: No action specified (-S, -lexer, etc.)\n";
+        print_usage();
+        return 1;
+    }
+
+    // 打开输入文件
+    FILE* input = fopen(input_file, "r");
+    if (!input) {
+        perror("Error opening input file");
+        return 1;
+    }
+
+    // 设置输出流
+    std::ostream& out = output_file ? *(new std::ofstream(output_file)) : std::cout;
+    if (output_file && !static_cast<std::ofstream&>(out).is_open()) {
+        std::cerr << "Error opening output file: " << output_file << "\n";
+        fclose(input);
+        return 1;
+    }
+
+    // 【1】词法分析
+    if (option == 0) {
+        out << "%-10s %-20s %-15s %-10s\n" << "line" << "token" << "type" << "value" << "\n";
+        out << "------------------------------------------------------\n";
+        
+        yyin = input;
+        int token;
+        while ((token = yylex()) != 0) {
+            // 需要适配dumpTokens到ostream或继续使用FILE*
+            FILE* tmp = tmpfile();
+            dumpTokens(tmp, token, line, yytext, yylval);
+            rewind(tmp);
+            char buffer[256];
+            while (fgets(buffer, sizeof(buffer), tmp)) {
+                out << buffer;
+            }
+            fclose(tmp);
         }
-        fclose(input);fout.close();
+        
+        fclose(input);
+        if (output_file) delete &out;
         return 0;
     }
-	if(strcmp(argv[2], "-semant") == 0) {
-		ASTroot->printAST(fout,0);
-		return 0;
-	}
 
-	/* 【4】 irgen */
-	ASTroot->codeIR();
-	llvmIR.CFGInit();
-	SimplifyCFGPass(&llvmIR).Execute();
+    // 【2】语法分析
+    yyin = input;
+    yyparse();
+    if (error_num > 0) {
+        out << "Parser error in line " << line << "\n";
+        fclose(input);
+        if (output_file) delete &out;
+        return 0;
+    }
 
-	/* 【5】 opt */
-    if (argc == 5 && strcmp(argv[4], "-O1") == 0) {
-        // mem2reg
+    if (option == 1) {
+        ASTroot->printAST(out, 0);
+        fclose(input);
+        if (output_file) delete &out;
+        return 0;
+    }
+
+    // 【3】语义分析
+    ASTroot->TypeCheck();
+    if (error_msgs.size() > 0) {
+        out << "Semant error\n";
+        for (auto msg : error_msgs) {
+            out << msg << "\n";
+        }
+        fclose(input);
+        if (output_file) delete &out;
+        return 0;
+    }
+
+    if (option == 2) {
+        ASTroot->printAST(out, 0);
+        fclose(input);
+        if (output_file) delete &out;
+        return 0;
+    }
+
+    // 【4】IR生成
+    ASTroot->codeIR();
+    llvmIR.CFGInit();
+    SimplifyCFGPass(&llvmIR).Execute();
+
+    // 【5】优化
+	// 提交到 oj 时需要默认优化全开
+    // if (optimize) {
+        TailCallElimPass(&llvmIR).Execute();
         DomAnalysis dom(&llvmIR);
-        dom.Execute();   
+        dom.Execute();
         (Mem2RegPass(&llvmIR, &dom)).Execute();
-		SimplifyCFGPass(&llvmIR).EOBB();
-        // adce
+        SimplifyCFGPass(&llvmIR).EOBB();  // maybe invalid ?
         DomAnalysis inv_dom(&llvmIR);
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
-		//Peephole & SCCP
-		PeepholePass(&llvmIR).ImmResultReplaceExecute();
-		SCCPPass(&llvmIR).Execute();
-		SimplifyCFGPass(&llvmIR).RebuildCFG();
+        PeepholePass(&llvmIR).ImmResultReplaceExecute();
+        SCCPPass(&llvmIR).Execute();
+        SimplifyCFGPass(&llvmIR).RebuildCFG();
+        //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
+    // }
 
-		//NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
-    }
-
-	if (strcmp(argv[2], "-llvm") == 0) {
-        llvmIR.printIR(fout);
-        fout.close();
+    if (option == 3) {
+        llvmIR.printIR(out);
+        fclose(input);
+        if (output_file) delete &out;
         return 0;
     }
 
-	/* 【6】 backend */
-	if (strcmp(argv[2], "-select") == 0) {
-		MachineUnit* m_unit=new RiscV64Unit(&llvmIR);
-		m_unit->SelectInstructionAndBuildCFG();
-        RiscV64Printer(fout, m_unit).emit();
-        // RiscV64Printer(std::cerr, m_unit).emit();
-		return 0;
-    }
-
-	if (strcmp(argv[2], "-target") == 0) {
-        MachineUnit* m_unit=new RiscV64Unit(&llvmIR);
-		RiscV64RegisterAllocTools regs;
-		m_unit->SelectInstructionAndBuildCFG();
-		FastLinearScan(m_unit, &regs).Execute();
-		m_unit->LowerStack();
-		RiscV64Printer(fout, m_unit).emit();
-        fout.close();
+    // 【6】后端
+    if (option == 4 || option == 5) {
+        MachineUnit* m_unit = new RiscV64Unit(&llvmIR);
+        m_unit->SelectInstructionAndBuildCFG();
+        
+        if (option == 5) {
+            RiscV64RegisterAllocTools regs;
+            FastLinearScan(m_unit, &regs).Execute();
+            m_unit->LowerStack();
+        }
+        
+        RiscV64Printer(out, m_unit).emit();
+        fclose(input);
+        if (output_file) delete &out;
         return 0;
     }
 
     fclose(input);
-    if (output != stdout) fclose(output);
+    if (output_file) delete &out;
     return 0;
 }

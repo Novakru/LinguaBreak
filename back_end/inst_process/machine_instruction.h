@@ -228,6 +228,7 @@ public:
     RiscV64Instruction *ConstructIImm(int op, Register Rd, Register Rs1, int imm) {
         RiscV64Instruction *ret = new RiscV64Instruction();
         ret->setOpcode(op, false);
+		Assert(imm <= 2047 && imm >= -2048);
         Assert(OpTable[op].ins_formattype == RvOpInfo::I_type);
         ret->setRd(Rd);
         ret->setRs1(Rs1);
@@ -249,6 +250,7 @@ public:
     RiscV64Instruction *ConstructSImm(int op, Register value, Register ptr, int imm) {
         RiscV64Instruction *ret = new RiscV64Instruction();
         ret->setOpcode(op, false);
+		Assert(imm <= 2047 && imm >= -2048);
         Assert(OpTable[op].ins_formattype == RvOpInfo::S_type);
         ret->setRs1(value);
         ret->setRs2(ptr);

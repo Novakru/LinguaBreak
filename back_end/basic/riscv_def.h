@@ -127,6 +127,7 @@ enum RISCV_INST {
     RISCV_FCVT_LU_D,
 
     RISCV_LI,
+	RISCV_LA,
     RISCV_CALL,
 
     RISCV_BGT,

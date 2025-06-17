@@ -168,32 +168,46 @@ void RiscV64Unit::LowerFrame()
         cur_func = func;
         for (auto &b : func->blocks) {
             cur_block = b;
-            if (b->getLabelId() == 0) {    // 函数入口，需要插入获取参数的指令
+            if (cur_block->getLabelId() == 0) {    // 函数入口，需要插入获取参数的指令
                 int i32_cnt = 0;
 				int f32_cnt = 0;
 				int arg_off = 0;
-                for (auto para : func->GetParameters()) {    // 你需要在指令选择阶段正确设置parameters的值
-                    //std::cout<<arg_off<<std::endl;
-                    // std::cerr<<"asd : "<<para.get_reg_no()<<'\n';
+                for (auto para : func->GetParameters()) {   
 					if (para.type.data_type == INT64.data_type) {	
                         if (i32_cnt < 8) {    // 插入使用寄存器传参的指令
-                            b->push_front(rvconstructor->ConstructR(RISCV_ADD, para, GetPhysicalReg(RISCV_a0 + i32_cnt),
+                            cur_block->push_front(rvconstructor->ConstructR(RISCV_ADD, para, GetPhysicalReg(RISCV_a0 + i32_cnt),
                                                                     GetPhysicalReg(RISCV_x0)));
                         }
                         if (i32_cnt >= 8) {    // 插入使用内存传参的指令
-							b->push_front(
-                            rvconstructor->ConstructIImm(RISCV_LD, para, GetPhysicalReg(RISCV_fp), arg_off));  // fp是上一个栈帧的栈顶
+							if (arg_off <= 2047 && arg_off >= -2048) {
+								cur_block->push_front(rvconstructor->ConstructIImm(RISCV_LD, para, GetPhysicalReg(RISCV_fp), arg_off)); 
+							} else {
+								auto imm_reg = cur_func->GetNewRegister(INT64.data_type, INT64.data_length);
+								auto offset_mid_reg = cur_func->GetNewRegister(INT64.data_type, INT64.data_length);
+								cur_block->push_front(rvconstructor->ConstructIImm(RISCV_LD, para, offset_mid_reg, 0));
+								cur_block->push_front(rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_fp), imm_reg));
+								cur_block->push_front(rvconstructor->ConstructUImm(RISCV_LI, imm_reg, arg_off));
+							}
+
                             arg_off += 8;
                         }
                         i32_cnt++;
                     } else if (para.type.data_type == FLOAT64.data_type) {    // 处理浮点数
                         // TODO("Implement this if you need");
 						if (f32_cnt < 8) {    // 插入使用寄存器传参的指令
-							b->push_front(rvconstructor->ConstructR2(RISCV_FMV_S, para, GetPhysicalReg(RISCV_fa0 + f32_cnt)));
+							cur_block->push_front(rvconstructor->ConstructR2(RISCV_FMV_S, para, GetPhysicalReg(RISCV_fa0 + f32_cnt)));
                         }
                         if (f32_cnt >= 8) {    // 插入使用内存传参的指令
-							b->push_front(
-                            rvconstructor->ConstructIImm(RISCV_FLD, para, GetPhysicalReg(RISCV_fp), arg_off));
+							if (arg_off <= 2047 && arg_off >= -2048) {
+								cur_block->push_front(rvconstructor->ConstructIImm(RISCV_FLD, para, GetPhysicalReg(RISCV_fp), arg_off)); 
+							} else {
+								auto imm_reg = cur_func->GetNewRegister(INT64.data_type, INT64.data_length);
+								auto offset_mid_reg = cur_func->GetNewRegister(INT64.data_type, INT64.data_length);
+								cur_block->push_front(rvconstructor->ConstructIImm(RISCV_FLD, para, offset_mid_reg, 0));
+								cur_block->push_front(rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_fp), imm_reg));
+								cur_block->push_front(rvconstructor->ConstructUImm(RISCV_LI, imm_reg, arg_off));
+							}
+
                             arg_off += 8;
                         }
                         f32_cnt++;
@@ -203,7 +217,6 @@ void RiscV64Unit::LowerFrame()
                 }
 
 				if (arg_off != 0) {
-					// std::cerr << "arg_off: " << arg_off << std::endl;
                     cur_func->SetHasInParaInStack(true);
                 }
             }
@@ -476,7 +489,7 @@ static int double_floatConvert(long long doublebit){
     int origin_E = (doublebit << 1) >> 53;
     int E = (origin_E - ((1 << 10) - 1) + ((1 << 7) - 1)) & EIGHT_BITS;
     int F = (((doublebit << 12) >> 41) + ((1ll << 35) & doublebit)) & TWENTYTHERE_BITS;
-    int S = doublebit & (1ll << 63);
+    int S = (doublebit >> 63) & 1;
     int floatbit = F | (E << 23) | (S << 31);
     // std::cout << "E 十进制: " << E << " 转为十六进制大写: " 
     //           << std::hex << std::uppercase << E << std::endl;
@@ -553,69 +566,21 @@ void RiscV64Unit::InsertImmFloat32Instruction(Register resultRegister, Operand o
 
 Register RiscV64Unit::GetI32A(int a_num){
     Register registerop;
-    switch(a_num){
-        case 0:
-            registerop = GetPhysicalReg(RISCV_a0);
-            break;
-        case 1:
-            registerop = GetPhysicalReg(RISCV_a1);
-            break;
-        case 2:
-            registerop = GetPhysicalReg(RISCV_a2);
-            break;
-        case 3:
-            registerop = GetPhysicalReg(RISCV_a3);
-            break;
-        case 4:
-            registerop = GetPhysicalReg(RISCV_a4);
-            break;
-        case 5:
-            registerop = GetPhysicalReg(RISCV_a5);
-            break;
-        case 6:
-            registerop = GetPhysicalReg(RISCV_a6);
-            break;
-        case 7:
-            registerop = GetPhysicalReg(RISCV_a7);
-            break;
-        default:
-            registerop = GetPhysicalReg(RISCV_INVALID);
-            break;
-    }
+	if(a_num >= 0 && a_num <= 7) {
+		registerop = GetPhysicalReg(RISCV_a0 + a_num);
+	} else {
+		registerop = GetPhysicalReg(RISCV_INVALID);
+	}
     return registerop;
 }
 
 Register RiscV64Unit::GetF32A(int a_num){
     Register registerop;
-    switch(a_num){
-        case 0:
-            registerop = GetPhysicalReg(RISCV_fa0);
-            break;
-        case 1:
-            registerop = GetPhysicalReg(RISCV_fa1);
-            break;
-        case 2:
-            registerop = GetPhysicalReg(RISCV_fa2);
-            break;
-        case 3:
-            registerop = GetPhysicalReg(RISCV_fa3);
-            break;
-        case 4:
-            registerop = GetPhysicalReg(RISCV_fa4);
-            break;
-        case 5:
-            registerop = GetPhysicalReg(RISCV_fa5);
-            break;
-        case 6:
-            registerop = GetPhysicalReg(RISCV_fa6);
-            break;
-        case 7:
-            registerop = GetPhysicalReg(RISCV_fa7);
-            break;
-        default:
-            registerop = GetPhysicalReg(RISCV_INVALID);
-            break;
-    }
+	if(a_num >= 0 && a_num <= 7) {
+		registerop = GetPhysicalReg(RISCV_fa0 + a_num);
+	} else {
+		registerop = GetPhysicalReg(RISCV_INVALID);
+	}
     return registerop;
 }
 
@@ -627,73 +592,101 @@ int RiscV64Unit::InsertArgInStack(BasicInstruction::LLVMType type, Operand arg_o
 				auto arg_regop = (RegOperand *)arg_op;
 				auto arg_reg = GetNewRegister(arg_regop->GetRegNo(), INT64);
 				if (llvmReg_offset_map.find(arg_regop->GetRegNo()) == llvmReg_offset_map.end()) {
-					insert_block->push_back(
-					rvconstructor->ConstructSImm(RISCV_SD, arg_reg, GetPhysicalReg(RISCV_sp), arg_off));
+					if(arg_off <= 2047 && arg_off >= -2048) {
+						insert_block->push_back(rvconstructor->ConstructSImm(RISCV_SD, arg_reg, GetPhysicalReg(RISCV_sp), arg_off));
+					} else {
+						auto imm_reg = GetNewTempRegister(INT64);
+						auto offset_mid_reg = GetNewTempRegister(INT64);
+						insert_block->push_back(rvconstructor->ConstructUImm(RISCV_LI, imm_reg, arg_off));
+						insert_block->push_back(rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+						insert_block->push_back(rvconstructor->ConstructSImm(RISCV_SD, arg_reg, offset_mid_reg, 0));
+					}
 				} else {
 					auto sp_offset = llvmReg_offset_map[arg_regop->GetRegNo()];
 					auto mid_reg = GetNewTempRegister(INT64);
-					insert_block->push_back(
-					rvconstructor->ConstructIImm(RISCV_ADDI, mid_reg, GetPhysicalReg(RISCV_sp), sp_offset));
-					insert_block->push_back(
-					rvconstructor->ConstructSImm(RISCV_SD, mid_reg, GetPhysicalReg(RISCV_sp), arg_off));
+					auto imm_reg = GetNewTempRegister(INT64);
+					auto offset_mid_reg = GetNewTempRegister(INT64);
+					if(sp_offset <= 2047 && sp_offset >= -2048) {
+						insert_block->push_back(rvconstructor->ConstructIImm(RISCV_ADDI, mid_reg, GetPhysicalReg(RISCV_sp), sp_offset));
+					} else {
+						insert_block->push_back(rvconstructor->ConstructUImm(RISCV_LI, imm_reg, sp_offset));
+						insert_block->push_back(rvconstructor->ConstructR(RISCV_ADD, mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+					}
+					if(sp_offset <= 2047 && sp_offset >= -2048) {
+						insert_block->push_back(rvconstructor->ConstructSImm(RISCV_SD, mid_reg, GetPhysicalReg(RISCV_sp), arg_off));
+					} else {
+						insert_block->push_back(rvconstructor->ConstructUImm(RISCV_LI, imm_reg, arg_off));
+						insert_block->push_back(rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+						insert_block->push_back(rvconstructor->ConstructSImm(RISCV_SD, mid_reg, offset_mid_reg, 0));
+					}
 				}
 			} else if (arg_op->GetOperandType() == BasicOperand::IMMI32) {
 				auto arg_immop = (ImmI32Operand *)arg_op;
-				auto arg_imm = arg_immop->GetIntImmVal();
-				auto imm_reg = GetNewTempRegister(INT64);
-				InsertImmI32Instruction(imm_reg, arg_immop, insert_block);
-				// insert_block->push_back(rvconstructor->ConstructCopyRegImmI(imm_reg, arg_imm, INT64));
-				insert_block->push_back(
-				rvconstructor->ConstructSImm(RISCV_SD, imm_reg, GetPhysicalReg(RISCV_sp), arg_off));
+				auto arg_imm_reg = GetNewTempRegister(INT64);
+				insert_block->push_back(rvconstructor->ConstructUImm(RISCV_LI, arg_imm_reg, arg_immop->GetIntImmVal()));
+				if(arg_off <= 2047 && arg_off >= -2048) {
+					insert_block->push_back(rvconstructor->ConstructSImm(RISCV_SD, arg_imm_reg, GetPhysicalReg(RISCV_sp), arg_off));
+				} else {
+					auto imm_reg = GetNewTempRegister(INT64);
+					auto offset_mid_reg = GetNewTempRegister(INT64);
+					insert_block->push_back(rvconstructor->ConstructUImm(RISCV_LI, imm_reg, arg_off));
+					insert_block->push_back(rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+					insert_block->push_back(rvconstructor->ConstructSImm(RISCV_SD, arg_imm_reg, offset_mid_reg, 0));
+				}
 			} else if (arg_op->GetOperandType() == BasicOperand::GLOBAL) {
-				auto glb_reg1 = GetNewTempRegister(INT64);
-				auto glb_reg2 = GetNewTempRegister(INT64);
 				auto arg_glbop = (GlobalOperand *)arg_op;
-				insert_block->push_back(
-				rvconstructor->ConstructULabel(RISCV_LUI, glb_reg1, RiscVLabel(arg_glbop->GetName(), true)));
-				insert_block->push_back(rvconstructor->ConstructILabel(RISCV_ADDI, glb_reg2, glb_reg1,
-																	RiscVLabel(arg_glbop->GetName(), false)));
-				insert_block->push_back(
-				rvconstructor->ConstructSImm(RISCV_SD, glb_reg2, GetPhysicalReg(RISCV_sp), arg_off));
+				auto ptr_reg = GetNewTempRegister(INT64);
+				auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(arg_glbop->GetName(), true));
+				insert_block->push_back(la_inst);
+				if(arg_off <= 2047 && arg_off >= -2048) {
+					insert_block->push_back(rvconstructor->ConstructSImm(RISCV_SD, ptr_reg, GetPhysicalReg(RISCV_sp), arg_off));
+				} else {
+					auto imm_reg = GetNewTempRegister(INT64);
+					auto offset_mid_reg = GetNewTempRegister(INT64);
+					insert_block->push_back(rvconstructor->ConstructUImm(RISCV_LI, imm_reg, arg_off));
+					insert_block->push_back(rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+					insert_block->push_back(rvconstructor->ConstructSImm(RISCV_SD, ptr_reg, offset_mid_reg, 0));
+				}
 			}
 			arg_off += 8;
 		}
 		nr_iarg++;
-	} else if (type == BasicInstruction::FLOAT32) {
+	} else if (type == BasicInstruction::FLOAT32) { 
 		if (nr_farg < 8) {
 		} else {
 			if (arg_op->GetOperandType() == BasicOperand::REG) {
 				auto arg_regop = (RegOperand *)arg_op;
 				auto arg_reg = GetNewRegister(arg_regop->GetRegNo(), FLOAT64);
-				insert_block->push_back(
-				rvconstructor->ConstructSImm(RISCV_FSD, arg_reg, GetPhysicalReg(RISCV_sp), arg_off));
+				if(arg_off <= 2047 && arg_off >= -2048) {
+					insert_block->push_back(rvconstructor->ConstructSImm(RISCV_FSD, arg_reg, GetPhysicalReg(RISCV_sp), arg_off));
+				} else {
+					auto imm_reg = GetNewTempRegister(INT64);
+					auto offset_mid_reg = GetNewTempRegister(INT64);
+					insert_block->push_back(rvconstructor->ConstructUImm(RISCV_LI, imm_reg, arg_off));
+					insert_block->push_back(rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+					insert_block->push_back(rvconstructor->ConstructSImm(RISCV_FSD, arg_reg, offset_mid_reg, 0));
+				}
 			} else if (arg_op->GetOperandType() == BasicOperand::IMMF32) {
 				auto arg_immop = (ImmF32Operand *)arg_op;
 				auto arg_imm = arg_immop->GetFloatVal();
-				auto imm_reg = GetNewTempRegister(INT64);
-				InsertImmI32Instruction(imm_reg, arg_immop, insert_block);
-				insert_block->push_back(
-				rvconstructor->ConstructSImm(RISCV_SD, imm_reg, GetPhysicalReg(RISCV_sp), arg_off));
+				auto float_imm_reg = GetNewTempRegister(INT64);
+				// get float_imm args in format i32
+				InsertImmI32Instruction(float_imm_reg, arg_immop, insert_block);  
+				if(arg_off <= 2047 && arg_off >= -2048) {
+					insert_block->push_back(rvconstructor->ConstructSImm(RISCV_SD, float_imm_reg, GetPhysicalReg(RISCV_sp), arg_off));
+				} else {
+					auto imm_reg = GetNewTempRegister(INT64);
+					auto offset_mid_reg = GetNewTempRegister(INT64);
+					insert_block->push_back(rvconstructor->ConstructUImm(RISCV_LI, imm_reg, arg_off));
+					insert_block->push_back(rvconstructor->ConstructR(RISCV_ADD, offset_mid_reg, GetPhysicalReg(RISCV_sp), imm_reg));
+					insert_block->push_back(rvconstructor->ConstructSImm(RISCV_SD, float_imm_reg, offset_mid_reg, 0));
+				}
 			} else {
 				ERROR("Unexpected Operand type");
 			}
 			arg_off += 8;
 		}
 		nr_farg++;
-	} else if (type == BasicInstruction::DOUBLE) {
-		if (nr_iarg < 8) {
-		} else {
-			if (arg_op->GetOperandType() == BasicOperand::REG) {
-				auto arg_regop = (RegOperand *)arg_op;
-				auto arg_reg = GetNewRegister(arg_regop->GetRegNo(), FLOAT64);
-				insert_block->push_back(
-				rvconstructor->ConstructSImm(RISCV_FSD, arg_reg, GetPhysicalReg(RISCV_sp), arg_off));
-			} else {
-				ERROR("Unexpected Operand type");
-			}
-			arg_off += 8;
-		}
-		nr_iarg++;
 	} else {
 		ERROR("Unexpected parameter type %d", type);
 		return -1;
@@ -829,17 +822,17 @@ template <> void RiscV64Unit::ConvertAndAppend<LoadInstruction*>(LoadInstruction
 		}
 
     } else if (inst->GetPointer()->GetOperandType() == BasicOperand::GLOBAL) {
-		// lui %1, %hi(a)
-		// lw %2,%lo(a)(%1)  #riscv
+		// auipc %1, %pcrel_hi(a)
+		// lw %2,%pcrel_lo(a)(%1)  #riscv
         auto global_op = (GlobalOperand *)inst->GetPointer();
         auto rd_op = (RegOperand *)inst->GetResult();
 		Register rd = GetNewRegister(rd_op->GetRegNo(), target_type);
 
         Register ptr_reg = GetNewTempRegister(INT64);
-		auto lui_inst = rvconstructor->ConstructULabel(RISCV_LUI, ptr_reg, RiscVLabel(global_op->GetName(), true));
-		auto lw_inst = rvconstructor->ConstructILabel(op_code, rd, ptr_reg, RiscVLabel(global_op->GetName(), false));
+		auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(global_op->GetName(), true));
+		auto lw_inst = rvconstructor->ConstructIImm(op_code, rd, ptr_reg, 0);
 
-		cur_block->push_back(lui_inst);
+		cur_block->push_back(la_inst);
 		cur_block->push_back(lw_inst);
     }
 }
@@ -892,13 +885,11 @@ template <> void RiscV64Unit::ConvertAndAppend<StoreInstruction*>(StoreInstructi
 		GlobalOperand* global_op = (GlobalOperand *)inst->GetPointer();
 
 		auto ptr_reg = GetNewTempRegister(INT64);
-		// lui ptr_reg, %hi(a)
-		auto lui_inst = rvconstructor->ConstructULabel(RISCV_LUI, ptr_reg, RiscVLabel(global_op->GetName(), true));
-		cur_block->push_back(lui_inst);
+		auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(global_op->GetName(), true));
+		auto sw_inst = rvconstructor->ConstructSImm(op_code, value_reg, ptr_reg, 0);
 
-		// sw (fsw) value_reg, %lo(a)(ptr_reg)
-		auto store_inst = rvconstructor->ConstructSLabel(op_code, value_reg, ptr_reg, RiscVLabel(global_op->GetName(), false));
-		cur_block->push_back(store_inst);
+		cur_block->push_back(la_inst);
+		cur_block->push_back(sw_inst);
 	}
 }
 
@@ -941,7 +932,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto addw_instr = rvconstructor->ConstructR(RISCV_ADDW, rd, imm_reg, rt);
 				cur_block->push_back(addw_instr);
-			} else std::cerr << "Error: addiw rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmI32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmI32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto addw_instr = rvconstructor->ConstructR(RISCV_ADDW, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(addw_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::SUB:
@@ -968,7 +968,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto subw_instr = rvconstructor->ConstructR(RISCV_SUBW, rd, imm_reg, rt);
 				cur_block->push_back(subw_instr);
-			} else std::cerr << "Error: subiw rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmI32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmI32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto subw_instr = rvconstructor->ConstructR(RISCV_SUBW, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(subw_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::DIV:  // RISC-V 指令集架构中，没有专门针对 [除以立即数] 的指令
@@ -995,7 +1004,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto divw_instr = rvconstructor->ConstructR(RISCV_DIVW, rd, imm_reg, rt);
 				cur_block->push_back(divw_instr);
-			} else std::cerr << "Error: divw rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmI32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmI32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto divw_instr = rvconstructor->ConstructR(RISCV_DIVW, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(divw_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::MUL:  // RISC-V 指令集架构中，没有专门针对 [乘以立即数] 的指令
@@ -1022,7 +1040,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto mulw_instr = rvconstructor->ConstructR(RISCV_MULW, rd, imm_reg, rt);
 				cur_block->push_back(mulw_instr);
-			} else std::cerr << "Error: mulw rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmI32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmI32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto mulw_instr = rvconstructor->ConstructR(RISCV_MULW, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(mulw_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::MOD:
@@ -1049,7 +1076,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto remw_instr = rvconstructor->ConstructR(RISCV_REMW, rd, imm_reg, rt);
 				cur_block->push_back(remw_instr);
-			} else std::cerr << "Error: remw rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmI32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmI32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto remw_instr = rvconstructor->ConstructR(RISCV_REMW, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(remw_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::FADD:
@@ -1076,7 +1112,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto fadd_d_instr = rvconstructor->ConstructR(RISCV_FADD_S, rd, imm_reg, rt);
 				cur_block->push_back(fadd_d_instr);
-			} else std::cerr << "Error: fadd.d rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmFloat32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmFloat32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto fadd_d_instr = rvconstructor->ConstructR(RISCV_FADD_S, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(fadd_d_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::FSUB:
@@ -1103,7 +1148,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto fsub_d_instr = rvconstructor->ConstructR(RISCV_FSUB_S, rd, imm_reg, rt);
 				cur_block->push_back(fsub_d_instr);
-			} else std::cerr << "Error: fsub.d rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmFloat32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmFloat32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto fsub_d_instr = rvconstructor->ConstructR(RISCV_FSUB_S, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(fsub_d_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::FMUL:
@@ -1130,7 +1184,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto fmul_d_instr = rvconstructor->ConstructR(RISCV_FMUL_S, rd, imm_reg, rt);
 				cur_block->push_back(fmul_d_instr);
-			} else std::cerr << "Error: fmul.d rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmFloat32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmFloat32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto fmul_d_instr = rvconstructor->ConstructR(RISCV_FMUL_S, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(fmul_d_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::FDIV:
@@ -1157,11 +1220,20 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto fdiv_d_instr = rvconstructor->ConstructR(RISCV_FDIV_S, rd, imm_reg, rt);
 				cur_block->push_back(fdiv_d_instr);
-			} else std::cerr << "Error: fdiv.d rd, imm, imm is not allowed" << std::endl;
+			}  else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmFloat32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmFloat32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto fdiv_d_instr = rvconstructor->ConstructR(RISCV_FDIV_S, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(fdiv_d_instr);	
+			}
 			break;  
 
 		default:
-			std::cerr << "Error: undefined opcode." << std::endl;
+			ERROR("Error: undefined opcode.");
 	}
 }
 // inst1: %t2 = icmp ne i32 %t1, 0	   	     ====> bne %1, x0, .L3		
@@ -1899,12 +1971,6 @@ template <> void RiscV64Unit::ConvertAndAppend<GetElementptrInstruction *>(GetEl
             auto add_instr = rvconstructor->ConstructR(RISCV_ADD, resultregister, GetNewRegister(base_regno, INT64), final_offset_register);
             cur_block->push_back(add_instr);
         }else{
-			// Register addi_register = GetNewTempRegister(INT64);
-            // InsertImmI32Instruction(offset_reg, new ImmI32Operand(llvmReg_offset_map[base_regno]), cur_block);
-            // auto addi_instr = rvconstructor->ConstructR(RISCV_ADD, addi_register, GetPhysicalReg(RISCV_sp), offset_reg);
-            // cur_block->push_back(addi_instr);
-			// ((RiscV64Function *)cur_func)->AddAllocaInst(addi_instr);
-
 			Register addr_register = GetNewTempRegister(INT64);
 			auto li_inst = rvconstructor->ConstructUImm(RISCV_LI, offset_reg, llvmReg_offset_map[base_regno]);
 			cur_block->push_back(li_inst);
@@ -1921,15 +1987,12 @@ template <> void RiscV64Unit::ConvertAndAppend<GetElementptrInstruction *>(GetEl
     }else{
         // 全局数组
         GlobalOperand* global_op = (GlobalOperand *)inst->GetPtrVal();
-        auto lui_register = GetNewTempRegister(INT64);
-        auto lui_instr = rvconstructor->ConstructULabel(RISCV_LUI, lui_register, RiscVLabel(global_op->GetName(), true));
-        cur_block->push_back(lui_instr);
-        Register addi_register = GetNewTempRegister(INT64);
-        auto addi_instr = rvconstructor->ConstructILabel(RISCV_ADDI, addi_register, lui_register, RiscVLabel(global_op->GetName(), false));
-        cur_block->push_back(addi_instr);
+		Register ptr_reg = GetNewTempRegister(INT64);
+		auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(global_op->GetName(), true));
+		cur_block->push_back(la_inst);
         auto resultop = inst->GetResult();
         auto resultregno = ((RegOperand*)resultop)->GetRegNo();
-        auto add_instr = rvconstructor->ConstructR(RISCV_ADD, GetNewRegister(resultregno, INT64), final_offset_register, addi_register);
+        auto add_instr = rvconstructor->ConstructR(RISCV_ADD, GetNewRegister(resultregno, INT64), final_offset_register, ptr_reg);
         cur_block->push_back(add_instr);
     }
     
