@@ -2,6 +2,7 @@
 ```bash
 make lexer # input: sysy_lexer.l output: sysy_lexer.cc
 make parser # input: sysy_parser.y output: sysy_parser.tab.cc and sysy_parser.tab.hh
+make BINARY=compiler # whole
 ```
 
 ### How to run LiguaBreak
@@ -152,4 +153,5 @@ Your Syntax Tree Structure
 ```
 
 ### 绝世好书
-https://understanding-llvm-transformation-passes.readthedocs.io/en/latest/index.html
+- https://understanding-llvm-transformation-passes.readthedocs.io/en/latest/index.html
+- 南京大学编译优化教材：https://cs.nju.edu.cn/tiantan/courses/compiler-2023/projects/Project_5.pdf

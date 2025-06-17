@@ -25,6 +25,8 @@
 #include"back_end/register_allocation/linear_scan/linear_scan.h"
 #include"back_end/inst_process/inst_print/inst_print.h"
 
+#include"back_end/optimize/machine_peehole.h"
+
 
 extern FILE *yyin;
 extern char *yytext;
@@ -195,13 +197,13 @@ int main(int argc, char** argv) {
         DomAnalysis dom(&llvmIR);
         dom.Execute();
         (Mem2RegPass(&llvmIR, &dom)).Execute();
-        SimplifyCFGPass(&llvmIR).EOBB();  // maybe invalid ?
         DomAnalysis inv_dom(&llvmIR);
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
         SCCPPass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFG();
+        //SimplifyCFGPass(&llvmIR).EOBB();  // TODO
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }
 
@@ -222,7 +224,9 @@ int main(int argc, char** argv) {
             FastLinearScan(m_unit, &regs).Execute();
             m_unit->LowerStack();
         }
+        //optimizer
         
+
         RiscV64Printer(out, m_unit).emit();
         fclose(input);
         if (output_file) delete &out;
