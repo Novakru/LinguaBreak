@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
         DomAnalysis dom(&llvmIR);
         dom.Execute();
         (Mem2RegPass(&llvmIR, &dom)).Execute();
-        SimplifyCFGPass(&llvmIR).EOBB();
+        SimplifyCFGPass(&llvmIR).EOBB();  // maybe invalid ?
         DomAnalysis inv_dom(&llvmIR);
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();

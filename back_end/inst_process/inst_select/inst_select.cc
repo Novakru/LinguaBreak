@@ -932,7 +932,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto addw_instr = rvconstructor->ConstructR(RISCV_ADDW, rd, imm_reg, rt);
 				cur_block->push_back(addw_instr);
-			} else std::cerr << "Error: addiw rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmI32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmI32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto addw_instr = rvconstructor->ConstructR(RISCV_ADDW, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(addw_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::SUB:
@@ -959,7 +968,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto subw_instr = rvconstructor->ConstructR(RISCV_SUBW, rd, imm_reg, rt);
 				cur_block->push_back(subw_instr);
-			} else std::cerr << "Error: subiw rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmI32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmI32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto subw_instr = rvconstructor->ConstructR(RISCV_SUBW, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(subw_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::DIV:  // RISC-V 指令集架构中，没有专门针对 [除以立即数] 的指令
@@ -986,7 +1004,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto divw_instr = rvconstructor->ConstructR(RISCV_DIVW, rd, imm_reg, rt);
 				cur_block->push_back(divw_instr);
-			} else std::cerr << "Error: divw rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmI32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmI32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto divw_instr = rvconstructor->ConstructR(RISCV_DIVW, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(divw_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::MUL:  // RISC-V 指令集架构中，没有专门针对 [乘以立即数] 的指令
@@ -1013,7 +1040,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto mulw_instr = rvconstructor->ConstructR(RISCV_MULW, rd, imm_reg, rt);
 				cur_block->push_back(mulw_instr);
-			} else std::cerr << "Error: mulw rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmI32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmI32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto mulw_instr = rvconstructor->ConstructR(RISCV_MULW, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(mulw_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::MOD:
@@ -1040,7 +1076,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto remw_instr = rvconstructor->ConstructR(RISCV_REMW, rd, imm_reg, rt);
 				cur_block->push_back(remw_instr);
-			} else std::cerr << "Error: remw rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmI32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmI32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto remw_instr = rvconstructor->ConstructR(RISCV_REMW, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(remw_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::FADD:
@@ -1067,7 +1112,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto fadd_d_instr = rvconstructor->ConstructR(RISCV_FADD_S, rd, imm_reg, rt);
 				cur_block->push_back(fadd_d_instr);
-			} else std::cerr << "Error: fadd.d rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmFloat32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmFloat32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto fadd_d_instr = rvconstructor->ConstructR(RISCV_FADD_S, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(fadd_d_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::FSUB:
@@ -1094,7 +1148,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto fsub_d_instr = rvconstructor->ConstructR(RISCV_FSUB_S, rd, imm_reg, rt);
 				cur_block->push_back(fsub_d_instr);
-			} else std::cerr << "Error: fsub.d rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmFloat32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmFloat32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto fsub_d_instr = rvconstructor->ConstructR(RISCV_FSUB_S, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(fsub_d_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::FMUL:
@@ -1121,7 +1184,16 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto fmul_d_instr = rvconstructor->ConstructR(RISCV_FMUL_S, rd, imm_reg, rt);
 				cur_block->push_back(fmul_d_instr);
-			} else std::cerr << "Error: fmul.d rd, imm, imm is not allowed" << std::endl;
+			} else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmFloat32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmFloat32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto fmul_d_instr = rvconstructor->ConstructR(RISCV_FMUL_S, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(fmul_d_instr);	
+			}
 			break;  
 
 		case BasicInstruction::LLVMIROpcode::FDIV:
@@ -1148,11 +1220,20 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				
 				auto fdiv_d_instr = rvconstructor->ConstructR(RISCV_FDIV_S, rd, imm_reg, rt);
 				cur_block->push_back(fdiv_d_instr);
-			} else std::cerr << "Error: fdiv.d rd, imm, imm is not allowed" << std::endl;
+			}  else {
+				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
+				Register imm_op1_reg = GetNewTempRegister(INT64);
+				Register imm_op2_reg = GetNewTempRegister(INT64);
+				InsertImmFloat32Instruction(imm_op1_reg, imm_op1, cur_block);
+				InsertImmFloat32Instruction(imm_op2_reg, imm_op2, cur_block);
+				
+				auto fdiv_d_instr = rvconstructor->ConstructR(RISCV_FDIV_S, rd, imm_op1_reg, imm_op2_reg);
+				cur_block->push_back(fdiv_d_instr);	
+			}
 			break;  
 
 		default:
-			std::cerr << "Error: undefined opcode." << std::endl;
+			ERROR("Error: undefined opcode.");
 	}
 }
 // inst1: %t2 = icmp ne i32 %t1, 0	   	     ====> bne %1, x0, .L3		
