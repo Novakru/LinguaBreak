@@ -348,7 +348,7 @@ void Mem2RegPass::InsertPhi(CFG *C, int& max_reg) {
 // 2.对本block的所有后继进行phi指令填充
 // 3.依次对后继进行DFS
 void Mem2RegPass::DFS(CFG *C, int bbid){
-    if(visited_blocks.find(bbid)!=visited_blocks.end()){
+    if(visited_blocks.find(bbid)!=visited_blocks.end()){//保证不重
         return;
     }
     
@@ -357,7 +357,7 @@ void Mem2RegPass::DFS(CFG *C, int bbid){
     block->Instruction_list.clear();
     
     //std::cout<<bbid<<"\n";
-    //【1】对本block的所有指令进行store,load,phi的处理（alloca之前就已经被删掉了）
+    //【1】对本block的所有指令进行store,load,phi的处理（alloca之前就已经被删掉了）【即记录store/load_bb_map】
     for(auto &intr: old_Intrs){
         if(intr->GetOpcode()==BasicInstruction::LLVMIROpcode::STORE){
             Operand p_operand = ((StoreInstruction*)intr)->GetPointer();

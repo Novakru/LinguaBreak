@@ -12,8 +12,8 @@ void ADCEPass::ADCE(CFG *C){
     // }std::cout<<std::endl;
 
     std::set<Instruction> worklist;
-    std::map<Instruction, int> intr_bbid_map; // 保存指令和所在block_id
-    std::map<int, Instruction> defmap;
+    std::map<Instruction, int> intr_bbid_map; // intr --> block_id
+    std::map<int, Instruction> defmap; //def_regno --> intr
 
     // 过滤出有用的指令
     for(int i=0; i<C->block_map->size(); i++){
@@ -44,7 +44,7 @@ void ADCEPass::ADCE(CFG *C){
         live.insert(intr); // 添加活跃指令
         live_block.insert(intr_bbid_map[intr]); // 添加活跃块
 
-        // phi指令的每一条前驱都应该被当作活跃的
+        // phi指令的每一条前驱都应该被当作活跃的:前驱block和前驱block的最后一条指令br
         if(intr->GetOpcode()==BasicInstruction::LLVMIROpcode::PHI){
             auto phiI = (PhiInstruction*)intr;
             for(auto& phi_pair: phiI->GetPhiList()){
@@ -81,7 +81,7 @@ void ADCEPass::ADCE(CFG *C){
 }
 
 void ADCEPass::CleanUnlive(CFG *C){
-    // 删除不活跃的块
+    // 从block_map中删除不活跃的块
     live_block.insert(0); // 保证第一个块永远存在
     std::set<int> unlive_block;
     for(auto &[id, block]: *(C->block_map)){

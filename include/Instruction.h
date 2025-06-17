@@ -555,11 +555,6 @@ public:
         this->type = type;
         this->result = result;
         this->regno = regno;
-        for(auto &[label,reg]:phi_list){
-            if(reg->GetOperandType()==BasicOperand::REG){
-                def_regno.insert(((RegOperand*)reg)->GetRegNo());
-            }
-        }
     }
     int GetRegno() { return regno; }
     void AddPhi(std::pair<Operand, Operand> phi){ phi_list.push_back(phi); def_regno.insert(((RegOperand*)phi.second)->GetRegNo());}
