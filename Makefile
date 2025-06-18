@@ -13,6 +13,7 @@ SRCDIR += ./back_end/inst_process
 SRCDIR += ./back_end/register_allocation/linear_scan
 SRCDIR += ./back_end/register_allocation
 SRCDIR += ./back_end/optimize
+
 # 显式列出所有源文件（确保包含实现文件）
 SRCS := $(wildcard *.cc)
 SRCS += $(wildcard llvm/generate/*.cc)
@@ -27,8 +28,9 @@ SRCS += $(wildcard back_end/inst_process/phi_processing/*.cc)
 SRCS += $(wildcard back_end/register_allocation/linear_scan/*.cc)
 SRCS += $(wildcard back_end/register_allocation/*.cc)
 SRCS += $(wildcard back_end/optimize/*.cc)
-# 添加-Wall -Wextra警告选项
-# CFLAGS += -Wall -Wextra
+
+NAME = compiler
+BINARY = $(NAME)  # 直接生成在根目录
 
 OBJDIR ?= ./obj
 
@@ -78,5 +80,7 @@ clean-all: clean-obj
 
 format:
 	@echo "Formatting source files..."
-	clang-format -style=file -i $(SRCS)
-	clang-format -style=file -i $(foreach dir,$(SRCDIR),$(wildcard $(dir)/*.h))
+	@clang-format -style=file -i $(SRCS)
+	@clang-format -style=file -i $(foreach dir,$(SRCDIR),$(wildcard $(dir)/*.h))
+
+.PHONY: all clean-obj clean-all lexer parser format

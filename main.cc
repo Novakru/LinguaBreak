@@ -25,7 +25,7 @@
 #include"back_end/register_allocation/linear_scan/linear_scan.h"
 #include"back_end/inst_process/inst_print/inst_print.h"
 
-#include"back_end/optimize/machine_peehole.h"
+#include"back_end/optimize/machine_peephole.h"
 
 
 extern FILE *yyin;
@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
             m_unit->LowerStack();
         }
         //optimizer
-        Machine_Peehole(m_unit).Execute();
+        MachinePeephole(m_unit).Execute();
 
         RiscV64Printer(out, m_unit).emit();
         fclose(input);
