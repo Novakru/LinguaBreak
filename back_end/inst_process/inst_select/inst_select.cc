@@ -898,11 +898,11 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 	bool op2_isreg = (inst->GetOperand2()->GetOperandType() == BasicOperand::REG);
 	auto *rd_op = (RegOperand *)inst->GetResult();
 
-	auto *reg_op1 = (RegOperand *)inst->GetOperand1();
-	auto *imm_op1 = (ImmI32Operand *)inst->GetOperand1();
+	auto *reg_op1 = (op1_isreg) ? (RegOperand *)inst->GetOperand1() : nullptr;
+	auto *imm_op1 = (op1_isreg) ? nullptr : (ImmI32Operand *)inst->GetOperand1();
 
-	auto *reg_op2 = (RegOperand *)inst->GetOperand2();
-	auto *imm_op2 = (ImmI32Operand *)inst->GetOperand2();
+	auto *reg_op2 = (op2_isreg) ? (RegOperand *)inst->GetOperand2() : nullptr;
+	auto *imm_op2 = (op2_isreg) ? nullptr : (ImmI32Operand *)inst->GetOperand2();
 
 	switch (inst->GetOpcode()) {
 

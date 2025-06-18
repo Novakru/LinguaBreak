@@ -37,6 +37,14 @@ OBJDIR ?= ./obj
 CC = clang++
 LD = clang++
 INCLUDES = $(addprefix -I, $(SRCDIR))
+# 内存检测 + 未定义行为检测
+# CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES) -fsanitize=address,undefined -fno-omit-frame-pointer 
+# LDFLAGS += -fsanitize=address,undefined
+
+# 未定义行为检测
+# CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES) -fsanitize=undefined -fno-omit-frame-pointer
+# LDFLAGS += -fsanitize=undefined 
+
 CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES)
 
 SRCS := $(foreach dir,$(SRCDIR),$(wildcard $(dir)/*.cc))
@@ -56,7 +64,7 @@ $(OBJDIR)/%.o : %.cc
 
 $(BINARY): $(OBJS)
 	@echo + LD $@
-	@$(LD) $(OBJS) -o $@ -O2  -std=c++17
+	@$(LD) $(LDFLAGS) $(OBJS) -o $@ -O2 -std=c++17
 
 lexer: front_end/sysy_lexer.l
 	@echo "[FLEX] Generating lexer..."
