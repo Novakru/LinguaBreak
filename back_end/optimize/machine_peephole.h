@@ -3,7 +3,6 @@
 #include "MachinePass.h"
 class MachinePeephole : MachinePass {
 
-
 public:
     MachinePeephole(MachineUnit *unit) : MachinePass(unit) {}
     void Execute();
