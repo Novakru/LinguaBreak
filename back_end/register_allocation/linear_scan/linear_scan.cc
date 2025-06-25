@@ -58,18 +58,25 @@ void FastLinearScan::RewriteInFunc() {
 bool IntervalsPrioCmp(LiveInterval a, LiveInterval b) { return a.begin()->begin > b.begin()->begin; }
 
 bool FastLinearScan::DoAllocInCurrentFunc() {
+    //一、前置工作
+    //1.设置spilled标签
     bool spilled = false;
+    //2.指定函数
     auto mfun = current_func;
     //MachineFunction* mfun;
     // std::cerr<<"FastLinearScan: "<<mfun->getFunctionName()<<"\n";
+    //3.清空tool
     phy_regs_tools->clear();
+    //4.遍历所有活跃区间
     for (auto interval : intervals) {
         Assert(interval.first == interval.second.getReg());
+        //1)对于虚拟寄存器，压入unalloc_queue队列。Q：在哪里确定的是否虚拟？
         if (interval.first.is_virtual) {
-            // 需要分配的虚拟寄存器
             unalloc_queue.push(interval.second);
+            //std::cout<<"Unalloc Reg:"<<interval.first.reg_no<<"\n";
+        //2)对于物理寄存器，占用它
         } else {
-            // Log("Pre Occupy Physical Reg %d",interval.first.reg_no);
+            std::cout<<"Pre Occupy Physical Reg "<<interval.first.reg_no<<"\n";
             // 预先占用已经存在的物理寄存器
             phy_regs_tools->OccupyReg(interval.first.reg_no, interval.second);
         }
@@ -77,71 +84,35 @@ bool FastLinearScan::DoAllocInCurrentFunc() {
     // TODO: 进行线性扫描寄存器分配, 为每个虚拟寄存器选择合适的物理寄存器或者将其溢出到合适的栈地址中
     // 该函数中只需正确设置alloc_result，并不需要实际生成溢出代码
     //TODO("LinearScan");
-
+    //5.遍历unalloc_queue中的虚拟寄存器
      while(!unalloc_queue.empty())
     {
-        //A.获取待处理的活跃区间，及其对应的寄存器
+        //1）获取待处理的活跃区间，及其对应的寄存器（编号）
         auto interval=unalloc_queue.top();
         unalloc_queue.pop();
-        //B.尝试获取空闲物理寄存器（通过活跃区间）
         auto cur_vreg=interval.getReg();
-    //     int phy_reg_id=phy_regs_tools->getIdleReg(interval);
-    //     //unalloc_queue.pop();
-    //     if(phy_reg_id>=0)
-    //     {
-    //         //C.使用物理寄存器的情况：占用该物理寄存器并记录占用信息
-    //         phy_regs_tools->OccupyReg(phy_reg_id,interval);//占用寄存器
-    //         AllocPhyReg(mfun,cur_vreg,phy_reg_id);//再分配结果中记录
-    //         continue;
-    //     }
-    //     //D.溢出的情况：获取可用内存并占用，在栈上分配这部分内存
-    //     int mem=phy_regs_tools->getIdleMem(interval);//获取可用的内存位置
-    //     phy_regs_tools->OccupyMem(mem,interval);//占用内存
-    //     AllocStack(mfun,cur_vreg,mem);//在栈上分配
-    //     spilled=true;
-
-    //     //E.计算溢出权重,选择冲突区间里溢出权重小的溢出
-    //     double spill_weight=CalculateSpillWeight(interval);
-    //     auto spill_interval=interval;
-    //     for(auto other:phy_regs_tools->getConflictIntervals(interval))
-    //     {
-    //         double other_weight=CalculateSpillWeight(other);
-    //         if(spill_weight>other_weight && other.getReg().is_virtual)
-    //         {
-    //             spill_weight=other_weight;
-    //             spill_interval=other;
-    //         }
-    //     }
-    //     //如果需要交换
-    //     auto spill_reg=spill_interval.getReg();
-    //     if(!(cur_vreg==spill_reg))
-    //     {
-    //         //执行寄存器和内存的交换
-    //         phy_regs_tools->swapRegspill(getAllocResultInReg(mfun, spill_interval.getReg()), spill_interval, mem,
-    //                                 cur_vreg.getDataWidth(), interval);
-    //         swapAllocResult(mfun, interval.getReg(), spill_interval.getReg());
-    //         int spill_mem = phy_regs_tools->getIdleMem(spill_interval);
-    //         phy_regs_tools->OccupyMem(spill_mem,  spill_interval);
-    //         AllocStack(mfun, spill_interval.getReg(), spill_mem);
-    //     }
-    // }
-    // // 返回是否发生溢出
-    // return spilled;
-    int phy_reg_id = phy_regs_tools->getIdleReg(interval);
+        //2）尝试获取空闲物理寄存器（通过活跃区间）
+        int phy_reg_id = phy_regs_tools->getIdleReg(interval);
+        std::cout<<"reg_no="<<cur_vreg.reg_no<<" , idlereg="<<phy_reg_id<<"\n";
+        //A.如果有空闲的物理寄存器，占用它
         if (phy_reg_id >= 0) {
             phy_regs_tools->OccupyReg(phy_reg_id, interval);
             AllocPhyReg(mfun, cur_vreg, phy_reg_id);
+        //B.如果没有空闲的，标记spilled为true,需要获取空闲内存
         } else {
+            //a.标记spilled
             spilled = true;
-
+            //b.获取空闲内存并占用
             int mem = phy_regs_tools->getIdleMem(interval);
             phy_regs_tools->OccupyMem(mem, interval);
             // volatile int mem_ = mem;
             // volatile int mem__ = mem_+current_func->GetStackOffset();
+            //c.分配栈空间
             AllocStack(mfun, cur_vreg, mem);
-
+            //d.计算溢出权重
             double spill_weight = CalculateSpillWeight(interval);
             auto spill_interval = interval;
+            //e.选择溢出权重最大的溢出
             for (auto other : phy_regs_tools->getConflictIntervals(interval)) {
                 double other_weight = CalculateSpillWeight(other);
                 if (spill_weight > other_weight && other.getReg().is_virtual) {
@@ -150,9 +121,10 @@ bool FastLinearScan::DoAllocInCurrentFunc() {
                 }
             }
             auto spill_reg=spill_interval.getReg();
+            std::cout<<"spill to mem="<<mem<<" , spill_reg="<<spill_reg.reg_no<<", cur_vreg="<<cur_vreg.reg_no<<"\n";
             if (!(cur_vreg==spill_reg)) {
                 phy_regs_tools->swapRegspill(getAllocResultInReg(mfun, spill_interval.getReg()), spill_interval, mem,
-                                       cur_vreg.getDataWidth(), interval);
+                                        cur_vreg.getDataWidth(), interval);
                 swapAllocResult(mfun, interval.getReg(), spill_interval.getReg());
                 // alloc_result[mfun].erase(spill_interval.getReg());
                 // unalloc_queue.push(spill_interval);
@@ -160,6 +132,19 @@ bool FastLinearScan::DoAllocInCurrentFunc() {
                 phy_regs_tools->OccupyMem(spill_mem, spill_interval);
                 AllocStack(mfun, spill_interval.getReg(), spill_mem);
             }
+            //ShowAllAllocResult();
+            
+        }
+    }
+    std::cout << "函数: " << mfun->getFunctionName() << std::endl;
+    for (auto &reg_pair : alloc_result[mfun]) {
+        auto vreg = reg_pair.first;
+        auto res = reg_pair.second;
+        std::cout << "  虚拟寄存器: " << vreg.reg_no << " -> ";
+        if (res.in_mem) {
+            std::cout << "栈偏移: " << res.stack_offset << std::endl;
+        } else {
+            std::cout << "物理寄存器: " << res.phy_reg_no << std::endl;
         }
     }
     return spilled;
@@ -174,6 +159,14 @@ void FastLinearScan::Execute() {
     // 你需要保证此时不存在phi指令
     for (auto func : unit->functions) {
         not_allocated_funcs.push(func);
+        //调试信息
+        // for(auto &b:func->blocks)
+        // {
+        //     for(auto ins:*b)
+        //     {
+
+        //     }
+        // }
     }
     //1.逐一处理函数
     while (!not_allocated_funcs.empty()) {
@@ -495,60 +488,33 @@ void FastLinearScan::SpillCodeGen(MachineFunction *function, std::map<Register, 
     int temp_reg_count = 0;
     // 用于存储频繁访问的栈值的临时寄存器
     std::map<int, Register> temp_reg_cache;
-    
+    //1.顺序逐个访问函数的基本块
     while (mcfg->seqscan_hasNext()) {
         cur_block = mcfg->seqscan_next()->Mblock;
+        //2.顺序访问基本块的各个指令
         for (auto it = cur_block->begin(); it != cur_block->end(); ++it) {
             auto ins = *it;
+            std::set<Register> processed_regs;//已处理的寄存器集合（避免重复处理）
             
-            // 合并读取和写入的处理逻辑
-            std::set<Register> processed_regs;
-            
-            // 处理读取寄存器
-            for(auto reg:ins->GetReadReg()) {
-                if(reg->is_virtual==false || processed_regs.count(*reg)) continue;
-                
-                auto result=alloc_result->find(*reg)->second;
-                if(result.in_mem==true) {
-                    // 检查是否可以复用临时寄存器
-                    if(temp_reg_cache.find(result.stack_offset) != temp_reg_cache.end()) {
-                        *reg = temp_reg_cache[result.stack_offset];
-                        processed_regs.insert(*reg);
-                        continue;
-                    }
-                    
-                    // 生成读取代码
-                    *reg=GenerateReadCode(it,result.stack_offset*4,reg->type);
-                    processed_regs.insert(*reg);
-                    
-                    // 缓存临时寄存器，避免重复读取
-                    if(temp_reg_count < MAX_TEMP_REGS) {
-                        temp_reg_cache[result.stack_offset] = *reg;
-                        temp_reg_count++;
-                    }
+        for (auto reg : ins->GetReadReg()) {
+                if (reg->is_virtual == false)
+                    continue;
+                auto result = alloc_result->find(*reg)->second;
+                if (result.in_mem == true) {
+                    // Spill Code Gen
+                    *reg = GenerateReadCode(it, result.stack_offset * 4, reg->type);
                 }
             }
-            
-            // 处理写入寄存器
-            for(auto reg:ins->GetWriteReg()) {
-                if(reg->is_virtual==false || processed_regs.count(*reg)) continue;
-                
-                auto result=alloc_result->find(*reg)->second;
-                if(result.in_mem==true) {
-                    // 生成写入代码
-                    *reg=GenerateWriteCode(it,result.stack_offset*4,reg->type);
-                    processed_regs.insert(*reg);
-                    
-                    // 写入后从缓存中移除
-                    temp_reg_cache.erase(result.stack_offset);
-                    temp_reg_count = std::max(0, temp_reg_count-1);
+            for (auto reg : ins->GetWriteReg()) {
+                if (reg->is_virtual == false)
+                    continue;
+                auto result = alloc_result->find(*reg)->second;
+                if (result.in_mem == true) {
+                    // Spill Code Gen
+                    *reg = GenerateWriteCode(it, result.stack_offset * 4, reg->type);
                 }
             }
         }
-        
-        // 块结束时清空临时寄存器缓存
-        temp_reg_cache.clear();
-        temp_reg_count = 0;
     }
 }
 // 显示alloc_result的全部内容（allocres）

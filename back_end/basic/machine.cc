@@ -307,6 +307,9 @@ Register MachineFunction::GetNewRegister(int regtype, int reglength, bool save_a
     new_reg.type.data_length = reglength;
     //new_reg.save_across_call = save_across_call;
     // InitializeNewVirtualRegister(new_regno);
+    // extern int frameend;
+    // if(frameend){std::cout<<new_regno<<std::endl;}
+    //检验是否死循环
     return new_reg;
 }
 

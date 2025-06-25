@@ -230,17 +230,21 @@ void RiscV64Unit::LowerStack()
 {
     //TODO
     //原架构中需要通过unit获取functions等信息，此处直接获取即可
+    //逐一处理函数
     for(auto func:functions)
     {
+        //一、前置工作->获取被调用者保存寄存器的定义块与读写块信息
+        //1.设置当前函数
         cur_func=func;
+        //2.设置“寄存器定义块（写）”与“寄存器读写块”的信息，一维代表寄存器编号，二维代表出现块的编号
         std::vector<std::vector<int>> saveregs_occurblockids,saveregs_rwblockids;
         //GatherUseSregs(func,saveregs_occurblockids,saveregs_rwblockids);
-        //1.搜集使用的寄存器信息
         saveregs_occurblockids.resize(TotalRegs);
         saveregs_rwblockids.resize(TotalRegs);
-
+        //3.遍历当前函数的所有基本块来设置
         for(auto &b:func->blocks)
         {
+            //1）保存“被调用者保存寄存器”s0-s11,fs0-fs11,ra，保证函数被调用后这些寄存器的值能恢复原样
             std::bitset<TotalRegs> RegNeedSaved;
             RegNeedSaved.set(RISCV_s0);
             RegNeedSaved.set(RISCV_s1);
@@ -267,35 +271,72 @@ void RiscV64Unit::LowerStack()
             RegNeedSaved.set(RISCV_fs10);
             RegNeedSaved.set(RISCV_fs11);
             RegNeedSaved.set(RISCV_ra);
-            std::bitset<TotalRegs> RegVisited; // 用于记录当前基本块中访问过的寄存器
+            //2）保存当前块中被访问过的寄存器
+            // std::bitset<TotalRegs> RegVisited; // 类似isvisited,避免重复记录
+            // //A.遍历当前块中的所有指令
+            // for(auto ins:*b)
+            // {
+            //     //B.遍历指令的写寄存器
+            //     for (auto reg : ins->GetWriteReg()) 
+            //     {
+            //         //如果是物理寄存器（不用溢出），且是需要保存的寄存器，则同时记录在occur和rw中
+            //         if (!reg->is_virtual && RegNeedSaved[reg->reg_no] && !RegVisited[reg->reg_no]) 
+            //         {
+            //             RegVisited[reg->reg_no] = true;
+            //             saveregs_occurblockids[reg->reg_no].push_back(b->getLabelId());
+            //             saveregs_rwblockids[reg->reg_no].push_back(b->getLabelId());
+            //         }
+            //     }
+            //     //C.遍历指令的读寄存器
+            //     for (auto reg : ins->GetReadReg()) 
+            //     {
+            //         //如果是物理寄存器且是被调用者保存寄存器，则加入rw块中
+            //         if (!reg->is_virtual && RegNeedSaved[reg->reg_no] && !RegVisited[reg->reg_no]) 
+            //         {
+            //             saveregs_rwblockids[reg->reg_no].push_back(b->getLabelId());
+            //         }
+            //     }
+            // }
+            //修改逻辑，避免重复记录很多次
+            std::bitset<TotalRegs> RegVisited; // 标记当前块中该寄存器是否已经记录过使用（读或写）
+            std::bitset<TotalRegs> RegWritten; // 标记当前块中该寄存器是否已经记录过写（用于避免重复记录到occurblockids）
             for(auto ins:*b)
             {
-                for (auto reg : ins->GetWriteReg()) 
+                for (auto reg : ins->GetWriteReg())
                 {
-                    if (!reg->is_virtual && RegNeedSaved[reg->reg_no] && !RegVisited[reg->reg_no]) 
+                    if (!reg->is_virtual && RegNeedSaved[reg->reg_no])
                     {
-                        RegVisited[reg->reg_no] = true;
-                        saveregs_occurblockids[reg->reg_no].push_back(b->getLabelId());
-                        saveregs_rwblockids[reg->reg_no].push_back(b->getLabelId());
+                        if (!RegVisited[reg->reg_no])
+                        {
+                            RegVisited[reg->reg_no] = true;
+                            saveregs_rwblockids[reg->reg_no].push_back(b->getLabelId());
+                        }
+                        if (!RegWritten[reg->reg_no])
+                        {
+                            RegWritten[reg->reg_no] = true;
+                            saveregs_occurblockids[reg->reg_no].push_back(b->getLabelId());
+                        }
                     }
                 }
-                for (auto reg : ins->GetReadReg()) 
+
+                for (auto reg : ins->GetReadReg())
                 {
-                    if (!reg->is_virtual && RegNeedSaved[reg->reg_no] && !RegVisited[reg->reg_no]) 
+                    if (!reg->is_virtual && RegNeedSaved[reg->reg_no] && !RegVisited[reg->reg_no])
                     {
+                        RegVisited[reg->reg_no] = true;
                         saveregs_rwblockids[reg->reg_no].push_back(b->getLabelId());
                     }
                 }
             }
         }
-        
+        //4.保存fp（s0）寄存器。如果有参数溢出到栈，则需要在入口块使用fp寄存器，把fp抬高，故标记。
         if (func->HasInParaInStack()) 
         {
-            saveregs_occurblockids[RISCV_fp].push_back(0);
+            saveregs_occurblockids[RISCV_fp].push_back(0);//fp实际上就是s0寄存器，作为栈底位置。之后都通过fp+n来处理
             saveregs_rwblockids[RISCV_fp].push_back(0);
         }
-
-        //2.分配栈空间
+        //二、栈空间分配阶段
+        //1.设置辅助变量：需要store操作的基本块、需要load操作的基本块、需要恢复的偏移量
         std::vector<int> sd_blocks;
         std::vector<int> ld_blocks;
         std::vector<int> restore_offset;
@@ -303,12 +344,14 @@ void RiscV64Unit::LowerStack()
         ld_blocks.resize(64);
         restore_offset.resize(64);
         int saveregnum = 0, cur_restore_offset = 0;
+        //2.统计需要在栈中保存的寄存器信息：如果寄存器被修改且使用过，则需要单独保存这个寄存器
          for (int i = 0; i < saveregs_occurblockids.size(); i++) { // 遍历保存寄存器的出现块 ID
             auto &vld = saveregs_rwblockids[i]; // 获取与当前保存寄存器相关的读写块 ID
             if (!vld.empty()) { // 如果读写块不为空
                 saveregnum++; // 保存寄存器数量加1
             }
         }
+        //3.增加大小（到这里）
         func->AddStackSize(saveregnum*8);
 
         //2.恢复栈空间

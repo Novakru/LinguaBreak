@@ -1,4 +1,5 @@
 #include"alloc_help.h"
+#include<algorithm>
 // 为了实现方便，这里直接使用set进行活跃变量分析，如果你不满意，可以自行更换更高效的数据结构(例如bitset)
 template <class T> std::set<T> SetIntersect(const std::set<T> &a, const std::set<T> &b) {
     std::set<T> ret;
@@ -217,7 +218,67 @@ int PhysicalRegistersAllocTools::getIdleReg(LiveInterval interval) {
 
     // return -1;
 }
+//自定义优先级尝试
+// int PhysicalRegistersAllocTools::getIdleReg(LiveInterval interval) {
+//     // 定义寄存器优先级顺序
+//     static const std::vector<int> PRIORITY_1 = {5, 6, 7, 28, 29, 30, 31};  // t0-t6 (最高优先级)
+//     static const std::vector<int> PRIORITY_2 = {10, 11, 12, 13, 14, 15, 16, 17}; // a0-a7
+//     static const std::vector<int> PRIORITY_3 = {8, 9, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}; // s0-s11
+    
+//     // 按优先级顺序检查寄存器
+//     for (int reg : PRIORITY_1) {
+//         if (isRegAvailable(reg, interval)) 
+//             return reg;
+//     }
+    
+//     for (int reg : PRIORITY_2) {
+//         if (isRegAvailable(reg, interval)) 
+//             return reg;
+//     }
+    
+//     for (int reg : PRIORITY_3) {
+//         if (isRegAvailable(reg, interval)) 
+//             return reg;
+//     }
+    
+//     return -1;  // 未找到可用寄存器
+// }
 
+// // 检查寄存器是否可用
+// bool PhysicalRegistersAllocTools::isRegAvailable(int reg, LiveInterval interval) {
+//     // 1. 检查寄存器是否对当前interval有效
+//     if (!isValidReg(reg, interval)) 
+//         return false;
+    
+//     // 2. 检查寄存器冲突
+//     if (hasConflict(reg, interval)) 
+//         return false;
+    
+//     return true;
+// }
+
+// // 寄存器有效性检查
+// bool PhysicalRegistersAllocTools::isValidReg(int reg, LiveInterval interval) {
+//     // 排除特殊寄存器
+//     if (reg == 0 || reg == 1 || reg == 2 || reg == 3) // x0, ra, sp, gp
+//         return false;
+    
+//     // 检查寄存器是否符合指令要求
+//     auto valid_regs = getValidRegs(interval);
+//     return std::find(valid_regs.begin(), valid_regs.end(), reg) != valid_regs.end();
+// }
+
+// // 冲突检查
+// bool PhysicalRegistersAllocTools::hasConflict(int reg, LiveInterval interval) {
+//     for (auto alias_reg : getAliasRegs(reg)) {
+//         for (auto& occupied_interval : phy_occupied[alias_reg]) {
+//             if (interval & occupied_interval) {
+//                 return true;  // 存在冲突
+//             }
+//         }
+//     }
+//     return false;
+// }
 //reference:https://github.com/yuhuifishash/SysY/target/common/machine_passes/register_alloc/physical_register.cc line128-line152
 int PhysicalRegistersAllocTools::getIdleMem(LiveInterval interval) //{ TODO("getIdleMem"); }
 {
