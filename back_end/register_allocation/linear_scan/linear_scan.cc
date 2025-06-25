@@ -76,7 +76,7 @@ bool FastLinearScan::DoAllocInCurrentFunc() {
             //std::cout<<"Unalloc Reg:"<<interval.first.reg_no<<"\n";
         //2)对于物理寄存器，占用它
         } else {
-            std::cout<<"Pre Occupy Physical Reg "<<interval.first.reg_no<<"\n";
+            //std::cout<<"Pre Occupy Physical Reg "<<interval.first.reg_no<<"\n";
             // 预先占用已经存在的物理寄存器
             phy_regs_tools->OccupyReg(interval.first.reg_no, interval.second);
         }
@@ -93,7 +93,7 @@ bool FastLinearScan::DoAllocInCurrentFunc() {
         auto cur_vreg=interval.getReg();
         //2）尝试获取空闲物理寄存器（通过活跃区间）
         int phy_reg_id = phy_regs_tools->getIdleReg(interval);
-        std::cout<<"reg_no="<<cur_vreg.reg_no<<" , idlereg="<<phy_reg_id<<"\n";
+        //std::cout<<"reg_no="<<cur_vreg.reg_no<<" , idlereg="<<phy_reg_id<<"\n";
         //A.如果有空闲的物理寄存器，占用它
         if (phy_reg_id >= 0) {
             phy_regs_tools->OccupyReg(phy_reg_id, interval);
@@ -121,7 +121,7 @@ bool FastLinearScan::DoAllocInCurrentFunc() {
                 }
             }
             auto spill_reg=spill_interval.getReg();
-            std::cout<<"spill to mem="<<mem<<" , spill_reg="<<spill_reg.reg_no<<", cur_vreg="<<cur_vreg.reg_no<<"\n";
+            //std::cout<<"spill to mem="<<mem<<" , spill_reg="<<spill_reg.reg_no<<", cur_vreg="<<cur_vreg.reg_no<<"\n";
             if (!(cur_vreg==spill_reg)) {
                 phy_regs_tools->swapRegspill(getAllocResultInReg(mfun, spill_interval.getReg()), spill_interval, mem,
                                         cur_vreg.getDataWidth(), interval);
@@ -136,17 +136,17 @@ bool FastLinearScan::DoAllocInCurrentFunc() {
             
         }
     }
-    std::cout << "函数: " << mfun->getFunctionName() << std::endl;
-    for (auto &reg_pair : alloc_result[mfun]) {
-        auto vreg = reg_pair.first;
-        auto res = reg_pair.second;
-        std::cout << "  虚拟寄存器: " << vreg.reg_no << " -> ";
-        if (res.in_mem) {
-            std::cout << "栈偏移: " << res.stack_offset << std::endl;
-        } else {
-            std::cout << "物理寄存器: " << res.phy_reg_no << std::endl;
-        }
-    }
+    // std::cout << "函数: " << mfun->getFunctionName() << std::endl;
+    // for (auto &reg_pair : alloc_result[mfun]) {
+    //     auto vreg = reg_pair.first;
+    //     auto res = reg_pair.second;
+    //     std::cout << "  虚拟寄存器: " << vreg.reg_no << " -> ";
+    //     if (res.in_mem) {
+    //         std::cout << "栈偏移: " << res.stack_offset << std::endl;
+    //     } else {
+    //         std::cout << "物理寄存器: " << res.phy_reg_no << std::endl;
+    //     }
+    // }
     return spilled;
 }
 
