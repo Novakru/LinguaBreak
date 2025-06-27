@@ -10,8 +10,10 @@
 #include "llvm/semant/semant.h"
 #include "include/ir.h"
 
-#include "llvm/optimize/transform/simplify_cfg.h"
+#include "llvm/optimize/analysis/loopAnalysis.h"
 #include "llvm/optimize/analysis/dominator_tree.h"
+
+#include "llvm/optimize/transform/simplify_cfg.h"
 #include "llvm/optimize/transform/mem2reg.h"
 #include "llvm/optimize/transform/adce.h"
 #include "llvm/optimize/transform/peephole.h"
@@ -204,7 +206,9 @@ int main(int argc, char** argv) {
         SCCPPass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFG();
 		PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is need
-        //SimplifyCFGPass(&llvmIR).EOBB();  // TODO
+		SimplifyCFGPass(&llvmIR).EOBB();  
+		// LoopAnalysisPass(&llvmIR).Execute();
+       
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }
 

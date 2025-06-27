@@ -8,6 +8,7 @@ class SimplifyCFGPass : public IRPass {
 private:
     void EliminateUnreachedBlocksInsts(CFG *C);
     void EliminateOneBrUncondBlocks(CFG *C);
+	bool IsSafeToEliminate(CFG *C, LLVMBlock block, LLVMBlock pred_block, LLVMBlock nextbb);
     void EliminateOnePredPhi(CFG *C,LLVMBlock nowblock,std::unordered_set<int> regno_tobedeleted);
     void EliminateNotExistPhi(CFG *C);
 public:

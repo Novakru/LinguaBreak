@@ -59,7 +59,6 @@ void DominatorTree::SearchInvB(int bbid){
 void DominatorTree::BuildDominatorTree(bool reverse) {
     // 清空所有内容
     dom_tree.clear();
-    idom.clear();
     sdom_map.clear();
     dfs_map.clear();
     dfs.clear();
@@ -234,4 +233,30 @@ void DominatorTree::display_sdom_map() {
         std::cout << "Block " << block_id << " 的半支配点是: Block " << sdom_id << std::endl;
     }
     std::cout << "=== End of Semi-Dominator Map ===\n" << std::endl;
+}
+
+bool DominatorTree::dominates(LLVMBlock a, LLVMBlock b) {
+	int current_id = b->block_id;
+	while (current_id != -1) {
+		if (current_id == a->block_id) return true;
+		if (current_id == 0) break;  // no exit loop
+		current_id = sdom_map.count(current_id) ? sdom_map[current_id] : -1;
+	}
+	return false;
+}
+
+// getDominators from b block to root
+std::vector<LLVMBlock> DominatorTree::getDominators(LLVMBlock b) {
+	std::vector<LLVMBlock> result;
+	int current_id = b->block_id;
+	auto bmap = *(C->block_map);
+	while (current_id != -1) {
+		if (bmap.count(current_id)) {
+			result.push_back(bmap[current_id]);
+		}
+		if (current_id == 0) break;  // no exit loop
+		current_id = sdom_map.count(current_id) ? sdom_map[current_id] : -1;
+	}
+	
+	return result;
 }

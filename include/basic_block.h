@@ -24,7 +24,21 @@ public:
 
     void printIR(std::ostream &s);
     BasicBlock(int id) : block_id(id) {}
+
+	bool operator==(const BasicBlock& other) const {
+        return block_id == other.block_id;
+    }
 };
 typedef BasicBlock *LLVMBlock;
+
+// used for unordered_set<LLVMBlock>
+namespace std {
+    template <>
+    struct hash<BasicBlock> {
+        std::size_t operator()(const BasicBlock& bb) const {
+            return std::hash<int>()(bb.block_id);
+        }
+    };
+}
 
 #endif
