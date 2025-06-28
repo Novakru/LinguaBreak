@@ -17,6 +17,7 @@
 #include "llvm/optimize/transform/peephole.h"
 #include "llvm/optimize/transform/sccp.h"
 #include "llvm/optimize/transform/tailcallelim.h"
+#include "llvm/optimize/transform/functioninline.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -205,7 +206,9 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).RebuildCFG();
         //SimplifyCFGPass(&llvmIR).EOBB();  // TODO
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
-    // }
+
+    
+        // }
 
     if (option == 3) {
         llvmIR.printIR(out);
@@ -225,7 +228,7 @@ int main(int argc, char** argv) {
             m_unit->LowerStack();
         }
         //optimizer
-        Machine_Peehole(m_unit).Execute();
+        // Machine_Peehole(m_unit).Execute();
 
         RiscV64Printer(out, m_unit).emit();
         fclose(input);

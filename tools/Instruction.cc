@@ -797,3 +797,84 @@ bool PhiInstruction::NotEqual(Operand op1, Operand op2){
     }
     return false;
 }
+
+Operand RegOperand::OperandClone(){
+    return GetNewRegOperand(reg_no);
+}
+Operand ImmI32Operand::OperandClone(){
+    return new ImmI32Operand(immVal);
+}
+Operand ImmI64Operand::OperandClone(){
+    return new ImmI64Operand(immVal);
+}
+Operand ImmF32Operand::OperandClone(){
+    return new ImmF32Operand(immVal);
+}
+Operand LabelOperand::OperandClone(){
+    return GetNewLabelOperand(label_no); 
+}
+Operand GlobalOperand::OperandClone(){
+    return GetNewGlobalOperand(name);
+}
+
+Instruction LoadInstruction::InstructionClone(){
+    Instruction new_inst = new LoadInstruction(type, pointer->OperandClone(), result->OperandClone());
+    return new_inst;
+}
+Instruction StoreInstruction::InstructionClone(){
+    Instruction new_inst = new StoreInstruction(type, value->OperandClone(), pointer->OperandClone());
+    return new_inst;
+}
+Instruction ArithmeticInstruction::InstructionClone(){
+    Instruction new_inst = new ArithmeticInstruction(opcode, type, op1->OperandClone(), op2->OperandClone(), result->OperandClone());
+    return new_inst;
+}
+Instruction IcmpInstruction::InstructionClone(){
+    Instruction new_inst = new IcmpInstruction(type, op1->OperandClone(), op2->OperandClone(), cond, result->OperandClone());
+    return new_inst;
+}
+Instruction FcmpInstruction::InstructionClone(){
+    Instruction new_inst = new FcmpInstruction(type, op1->OperandClone(), op2->OperandClone(), cond, result->OperandClone());
+    return new_inst;
+}
+Instruction PhiInstruction::InstructionClone(){
+    Instruction new_inst = new PhiInstruction(type, result->OperandClone(), phi_list);
+    return new_inst;
+}
+Instruction AllocaInstruction::InstructionClone(){
+    Instruction new_inst = new AllocaInstruction(type, result->OperandClone());
+    return new_inst;
+}   
+Instruction BrCondInstruction::InstructionClone(){
+    Instruction new_inst = new BrCondInstruction(cond->OperandClone(), trueLabel->OperandClone(), falseLabel->OperandClone());
+    return new_inst;
+}
+Instruction BrUncondInstruction::InstructionClone(){
+    Instruction new_inst = new BrUncondInstruction(destLabel->OperandClone());
+    return new_inst;
+}
+Instruction CallInstruction::InstructionClone(){
+    Instruction new_inst = new CallInstruction(ret_type, result->OperandClone(), name, args);
+    return new_inst;
+}
+Instruction RetInstruction::InstructionClone(){
+    Instruction new_inst = new RetInstruction(ret_type, ret_val->OperandClone());
+    return new_inst;
+}
+Instruction GetElementptrInstruction::InstructionClone(){
+    Instruction new_inst = new GetElementptrInstruction(type, result->OperandClone(), ptrval->OperandClone(), dims, indexes, index_type);
+    return new_inst;
+}
+
+Instruction FptosiInstruction::InstructionClone(){
+    Instruction new_inst = new FptosiInstruction(result->OperandClone(), value->OperandClone());
+    return new_inst;
+}
+Instruction SitofpInstruction::InstructionClone(){
+    Instruction new_inst = new SitofpInstruction(result->OperandClone(), value->OperandClone());
+    return new_inst;
+}
+Instruction ZextInstruction::InstructionClone(){
+    Instruction new_inst = new ZextInstruction(to_type, result->OperandClone(),from_type, value->OperandClone());
+    return new_inst;
+}

@@ -112,6 +112,7 @@ public:
     BasicOperand() {}
     operand_type GetOperandType() { return operandType; }
     virtual std::string GetFullName() = 0;
+    virtual Operand OperandClone()=0;
 };
 
 // @register operand;%r+register No
@@ -124,9 +125,9 @@ class RegOperand : public BasicOperand {
 
 public:
     int GetRegNo() { return reg_no; }
-
     friend RegOperand *GetNewRegOperand(int RegNo);
     virtual std::string GetFullName();
+    virtual Operand OperandClone();
 };
 RegOperand *GetNewRegOperand(int RegNo);
 
@@ -142,6 +143,7 @@ public:
         this->immVal = immVal;
     }
     virtual std::string GetFullName();
+    virtual Operand OperandClone();
 };
 
 // @integer64 immediate
@@ -156,7 +158,7 @@ public:
         this->immVal = immVal;
     }
     virtual std::string GetFullName();
-    
+    virtual Operand OperandClone();
 };
 
 // @float32 immediate
@@ -173,7 +175,7 @@ public:
         this->immVal = immVal;
     }
     virtual std::string GetFullName();
-    
+    virtual Operand OperandClone();
 };
 
 // @label %L+label No
@@ -189,7 +191,7 @@ public:
 
     friend LabelOperand *GetNewLabelOperand(int LabelNo);
     virtual std::string GetFullName();
-    
+    virtual Operand OperandClone();
 };
 
 LabelOperand *GetNewLabelOperand(int RegNo);
@@ -204,10 +206,9 @@ class GlobalOperand : public BasicOperand {
 
 public:
     std::string GetName() { return name; }
-
     friend GlobalOperand *GetNewGlobalOperand(std::string name);
     virtual std::string GetFullName();
-    
+    virtual Operand OperandClone();
 };
 
 GlobalOperand *GetNewGlobalOperand(std::string name);
@@ -300,11 +301,13 @@ public:
     void SetBlockID(int id){ BlockID = id; }
     virtual void PrintIR(std::ostream &s) = 0;
     virtual Operand GetResult() = 0;
+    virtual void SetResult(Operand op) = 0;
     virtual int GetDefRegno() = 0;
     virtual std::set<int> GetUseRegno() = 0;
     virtual void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) =0;
     virtual std::vector<Operand> GetNonResultOperands() = 0;
     virtual void SetNonResultOperands(std::vector<Operand> ops) = 0;
+    virtual Instruction InstructionClone() =0;
 };
 
 // load
@@ -340,6 +343,8 @@ public:
             pointer = ops[0];
         }
     }
+    void SetResult(Operand op) { result = op;}
+    Instruction InstructionClone();
 };
 
 // store
@@ -382,6 +387,8 @@ public:
             value = ops[1];
         }
     }
+    void SetResult(Operand op) { pointer = op;}
+    Instruction InstructionClone();
 };
 
 //<result>=add <ty> <op1>,<op2>
@@ -432,6 +439,8 @@ public:
     }
     int CompConst(int value1, int value2);
     float CompConst(float value1, float value2);
+    void SetResult(Operand op) { result = op;}
+    Instruction InstructionClone();
 };
 
 //<result>=icmp <cond> <ty> <op1>,<op2>
@@ -480,6 +489,8 @@ public:
         }
     }
     int CompConst(int value1, int value2);
+    void SetResult(Operand op) { result = op;}
+    Instruction InstructionClone();
 };
 
 //<result>=fcmp <cond> <ty> <op1>,<op2>
@@ -524,6 +535,8 @@ public:
         }
     }
     float CompConst(float value1,float value2);
+    void SetResult(Operand op) { result = op;}
+    Instruction InstructionClone();
 
 };
 
@@ -592,6 +605,8 @@ public:
         }
     }
     bool NotEqual(Operand op1, Operand op2);
+    void SetResult(Operand op) { result = op;}
+    Instruction InstructionClone();
 };
 
 // alloca
@@ -630,6 +645,8 @@ public:
     void SetNonResultOperands(std::vector<Operand> ops) {
         // No operands to set
     }
+    void SetResult(Operand op) { result = op;}
+    Instruction InstructionClone();
 };
 
 // Conditional branch
@@ -678,6 +695,8 @@ public:
             falseLabel = ops[2];
         }
     }
+    void SetResult(Operand op) { }
+    Instruction InstructionClone();
 };
 
 // Unconditional branch
@@ -710,6 +729,8 @@ public:
             destLabel = ops[0];
         }
     }
+    void SetResult(Operand op) {}
+    Instruction InstructionClone();
 };
 
 /*
@@ -759,6 +780,8 @@ public:
             init_val = ops[0];
         }
     }
+    void SetResult(Operand op) { }
+    Instruction InstructionClone(){return nullptr; }
 };
 
 class GlobalStringConstInstruction : public BasicInstruction {
@@ -787,6 +810,8 @@ public:
     void SetNonResultOperands(std::vector<Operand> ops) {
         // No operands to set
     }
+    void SetResult(Operand op) { }
+    Instruction InstructionClone(){return nullptr; }
 };
 
 /*
@@ -805,6 +830,7 @@ private:
     Operand result;    // result can be null
     std::string name;
     std::vector<std::pair<enum LLVMType, Operand>> args;
+    //FuncDefInstruction func_def_inst; // 记录被调用者的函数定义指令，用于FunctionInline
 
 public:
     // Construction Function:Set All datas
@@ -851,6 +877,8 @@ public:
             args[i].second = ops[i];
         }
     }
+    void SetResult(Operand op) { }
+    Instruction InstructionClone();
 };
 
 /*
@@ -893,6 +921,8 @@ public:
             ret_val = ops[0];
         }
     }
+    void SetResult(Operand op) { }
+    Instruction InstructionClone();
 };
 
 /*
@@ -960,6 +990,8 @@ public:
             }
         }
     }
+    void SetResult(Operand op) { result = op;}
+    Instruction InstructionClone();
 };
 
 class FunctionDefineInstruction : public BasicInstruction {
@@ -981,7 +1013,6 @@ public:
     }
     enum LLVMType GetReturnType() { return return_type; }
     std::string GetFunctionName() { return Func_name; }
-
     void PrintIR(std::ostream &s);
     Operand GetResult(){ return nullptr; };
     virtual Instruction CopyInstruction() { return nullptr; }
@@ -1001,6 +1032,8 @@ public:
             formals_reg[i] = ops[i];
         }
     }
+    void SetResult(Operand op) { }
+    Instruction InstructionClone(){return nullptr; }
 };
 typedef FunctionDefineInstruction *FuncDefInstruction;
 
@@ -1036,6 +1069,8 @@ public:
     void SetNonResultOperands(std::vector<Operand> ops) {
         // No operands to set
     }
+    void SetResult(Operand op) {}
+    Instruction InstructionClone(){return nullptr; }
 };
 
 // 这条指令目前只支持float和i32的转换，如果你需要double, i64等类型，需要自己添加更多变量
@@ -1065,6 +1100,8 @@ public:
             value = ops[0];
         }
     }
+    void SetResult(Operand op) { result = op;}
+    Instruction InstructionClone();
 };
 
 // 这条指令目前只支持float和i32的转换，如果你需要double, i64等类型，需要自己添加更多变量
@@ -1095,6 +1132,8 @@ public:
             value = ops[0];
         }
     }
+    void SetResult(Operand op) { result = op;}
+    Instruction InstructionClone();
 };
 
 // 无符号扩展，你大概率需要它来将i1无符号扩展至i32(即对应c语言bool类型转int)
@@ -1128,6 +1167,8 @@ public:
             value = ops[0];
         }
     }
+    void SetResult(Operand op) { result = op;}
+    Instruction InstructionClone();
 };
 
 std::ostream &operator<<(std::ostream &s, BasicInstruction::LLVMType type);

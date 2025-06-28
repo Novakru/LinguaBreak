@@ -1836,6 +1836,7 @@ void __FuncDef::codeIR() {
     
     llvmIR.function_max_reg[funcdefI] = max_reg;
     llvmIR.function_max_label[funcdefI] = max_label;
+    llvmIR.FunctionNameTable[funcdefI->GetFunctionName()] = funcdefI;//FunctionInlinePass
 
     irgen_table.symbol_table.endScope();
     irgen_table.symboldim_table.endScope();
