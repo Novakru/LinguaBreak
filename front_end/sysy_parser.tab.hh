@@ -85,7 +85,11 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
+<<<<<<< HEAD
 #line 16 "front_end/sysy_parser.y"
+=======
+#line 15 "front_end/sysy_parser.y"
+>>>>>>> fc5421e (stage new changes)
 
     char* error_msg;
     Symbol* symbol_token;
