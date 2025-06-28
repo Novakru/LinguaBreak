@@ -605,7 +605,6 @@ public:
         }
     }
     bool NotEqual(Operand op1, Operand op2);
-    void SetResult(Operand op) { result = op;}
     Instruction InstructionClone();
 };
 
@@ -991,7 +990,6 @@ public:
             }
         }
     }
-    void SetResult(Operand op) { result = op;}
     Instruction InstructionClone();
 };
 

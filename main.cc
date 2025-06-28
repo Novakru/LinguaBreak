@@ -19,7 +19,6 @@
 #include "llvm/optimize/transform/peephole.h"
 #include "llvm/optimize/transform/sccp.h"
 #include "llvm/optimize/transform/tailcallelim.h"
-#include "llvm/optimize/transform/functioninline.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
