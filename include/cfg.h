@@ -21,7 +21,6 @@ class LoopInfo;
 
 class CFG {
 public:
-
     int max_reg = 0;
     int max_label = 0;
     FuncDefInstruction function_def;
