@@ -103,20 +103,18 @@ void SimplifyCFGPass::EliminateNotExistPhi(CFG *C) {
 
 }
 void SimplifyCFGPass::RebuildCFG(){
+    // 重建CFG（遍历cfg，重建G与invG)
+    DomInfo.clear();
+    llvmIR->CFGInit();
     for (auto &[defI,cfg] : llvmIR->llvm_cfg) {
-        // 重建CFG（遍历cfg，重建G与invG)
-        cfg->BuildCFG();
         //重建支配树 （正向）
+        DomInfo[cfg] = new DominatorTree(cfg);
         DomInfo[cfg]->BuildDominatorTree(false);
         cfg->DomTree = DomInfo[cfg]; 
         // 消除不可达块
         EliminateUnreachedBlocksInsts(cfg);
         // 处理随不可达块受影响的phi指令
         EliminateNotExistPhi(cfg);
-        // // 重建支配树
-        // cfg->DomTree = nullptr; // 这里可以调用支配树重建函数
-        // cfg->PostDomTree = nullptr; // 这里可以调用后支配树重建函数
-
     }
 }
 

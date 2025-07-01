@@ -1039,11 +1039,7 @@ YY_RULE_SETUP
 #line 129 "front_end/sysy_lexer.l"
 {   
 	/* unknown tokens, return ERROR */
-<<<<<<< HEAD
     yylval.error_msg =yytext;
-=======
-    yylval.error_msg = (char*)yytext;
->>>>>>> fc5421e (stage new changes)
     return ERROR;
 }
 	YY_BREAK
@@ -2059,7 +2055,6 @@ void yyfree (void * ptr )
 #define YYTABLES_NAME "yytables"
 
 #line 134 "front_end/sysy_lexer.l"
-
 
 
 

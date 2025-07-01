@@ -46,6 +46,8 @@ echo $?
 ```
 
 ### 使用gdb调试
+
+- **方式一**: 使用gdb终端调试
 ```bash
 # 1. 确保你编译时加了 -g 开启调试信息
 make clean-all && make CXXFLAGS="-g"
@@ -59,6 +61,18 @@ gdb --args ./bin/SysYc ./test_output/example/temp.sy -llvm ./test_output/example
 # 4. 程序崩溃后输入：
 (gdb) bt
 ```
+- **方式二**: 使用vscode界面调试
+
+```bash
+# 1.直接生成调试目标，你将得到 带有调试信息的compiler-dbg可执行文件
+make debug
+# 2.在.vscode/launch.json中配置参数↓，其余参数自定
+"program": "${workspaceFolder}/compiler-dbg",
+# 3.执行调试
+# 4.清理调试时生成的残留文件
+make clean-dbg
+```
+
 
 ```
 Your Syntax Tree Structure

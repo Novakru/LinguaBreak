@@ -9,9 +9,11 @@ private:
     // 存储函数调用图  //NOTE:指针类型的unordered_map
     std::unordered_map<FuncDefInstruction, std::set<FuncDefInstruction>> callGraph;
     // 存储被调用函数的返回指令
-    std::unordered_map<FuncDefInstruction, std::pair<int,RetInstruction>> calleeReturn;
+    std::unordered_map<FuncDefInstruction, std::pair<int,RetInstruction*>> calleeReturn;
     // 存储函数的大小（指令数量）
     std::unordered_map<FuncDefInstruction, int> funcSize;
+    // 存储block_id对应的后续phi指令
+    std::unordered_map<FuncDefInstruction,std::unordered_map<int,std::set<PhiInstruction*>>>phiGraph;
     // 内联阈值，超过此值的函数不会被内联
     const int INLINE_THRESHOLD = 50;
     

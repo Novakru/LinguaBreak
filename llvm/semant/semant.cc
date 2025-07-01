@@ -169,6 +169,7 @@ int GetArrayVal(NodeAttribute &val,std::vector<int> &arrayIndexes,BuiltinType::B
     }//val.IntInitVals,FloatInitVal中线性存放着各个数组元素
     if (type==BuiltinType::Int){return val.IntInitVals[index];}
     else if (type==BuiltinType::Float){return val.FloatInitVals[index];}//暂时只可能有参数为int或者float的情况
+    return -1;
     
 }
 
