@@ -53,6 +53,13 @@ public:
     std::set<LLVMBlock> GetSuccessor(int bbid);
     void GetSSAGraphAllSucc(std::set<int>& succs,int regno);
 
+	LLVMBlock GetNewBlock();
+	LLVMBlock GetBlockWithId(int id);
+	void replaceSuccessors(std::set<LLVMBlock> froms, LLVMBlock to, LLVMBlock mid);
+	void replaceSuccessor(LLVMBlock from, LLVMBlock to, LLVMBlock mid);
+	void addEdge(LLVMBlock from, LLVMBlock to);
+	void delEdge(LLVMBlock from, LLVMBlock to);
+
 	void display(bool reverse = false);
 };
 

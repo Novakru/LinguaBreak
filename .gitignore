@@ -6,3 +6,4 @@ testcase/*
 test_output/*
 debug.sy
 debug.ll
+graphviz/*

@@ -75,6 +75,27 @@ void Loop::dispLoop(int depth, bool is_last) const {
     }
 }
 
+bool Loop::verifySimplifyForm(CFG* cfg) const {
+	bool flag = true;
+	flag &= (preheader != nullptr);
+	if(!flag) return false;
+
+	int phid = preheader->block_id;
+	flag &= (phid != 0);
+	flag &= (cfg->GetSuccessor(phid).size() == 1);
+
+	flag &= (latches.size() == 1);
+
+	flag &= (exits.size() >= 1);
+	for(auto exit : exits) {
+		for(auto pred : cfg->GetPredecessor(exit)) {
+			flag &= (contains(pred));
+		}
+	}
+	
+	return flag;
+}
+
 
 void LoopInfo::analyze(CFG* cfg) {
 	auto dom_tree = static_cast<DominatorTree*>(cfg->DomTree);
@@ -147,6 +168,8 @@ void LoopInfo::discoverLoopBlocks(Loop* loop, LLVMBlock back_edge_src, CFG* cfg)
 }
 
 void LoopInfo::markExitingAndExits(Loop* loop, CFG* cfg) {
+	loop->clearExit();
+	loop->clearExiting();
 	for (LLVMBlock bb : loop->getBlocks()) {
 		auto successors = cfg->GetSuccessor(bb);
 		for (auto succ : successors) {
@@ -209,112 +232,140 @@ void LoopInfo::displayLoopInfo() const {
 
 /*  1. A preheader.
 	2. A single backedge (which implies that there is a single latch).
-	3. Dedicated exits. 
+	3. Dedicated exits. (may be not only one)
 		That is, no exit block for the loop has a predecessor that is outside the loop. 
 		This implies that all exit blocks are dominated by the loop header.
 */
-/*
 void LoopInfo::simplify(CFG* cfg) {
-    // dfs, ensure sub_loop simplify first
     for (Loop* top_loop : top_level_loops) {
         simplifyLoop(top_loop, cfg);
     }
 
-    // rebuildDominatorTree
-	auto dom_tree = static_cast<DominatorTree*>(cfg->DomTree);
-	auto post_dom_tree = static_cast<DominatorTree*>(cfg->PostDomTree);
-	dom_tree->BuildDominatorTree(false);
-	post_dom_tree->BuildDominatorTree(true);
+    auto dom_tree = static_cast<DominatorTree*>(cfg->DomTree);
+    dom_tree->BuildDominatorTree(false);
 }
 
 void LoopInfo::simplifyLoop(Loop* loop, CFG* cfg) {
-    // 1. 先递归处理子循环
+	// dfs, make sure that childLoop simplify firstly.
     for (Loop* sub_loop : loop->getSubLoops()) {
         simplifyLoop(sub_loop, cfg);
     }
 
-    // 2. 处理当前循环
-    mergeLatches(loop, cfg);
-    insertPreheader(loop, cfg);
+    insertPreheader(loop, cfg); 
     createDedicatedExits(loop, cfg);
+	mergeLatches(loop, cfg);
 }
 
 void LoopInfo::insertPreheader(Loop* loop, CFG* cfg) {
-    LLVMBlock header = loop->getHeader();
-    auto preds = cfg->GetPredecessor(header->block_id);
+	LLVMBlock header = loop->getHeader();
+	std::vector<LLVMBlock> external_preds;
+	for (auto pred : cfg->GetPredecessor(header)) {
+		if (!loop->contains(pred)) {
+			external_preds.push_back(pred);
+		}
+	}
 
-    // 1. 创建 preheader 块
-    LLVMBlock preheader = new BasicBlock(cfg->generateBlockID(), "preheader");
-    cfg->addBlock(preheader);
+	assert(!external_preds.empty());
 
-    // 2. 重定向所有非循环内的前驱到 preheader
+	if (external_preds.size() == 1) {
+		LLVMBlock pred = external_preds.front();
+		const auto successors = cfg->GetSuccessor(pred);
+		if (pred->block_id != 0 && successors.size() == 1 && *(successors.begin()) == header) {
+			loop->setPreheader(pred);
+		}
+	}
+
+	if (loop->getPreheader()) return;
+
+    LLVMBlock preheader = cfg->GetNewBlock();
+
+    // 重定向 entrys 到 preheader 
+	auto preds = cfg->GetPredecessor(header->block_id);
+	std::set<LLVMBlock> entrys;
     for (auto pred : preds) {
-        if (!loop->contains(pred)) {
-            cfg->replaceSuccessor(pred, header, preheader);
+        if (!loop->contains(pred)) { 
+            entrys.insert(pred);
         }
     }
+	cfg->replaceSuccessors(entrys, header, preheader);
 
-    // 3. 添加 preheader -> header 的无条件跳转
-    cfg->addEdge(preheader, header);
     loop->setPreheader(preheader);
+
+	Loop* curr_loop = loop->getParentLoop();
+	while(curr_loop) {
+		curr_loop->addBlock(preheader);
+		curr_loop = curr_loop->getParentLoop();
+	}
 }
 
 void LoopInfo::createDedicatedExits(Loop* loop, CFG* cfg) {
-    auto exits = loop->getExitBlocks(); // 需实现 getExitBlocks()
+	// insertPreheader will affect exits
+	markExitingAndExits(loop, cfg);
+
+    auto exits = loop->getExits(); 
+	std::unordered_set<LLVMBlock> new_exits;
+
     for (auto exit : exits) {
-        // 如果出口块有多个前驱（来自循环内外的混合控制流）
-        if (cfg->GetPredecessor(exit->block_id).size() > 1) {
-            // 创建新的专用出口块
-            BasicBlock* dedicated_exit = new BasicBlock(cfg->generateBlockID(), "loop.exit");
-            cfg->addBlock(dedicated_exit);
-
-            // 重定向循环内到 exit 的边到 dedicated_exit
-            for (auto pred : cfg->GetPredecessor(exit->block_id)) {
-                if (loop->contains(pred)) {
-                    cfg->replaceSuccessor(pred, exit, dedicated_exit);
-                }
-            }
-
-            // 添加 dedicated_exit -> exit 的无条件跳转
-            cfg->addEdge(dedicated_exit, exit);
-            loop->addExitBlock(dedicated_exit); // 记录专用出口
+        std::set<LLVMBlock> preds = cfg->GetPredecessor(exit->block_id);
+		std::set<LLVMBlock> exitings;  // exitings that point to curr exit
+        bool hasOutsidePred = false;
+        
+        for (auto pred : preds) {
+            if (!loop->contains(pred)) hasOutsidePred = true;
+			else exitings.insert(pred);
         }
+
+        if (hasOutsidePred) {
+            LLVMBlock dedicated_exit = cfg->GetNewBlock();
+			cfg->replaceSuccessors(exitings, exit, dedicated_exit);
+			if(dedicated_exit->block_id == 26) {
+				std::cerr << "here" << std::endl;
+			}
+			// in this func, preheader-header-block-exiting is not update, exit maybe update.
+			new_exits.insert(dedicated_exit);
+        } else {
+			new_exits.insert(exit);
+		}
     }
+
+	loop->setExits(new_exits);
+	Loop* curr_loop = loop->getParentLoop();
+	while(curr_loop) {
+		markExitingAndExits(curr_loop, cfg);
+		curr_loop = curr_loop->getParentLoop();
+	}
 }
 
 void LoopInfo::mergeLatches(Loop* loop, CFG* cfg) {
-    auto& latches = loop->getLatchBlocks();
-    if (latches.size() <= 1) return; 
+    auto latches = loop->getLatches();
+	std::set<LLVMBlock> latchSet(latches.begin(), latches.end());
+    if (latches.size() <= 1) return;
 
-    // 1. 创建统一的新 latch 块
-    BasicBlock* new_latch = new BasicBlock(cfg->generateBlockID(), "loop.latch");
-    cfg->addBlock(new_latch);
+    LLVMBlock header = loop->getHeader();
+    LLVMBlock new_latch = cfg->GetNewBlock();
+	cfg->replaceSuccessors(latchSet, header, new_latch);
+	
+	loop->setLatches({});  // clear
+    loop->addLatch(new_latch);
 
-    // 2. 重定向所有原 latch 到新 latch
-    for (auto old_latch : latches) {
-        // 复制旧 latch 的终结指令到新 latch（如条件分支）
-        auto terminator = old_latch->getTerminator();
-        if (terminator->isConditional()) {
-            new_latch->addInstruction(terminator->clone()); // 需实现 clone()
-        } else {
-            // 默认无条件跳转回循环头
-            new_latch->addInstruction(new BranchInst(loop->getHeader()));
-        }
-
-        // 重定向旧 latch 的所有非循环内后继到新 latch
-        for (auto succ : cfg->GetSuccessor(old_latch->block_id)) {
-            if (!loop->contains(succ)) {
-                cfg->replaceSuccessor(old_latch, succ, new_latch);
-            }
-        }
-
-        // 删除旧 latch 到循环头的边
-        cfg->removeEdge(old_latch, loop->getHeader());
+    auto curr_loop = loop;
+    while (curr_loop) {
+		curr_loop->addBlock(new_latch);
+        curr_loop = curr_loop->getParentLoop();
     }
-
-    // 3. 添加新 latch 到循环头的边
-    cfg->addEdge(new_latch, loop->getHeader());
-    loop->clearLatches();
-    loop->addLatch(new_latch); // 更新为唯一 latch
 }
-*/
+
+bool LoopInfo::verifySimplifyForm(CFG* cfg) {
+	std::queue<Loop*> q(std::deque<Loop*>(top_level_loops.begin(), top_level_loops.end()));
+	while(!q.empty()) {
+		Loop* curr_loop = q.front();
+		if(!curr_loop->verifySimplifyForm(cfg))
+			return false;
+		for(auto sub_loop : curr_loop->getSubLoops()) {
+			q.push(sub_loop);
+		}
+		q.pop();
+	}
+
+	return true;
+}
