@@ -2,6 +2,7 @@
 #define ADCE_H
 #include "../../include/ir.h"
 #include "../pass.h"
+#include "../analysis/dominator_tree.h"
 
 class ADCEPass : public IRPass { 
 private:

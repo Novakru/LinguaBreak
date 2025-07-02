@@ -3,6 +3,7 @@
 #include "../../include/ir.h"
 #include "../pass.h"
 #include <unordered_set>
+#include "../analysis/dominator_tree.h"
 
 class Mem2RegPass : public IRPass {
 private:

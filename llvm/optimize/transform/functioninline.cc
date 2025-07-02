@@ -74,7 +74,7 @@ bool FunctionInlinePass::shouldInline(FuncDefInstruction caller, FuncDefInstruct
 若已存在映射，取
 否则，新建
 */
-int FunctionInlinePass::renameRegister(FuncDefInstruction caller,int oldReg, std::map<int, int>& regMapping) {
+int FunctionInlinePass::renameRegister(FuncDefInstruction caller,int oldReg, std::unordered_map<int, int>& regMapping) {
     if (regMapping.count(oldReg)) {
         return regMapping[oldReg];
     }
@@ -84,7 +84,7 @@ int FunctionInlinePass::renameRegister(FuncDefInstruction caller,int oldReg, std
     return newReg;
 }
 
-int FunctionInlinePass::renameLabel(FuncDefInstruction caller,int oldLabel, std::map<int, int>& labelMapping) {
+int FunctionInlinePass::renameLabel(FuncDefInstruction caller,int oldLabel, std::unordered_map<int, int>& labelMapping) {
     if (labelMapping.count(oldLabel)) {
         return labelMapping[oldLabel];
     }
@@ -94,7 +94,7 @@ int FunctionInlinePass::renameLabel(FuncDefInstruction caller,int oldLabel, std:
     return newLabel;
 }
 
-LLVMBlock FunctionInlinePass::copyBasicBlock(FuncDefInstruction caller,LLVMBlock origBlock, std::map<int, int>& regMapping, std::map<int, int>& labelMapping) {
+LLVMBlock FunctionInlinePass::copyBasicBlock(FuncDefInstruction caller,LLVMBlock origBlock, std::unordered_map<int, int>& regMapping, std::unordered_map<int, int>& labelMapping) {
     int newLabel = renameLabel(caller,origBlock->block_id, labelMapping);
     LLVMBlock newBlock = new BasicBlock(newLabel);
     
@@ -120,7 +120,7 @@ LLVMBlock FunctionInlinePass::copyBasicBlock(FuncDefInstruction caller,LLVMBlock
                 nonResultOps.emplace_back(newOp);
             } else if (op->GetOperandType() == BasicOperand::LABEL) {
                 int oldLabel = ((LabelOperand*)op)->GetLabelNo();
-                Operand newOp = GetNewRegOperand(renameRegister(caller,oldLabel, labelMapping));
+                Operand newOp = GetNewLabelOperand(renameLabel(caller,oldLabel, labelMapping));
                 nonResultOps.emplace_back(newOp);
             }
         }
@@ -132,8 +132,8 @@ LLVMBlock FunctionInlinePass::copyBasicBlock(FuncDefInstruction caller,LLVMBlock
 
 
 void FunctionInlinePass::inlineFunction(int callerBlockId, LLVMBlock callerBlock,FuncDefInstruction caller, FuncDefInstruction callee, CallInstruction* callInst) {
-    std::map<int, int> regMapping;
-    std::map<int, int> labelMapping;
+    std::unordered_map<int, int> regMapping;
+    std::unordered_map<int, int> labelMapping;
     
     // 【2】校正首尾对应关系
     // 【2.1】将被调函数形参的regno替换为调用者实参中的regno
@@ -164,7 +164,6 @@ void FunctionInlinePass::inlineFunction(int callerBlockId, LLVMBlock callerBlock
     for (auto &block : llvmIR->function_block_map[callee]){
         LLVMBlock newblock =copyBasicBlock(caller,block.second, regMapping, labelMapping);
         llvmIR->function_block_map[caller][newblock->block_id]=newblock;
-        
     }
     
     // 【2】校正首尾对应关系
@@ -286,19 +285,23 @@ void FunctionInlinePass::Execute() {
         }
     } while (changed);
 
-    // //清理llvmIR->function_block_map中被内联的函数
-    // auto it = llvmIR->function_block_map.begin();
-    // while (it != llvmIR->function_block_map.end()) {
-    //     if (inlined_function_names.count(it->first)) {
-    //         //std::cout<<"delete function: "<<it->first->GetFunctionName()<<std::endl;
-    //         auto this_def=it->first;
-    //         it = llvmIR->function_block_map.erase(it);
-    //         delete this_def;
-    //     } else {
-    //         //std::cout<<"donot delete this function!"<<std::endl;
-    //         ++it;
-    //     }
-    // }
+    //清理llvmIR->function_block_map中被内联的函数
+    auto it = llvmIR->function_block_map.begin();
+    while (it != llvmIR->function_block_map.end()) {
+        if (inlined_function_names.count(it->first)) {
+            //std::cout<<"delete function: "<<it->first->GetFunctionName()<<std::endl;
+            auto this_def=it->first;
+            it = llvmIR->function_block_map.erase(it);
+            llvmIR->llvm_cfg.erase(this_def);
+            llvmIR->FunctionNameTable.erase(this_def->GetFunctionName());
+            llvmIR->function_max_label.erase(this_def);
+            llvmIR->function_max_reg.erase(this_def);
+            delete this_def;
+        } else {
+            //std::cout<<"donot delete this function!"<<std::endl;
+            ++it;
+        }
+    }
     
 }
 

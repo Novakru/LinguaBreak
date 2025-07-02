@@ -822,7 +822,7 @@ Instruction LoadInstruction::InstructionClone(){
     return new_inst;
 }
 Instruction StoreInstruction::InstructionClone(){
-    Instruction new_inst = new StoreInstruction(type, value->OperandClone(), pointer->OperandClone());
+    Instruction new_inst = new StoreInstruction(type, pointer->OperandClone(),value->OperandClone());
     return new_inst;
 }
 Instruction ArithmeticInstruction::InstructionClone(){
@@ -863,7 +863,7 @@ Instruction CallInstruction::InstructionClone(){
     return new_inst;
 }
 Instruction RetInstruction::InstructionClone(){
-     Instruction new_inst;
+    Instruction new_inst;
     if(ret_val==nullptr){
         new_inst = new RetInstruction(ret_type, nullptr);
     }else{

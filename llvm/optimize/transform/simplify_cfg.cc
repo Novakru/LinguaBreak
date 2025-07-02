@@ -118,6 +118,18 @@ void SimplifyCFGPass::RebuildCFG(){
     }
 }
 
+void SimplifyCFGPass::RebuildCFG2(){
+    // 重建CFG（遍历cfg，重建G与invG)
+    DomInfo.clear();
+    llvmIR->CFGInit();
+    for (auto &[defI,cfg] : llvmIR->llvm_cfg) {
+        //重建支配树 （正向）
+        DomInfo[cfg] = new DominatorTree(cfg);
+        DomInfo[cfg]->BuildDominatorTree(false);
+        cfg->DomTree = DomInfo[cfg]; 
+    }
+}
+
 // 检查是否可以安全消解当前块（不导致 phi 指令出现重复来源）
 bool SimplifyCFGPass::IsSafeToEliminate(CFG *C, LLVMBlock block, LLVMBlock pred_block, LLVMBlock nextbb) {
     for (auto &next_intr : nextbb->Instruction_list) {

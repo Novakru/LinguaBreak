@@ -4,6 +4,7 @@
 #include "../pass.h"
 #include <deque>
 #include <memory>
+#include "simplify_cfg.h"
 
 class SCCPPass : public IRPass { 
 private:

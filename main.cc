@@ -19,6 +19,7 @@
 #include "llvm/optimize/transform/peephole.h"
 #include "llvm/optimize/transform/sccp.h"
 #include "llvm/optimize/transform/tailcallelim.h"
+#include "llvm/optimize/transform/oneret.h"
 #include "llvm/optimize/transform/functioninline.h"
 
 //-target
@@ -204,15 +205,15 @@ int main(int argc, char** argv) {
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
+        OneRetPass(&llvmIR).Execute();
         SCCPPass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFG();
 		PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is needed
 		SimplifyCFGPass(&llvmIR).EOBB();  
 		// LoopAnalysisPass(&llvmIR).Execute();
 
-        // FunctionInlinePass(&llvmIR).Execute();
-        // SimplifyCFGPass(&llvmIR).RebuildCFG();
-
+        FunctionInlinePass(&llvmIR).Execute();
+        SimplifyCFGPass(&llvmIR).RebuildCFG2();
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }
 

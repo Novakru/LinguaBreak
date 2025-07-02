@@ -23,11 +23,11 @@ private:
     // 执行函数内联
     void inlineFunction(int callerBlockId, LLVMBlock callerBlock,FuncDefInstruction caller, FuncDefInstruction callee, CallInstruction* callInst);
     // 重命名寄存器
-    int renameRegister(FuncDefInstruction caller,int oldReg, std::map<int, int>& regMapping);
+    int renameRegister(FuncDefInstruction caller,int oldReg, std::unordered_map<int, int>& regMapping);
     // 重命名基本块标签
-    int renameLabel(FuncDefInstruction caller,int oldLabel, std::map<int, int>& labelMapping);
+    int renameLabel(FuncDefInstruction caller,int oldLabel, std::unordered_map<int, int>& labelMapping);
     // 复制基本块
-    LLVMBlock copyBasicBlock(FuncDefInstruction caller,LLVMBlock origBlock, std::map<int, int>& regMapping, std::map<int, int>& labelMapping);
+    LLVMBlock copyBasicBlock(FuncDefInstruction caller,LLVMBlock origBlock, std::unordered_map<int, int>& regMapping, std::unordered_map<int, int>& labelMapping);
     
 public:
     static const std::unordered_set<std::string> lib_function_names;

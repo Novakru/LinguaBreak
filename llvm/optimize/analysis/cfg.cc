@@ -6,6 +6,7 @@ int dfs_num = 0;
 
 void LLVMIR::CFGInit() {
     for (auto &[defI, bb_map] : function_block_map) {
+        //std::cout<<" ---------- a new cfg ---------- "<<std::endl;
         CFG *cfg = new CFG();
         cfg->block_map = &bb_map;
         cfg->function_def = defI;
@@ -31,7 +32,7 @@ void CFG::SearchB(LLVMBlock B){
             int next_label = ((LabelOperand*)operand)->GetLabelNo();
             LLVMBlock next_block = (*block_map)[next_label];
             //（2）维护G/invG
-             G[B->block_id].insert(next_block);
+            G[B->block_id].insert(next_block);
             invG[next_label].insert(B);
             //next_block->comment += ("L" + std::to_string(B->block_id) + ", ");
             //（3）递归调用，搜索它的目标块

@@ -1,6 +1,5 @@
 #include "sccp.h"
 
-
 // Wegman & Zadeck SCCP Algorithm
 // ─────────────────────────────────────────────────────────────────────────────
 // Algorithm 8.1: Sparse data-flow propagation
@@ -244,8 +243,9 @@ void SCCPPass::visit_phi(CFG* cfg,PhiInstruction* phi){
     Lattice origin_lattice = *ValueLattice[def_regno];
 
     auto operands = phi->GetNonResultOperands();
+    auto phi_list = phi->GetPhiList();
     assert(operands.size()>1);
-    //[1] int
+    //[1] int 
     if(phi->GetResultType() == BasicInstruction::I32){
         LatticeStatus def_status = LatticeStatus::CONST;
         std::vector<int> operand_values; 
@@ -254,11 +254,18 @@ void SCCPPass::visit_phi(CFG* cfg,PhiInstruction* phi){
         for(int i=0;i<operands.size();i++){
             if(operands[i]->GetOperandType() == BasicOperand::REG){//reg
                 int regno = ((RegOperand*)operands[i])->GetRegNo();
-                if(ValueLattice[regno] == nullptr){
-                    //std::cout<<"ValueLattice[regno] is nullptr!"<<" regno: "<<regno<<std::endl;
-                }
+                // if(ValueLattice[regno] == nullptr){
+                //     //std::cout<<"ValueLattice[regno] is nullptr!"<<" regno: "<<regno<<std::endl;
+                // }
                 def_status = Intersect(def_status,ValueLattice[regno]->status);
                 operand_values[i] = ValueLattice[regno]->val.intVal;
+                
+                //若部分const，则将那些const的reg替换为imm
+                if(ValueLattice[regno]->status==LatticeStatus::CONST){
+                    auto new_phi_pair=std::make_pair(phi_list[i].first,new ImmI32Operand(operand_values[i]));
+                    phi->ChangePhiPair(i,new_phi_pair);
+                }
+
             }else {//imm
                 def_status = Intersect(def_status,LatticeStatus::CONST);
                 operand_values[i] = ((ImmI32Operand*)operands[i])->GetIntImmVal();
@@ -293,6 +300,12 @@ void SCCPPass::visit_phi(CFG* cfg,PhiInstruction* phi){
                 int regno = ((RegOperand*)operands[i])->GetRegNo();
                 def_status = Intersect(def_status,ValueLattice[regno]->status);
                 operand_values[i] = ValueLattice[regno]->val.floatVal;
+
+                //若部分const，则将那些const的reg替换为imm
+                if(ValueLattice[regno]->status==LatticeStatus::CONST){
+                    auto new_phi_pair=std::make_pair(phi_list[i].first,new ImmF32Operand(operand_values[i]));
+                    phi->ChangePhiPair(i,new_phi_pair);
+                }
             }else {//imm
                 def_status = Intersect(def_status,LatticeStatus::CONST);
                 operand_values[i] = ((ImmF32Operand*)operands[i])->GetFloatVal();
