@@ -9,6 +9,7 @@
 #include <map>
 #include <stack>
 #include <vector>
+#include <memory>
 
 typedef std::vector<std::pair<enum BasicInstruction::LLVMType, Operand>> rParamsVec;
 

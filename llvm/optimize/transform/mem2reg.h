@@ -2,7 +2,6 @@
 #define MEM2REG_H
 #include "../../include/ir.h"
 #include "../pass.h"
-#include "../analysis/dominator_tree.h"
 #include <unordered_set>
 
 class Mem2RegPass : public IRPass {

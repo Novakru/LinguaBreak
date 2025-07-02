@@ -3,6 +3,7 @@
 #include "../include/ir.h"
 #include <cstdint>
 #include <unordered_set>
+#include "../analysis/dominator_tree.h"
 
 class IRPass {
 protected:

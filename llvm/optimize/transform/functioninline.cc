@@ -1,6 +1,14 @@
 #include "functioninline.h"
 #include <functional>
 
+const std::unordered_set<std::string> FunctionInlinePass::lib_function_names = {
+    "getint", "getch", "getfloat", "getarray", "getfarray",
+    "putint", "putch", "putfloat", "putarray", "putfarray",
+    "_sysy_starttime", "_sysy_stoptime",
+    "llvm.memset.p0.i32", "llvm.umax.i32", "llvm.umin.i32",
+    "llvm.smax.i32", "llvm.smin.i32"
+};
+
 
 /*
 For : 记录调用图callGraph和函数大小funcSize
@@ -46,6 +54,9 @@ bool FunctionInlinePass::shouldInline(FuncDefInstruction caller, FuncDefInstruct
         return false;
     }
     // 如果存在递归调用，不进行内联
+    if(caller->GetFunctionName()==callee->GetFunctionName()){
+        return false;
+    }
     std::set<FuncDefInstruction> visited;
     std::function<bool(FuncDefInstruction)> hasRecursion = [&](FuncDefInstruction func) {
         if (visited.count(func)) return true;//直接调用自己
@@ -89,7 +100,9 @@ LLVMBlock FunctionInlinePass::copyBasicBlock(FuncDefInstruction caller,LLVMBlock
     
     // 复制指令并重命名寄存器和标签
     for (auto &inst : origBlock->Instruction_list) {
+        //std::cout<<"[in copy] copy inst of  type: "<<inst->GetOpcode()<<std::endl;
         Instruction newInst = inst->InstructionClone();
+        //std::cout<<"          copy succeed!"<<std::endl;
         // 重命名结果寄存器
         if (inst->GetResult()&& inst->GetResult()->GetOperandType() == BasicOperand::REG) {
             int ResRegNo =((RegOperand*)(inst->GetResult()))->GetRegNo();
@@ -118,27 +131,43 @@ LLVMBlock FunctionInlinePass::copyBasicBlock(FuncDefInstruction caller,LLVMBlock
 }
 
 
-void FunctionInlinePass::inlineFunction(int callerBlockId, LLVMBlock callerBlock,FuncDefInstruction caller, FuncDefInstruction callee, Instruction callInst) {
+void FunctionInlinePass::inlineFunction(int callerBlockId, LLVMBlock callerBlock,FuncDefInstruction caller, FuncDefInstruction callee, CallInstruction* callInst) {
     std::map<int, int> regMapping;
     std::map<int, int> labelMapping;
     
+    // 【2】校正首尾对应关系
+    // 【2.1】将被调函数形参的regno替换为调用者实参中的regno
+    std::deque<Instruction> fparams_insts;//若call时用imm传实参，则通过add指令先放到寄存器里
+    auto args = callInst->GetNonResultOperands();
+    for (int i=0;i< args.size(); i++) {
+        if (args[i]->GetOperandType() == BasicOperand::REG) {
+            int paramReg = ((RegOperand*)args[i])->GetRegNo();
+            regMapping[i] = paramReg;
+        }else{
+            Instruction add_inst;
+            llvmIR->function_max_reg[caller]+=1;//必须超过调用者的regno范围
+            int result_regno=llvmIR->function_max_reg[caller];
+            RegOperand* paramReg= GetNewRegOperand(result_regno);
+            if(args[i]->GetOperandType() == BasicOperand::IMMI32){
+                add_inst=new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::ADD,BasicInstruction::LLVMType::I32,
+                         args[i],new ImmI32Operand(0),paramReg);
+            }else if(args[i]->GetOperandType() == BasicOperand::IMMF32){
+                add_inst=new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::FADD,BasicInstruction::LLVMType::FLOAT32,
+                         args[i],new ImmF32Operand(0),paramReg);
+            }
+            fparams_insts.push_back(add_inst);
+            regMapping[i] = result_regno;
+        }
+    }
+
     // 【1】复制被调用函数的所有基本块
     for (auto &block : llvmIR->function_block_map[callee]){
         LLVMBlock newblock =copyBasicBlock(caller,block.second, regMapping, labelMapping);
         llvmIR->function_block_map[caller][newblock->block_id]=newblock;
         
     }
-
-    // 【2】校正首尾对应关系
-    // 【2.1】将被调函数形参的regno替换为调用者实参中的regno
-    auto args = callInst->GetNonResultOperands();
-    for (int i=0;i< args.size(); i++) {
-        if (args[i]->GetOperandType() == BasicOperand::REG) {
-            int paramReg = ((RegOperand*)args[i])->GetRegNo();
-            regMapping[i] = paramReg;
-        }
-    }
     
+    // 【2】校正首尾对应关系
     // 【2.2】修改调用指令所在基本块的跳转关系  caller_block ---> Inline_Function_EntryBlock
     auto temp_list = callerBlock->Instruction_list;
     callerBlock->Instruction_list.clear();
@@ -146,17 +175,22 @@ void FunctionInlinePass::inlineFunction(int callerBlockId, LLVMBlock callerBlock
     for(int i=0;i< temp_list.size(); i++) {
         Instruction inst = temp_list[i];
         if (inst == callInst) {
-            // 保存结果寄存器，删除调用指令
+            // (1)保存结果寄存器，删除调用指令
             RegOperand * resultReg ;
             if(callInst->GetResult() && callInst->GetResult()->GetOperandType() == BasicOperand::REG) {
                 resultReg = (RegOperand*)callInst->GetResult();
             } else {
                 resultReg = nullptr;
             }
-            // 添加跳转到内联函数入口块的指令
+            // (2)添加将call中实参转换为reg类型的指令
+            for(auto &add_inst:fparams_insts){
+                callerBlock->Instruction_list.push_back(add_inst);
+            }fparams_insts.clear();
+
+            // (3)添加跳转到内联函数入口块的指令
             BrUncondInstruction* brInst = new BrUncondInstruction(GetNewLabelOperand(labelMapping[0]));// 0是入口块
             callerBlock->Instruction_list.push_back(brInst);
-            // 保存后续指令，结束此块
+            // (4)保存后续指令，结束此块
             for(int j = i + 1; j < temp_list.size(); j++) {
                 caller_back_list.push_back(temp_list[j]);
             }
@@ -172,10 +206,11 @@ void FunctionInlinePass::inlineFunction(int callerBlockId, LLVMBlock callerBlock
     LLVMBlock retBlock = llvmIR->function_block_map[caller][return_blockid];
     auto tailInst_list=retBlock->Instruction_list;//assert:最后一条指令必为ret
     tailInst_list.pop_back();
-    if(ret->GetType()!=BasicInstruction::LLVMType::VOID){
+    if(callInst->GetRetType()!=BasicInstruction::LLVMType::VOID){
         Operand RetValue = ret->GetRetVal();
-        Operand CallResult = caller->GetResult();
-        //assert(CallResult!=nullptr&&CallResult->GetOperandType()==BasicOperand::REG);
+        Operand CallResult = callInst->GetResult();
+        assert(CallResult!=nullptr);
+        assert(CallResult->GetOperandType()==BasicOperand::REG);
         int Callres_regno=((RegOperand*)CallResult)->GetRegNo();
         Instruction newAddInstr;
         if(ret->GetType()==BasicInstruction::LLVMType::I32){
@@ -228,13 +263,18 @@ void FunctionInlinePass::Execute() {
                     // 如果是函数调用指令
                     if ((*it)->GetOpcode() == BasicInstruction::LLVMIROpcode::CALL) {
                         CallInstruction* callInst = (CallInstruction*)(*it);
+                        if(lib_function_names.count(callInst->GetFunctionName())){//非自定义函数不Inline
+                            ++it;   continue;
+                        }
                         FuncDefInstruction callee = llvmIR->FunctionNameTable[callInst->GetFunctionName()];//被调用者
                         if (shouldInline(caller, callee)) {
+                            //std::cout<<"Inlining function: " << callee->GetFunctionName() << " into " << caller->GetFunctionName() << std::endl;
                             int caller_blockId= block.first;
                             LLVMBlock callerBlock = block.second;
-                            inlineFunction(caller_blockId,callerBlock,caller, callee, *it);
-                            std::cout<<"Inlining function: " << callee->GetFunctionName() << " into " << caller->GetFunctionName() << std::endl;
+                            inlineFunction(caller_blockId,callerBlock,caller, callee, callInst);
+
                             changed = true;
+                            inlined_function_names.insert(callee);
                             break;
                         }
                     }
@@ -245,6 +285,21 @@ void FunctionInlinePass::Execute() {
             if (changed) break;
         }
     } while (changed);
+
+    // //清理llvmIR->function_block_map中被内联的函数
+    // auto it = llvmIR->function_block_map.begin();
+    // while (it != llvmIR->function_block_map.end()) {
+    //     if (inlined_function_names.count(it->first)) {
+    //         //std::cout<<"delete function: "<<it->first->GetFunctionName()<<std::endl;
+    //         auto this_def=it->first;
+    //         it = llvmIR->function_block_map.erase(it);
+    //         delete this_def;
+    //     } else {
+    //         //std::cout<<"donot delete this function!"<<std::endl;
+    //         ++it;
+    //     }
+    // }
+    
 }
 
 /*

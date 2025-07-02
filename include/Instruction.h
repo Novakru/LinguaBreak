@@ -758,12 +758,7 @@ public:
         this->opcode = LLVMIROpcode::GLOBAL_VAR;
     }
     virtual void PrintIR(std::ostream &s);
-    
-    
     Operand GetResult(){ return nullptr; };
-    
-    virtual Instruction CopyInstruction() { return nullptr; }
-    
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
@@ -793,15 +788,10 @@ public:
 
     virtual void PrintIR(std::ostream &s);
     void ReplaceRegByMap(const std::map<int, int> &Rule){};
-    
     Operand GetResult(){ return nullptr; };
-    
-    virtual Instruction CopyInstruction() { return nullptr; }
-    
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
-    
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         return vec;
@@ -1014,8 +1004,6 @@ public:
     std::string GetFunctionName() { return Func_name; }
     void PrintIR(std::ostream &s);
     Operand GetResult(){ return nullptr; };
-    virtual Instruction CopyInstruction() { return nullptr; }
-    
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
@@ -1050,14 +1038,9 @@ public:
     void InsertFormal(enum LLVMType t) { formals.push_back(t); }
     enum LLVMType GetReturnType() { return return_type; }
     std::string GetFunctionName() { return Func_name; }
-
     void PrintIR(std::ostream &s);
     void ReplaceRegByMap(const std::map<int, int> &Rule){};
-    
     Operand GetResult(){ return nullptr; };
-    
-    virtual Instruction CopyInstruction() { return nullptr; }
-    
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;

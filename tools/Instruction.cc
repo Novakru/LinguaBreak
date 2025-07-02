@@ -854,11 +854,21 @@ Instruction BrUncondInstruction::InstructionClone(){
     return new_inst;
 }
 Instruction CallInstruction::InstructionClone(){
-    Instruction new_inst = new CallInstruction(ret_type, result->OperandClone(), name, args);
+    Instruction new_inst;
+    if(result==nullptr){
+        new_inst = new CallInstruction(ret_type, nullptr, name, args);
+    }else{
+        new_inst = new CallInstruction(ret_type, result->OperandClone(), name, args);
+    }
     return new_inst;
 }
 Instruction RetInstruction::InstructionClone(){
-    Instruction new_inst = new RetInstruction(ret_type, ret_val->OperandClone());
+     Instruction new_inst;
+    if(ret_val==nullptr){
+        new_inst = new RetInstruction(ret_type, nullptr);
+    }else{
+        new_inst = new RetInstruction(ret_type, ret_val->OperandClone());
+    }
     return new_inst;
 }
 Instruction GetElementptrInstruction::InstructionClone(){

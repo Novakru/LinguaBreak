@@ -69,7 +69,7 @@ make debug
 # 2.在.vscode/launch.json中配置参数↓，其余参数自定
 "program": "${workspaceFolder}/compiler-dbg",
 # 3.执行调试
-# 4.清理调试时生成的残留文件
+# 4.清理调试时生成的文件
 make clean-dbg
 ```
 

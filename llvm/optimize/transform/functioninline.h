@@ -16,13 +16,12 @@ private:
     std::unordered_map<FuncDefInstruction,std::unordered_map<int,std::set<PhiInstruction*>>>phiGraph;
     // 内联阈值，超过此值的函数不会被内联
     const int INLINE_THRESHOLD = 50;
-    
     // 构建函数调用图
     void buildCallGraph();
     // 判断函数是否适合内联
     bool shouldInline(FuncDefInstruction caller, FuncDefInstruction callee);
     // 执行函数内联
-    void inlineFunction(int callerBlockId, LLVMBlock callerBlock,FuncDefInstruction caller, FuncDefInstruction callee, Instruction callInst);
+    void inlineFunction(int callerBlockId, LLVMBlock callerBlock,FuncDefInstruction caller, FuncDefInstruction callee, CallInstruction* callInst);
     // 重命名寄存器
     int renameRegister(FuncDefInstruction caller,int oldReg, std::map<int, int>& regMapping);
     // 重命名基本块标签
@@ -31,6 +30,8 @@ private:
     LLVMBlock copyBasicBlock(FuncDefInstruction caller,LLVMBlock origBlock, std::map<int, int>& regMapping, std::map<int, int>& labelMapping);
     
 public:
+    static const std::unordered_set<std::string> lib_function_names;
+    std::unordered_set<FuncDefInstruction> inlined_function_names;
     FunctionInlinePass(LLVMIR *IR) : IRPass(IR) {}
     void Execute();
 };

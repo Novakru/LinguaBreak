@@ -98,27 +98,28 @@ format:
 CFLAGS_DBG := -g -O0 -MMD -std=c++17 $(INCLUDES)
 LDFLAGS_DBG := -g -O0 -std=c++17
 
+BINARY := compiler
 BINARY_DBG := $(BINARY)-dbg
 
 # 从原始 OBJS 推导对应的 .dbg.o 中间目标
 OBJS := $(patsubst %.cc, $(OBJDIR)/%.o, $(SRCS))
 DBG_OBJS := $(patsubst %.cc, %.dbg.o, $(SRCS)) 
 
-# Debug 编译规则（中间文件直接放在当前目录结构中）
-%.dbg.o : %.cc
+# Debug 编译规则
+$(OBJDIR)/%.dbg.o : %.cc
 	@echo + DBG_CC $<
+	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS_DBG) -c -o $@ $<
 
-# Debug 构建目标：构建并立即清理中间文件，只留下 compiler-dbg
-debug: $(DBG_OBJS)
+# Debug 构建目标
+debug: $(OBJS:.o=.dbg.o)
 	@echo + LD $(BINARY_DBG)
 	@$(LD) $(LDFLAGS_DBG) $^ -o $(BINARY_DBG)
-	@echo "[✓] Build done: $(BINARY_DBG)"
-	@rm -f $(DBG_OBJS)
 
-# Debug 清理目标 （冗余保险）
+# Debug 清理目标
 clean-dbg:
-	@echo "Cleaning debug leftovers..."
-	@find . -name "*.dbg.o" -delete
+	@echo "Cleaning debug object files and executable..."
 	@find . -name "*.dbg.d" -delete
-	@rm -f $(BINARY)-dbg
+	@rm -rf $(OBJDIR)
+	@rm -f $(BINARY_DBG)
+
