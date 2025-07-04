@@ -28,6 +28,8 @@ public:
 
     bool dominates(LLVMBlock a, LLVMBlock b);     // 判断a是否支配b
     std::vector<LLVMBlock> getDominators(LLVMBlock b); // 获取b的所有支配者（从最外层到最内层）
+
+	LLVMBlock getBlockByID(int id) { return (*C->block_map)[id]; }
 };
 
 extern std::map<CFG *, DominatorTree *> DomInfo;

@@ -53,6 +53,9 @@ public:
     std::set<LLVMBlock> GetSuccessor(int bbid);
     void GetSSAGraphAllSucc(std::set<int>& succs,int regno);
 
+	LoopInfo* getLoopInfo() { return (LoopInfo*)loopInfo; }
+	DominatorTree* getDomTree() { return (DominatorTree*)DomTree; }
+
 	LLVMBlock GetNewBlock();
 	LLVMBlock GetBlockWithId(int id);
 	void replaceSuccessors(std::set<LLVMBlock> froms, LLVMBlock to, LLVMBlock mid);

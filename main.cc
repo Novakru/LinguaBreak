@@ -19,6 +19,9 @@
 #include "llvm/optimize/transform/peephole.h"
 #include "llvm/optimize/transform/sccp.h"
 #include "llvm/optimize/transform/tailcallelim.h"
+#include "llvm/optimize/transform/licm.h"
+#include "llvm/optimize/transform/loopSimplify.h"
+#include "llvm/optimize/transform/loopRotate.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -208,6 +211,9 @@ int main(int argc, char** argv) {
 		PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is need
 		SimplifyCFGPass(&llvmIR).EOBB();  
 		LoopAnalysisPass(&llvmIR).Execute();
+		LoopSimplifyPass(&llvmIR).Execute();
+		LoopRotate(&llvmIR).Execute();
+		LoopInvariantCodeMotionPass(&llvmIR).Execute(); // Scalar Version
        
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }

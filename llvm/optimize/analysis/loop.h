@@ -4,6 +4,8 @@
 #include <stack>
 #include "algorithm"
 
+#define debug
+
 typedef std::vector<LLVMBlock>::iterator block_iterator;
 
 class Loop {
@@ -78,6 +80,9 @@ private:
     std::unordered_map<LLVMBlock, Loop*> bb_loop_map;
 
 public:
+	/* normal method */
+	std::vector<Loop*> getTopLevelLoops() { return top_level_loops; }
+
 	/* loop Analysis about */
     void analyze(CFG* cfg);
     Loop* getOrCreateLoop(LLVMBlock header);
