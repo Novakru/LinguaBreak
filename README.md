@@ -45,6 +45,12 @@ qemu-riscv64 ./a.out
 echo $?
 ```
 
+### generate CFG bash
+``` bash
+chmod +x ~/LinguaBreak/generate_cfg.sh 
+sudo ./generate_cfg.sh
+```
+
 ### 使用gdb调试
 
 - **方式一**: 使用gdb终端调试

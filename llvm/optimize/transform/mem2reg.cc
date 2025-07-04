@@ -465,6 +465,7 @@ void Mem2RegPass::Mem2Reg(CFG *C, int& max_reg) {
 void Mem2RegPass::Execute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         Mem2Reg(cfg, llvmIR->function_max_reg[defI]);
+		cfg->max_reg = llvmIR->function_max_reg[defI];
         loaded_regno.clear();
         array_regno.clear();
         use_map.clear();

@@ -138,6 +138,116 @@ void CFG::GetSSAGraphAllSucc(std::set<int>& succs, int regno){
     return ;
 }
 
+LLVMBlock CFG::GetNewBlock() {
+	max_label++;
+    (*block_map)[max_label] = new BasicBlock(max_label);
+    return GetBlockWithId(max_label);
+}
+
+LLVMBlock CFG::GetBlockWithId(int id) {
+	if(id <= max_label) return (*block_map)[id];
+	else return nullptr;
+}
+
+/* what func do: [froms -> to] change to [froms -> mid -> to] 
+-------- before replace --------
+from.x.block:
+	br label.to
+to.block:
+	%t1 = phi [%i1, from1], [%i2, form2], [%l1, latch1], [%l2, latch2]
+-------- after  replace --------
+from.x.block:
+	br label.mid
+mid.block:
+	%t_new = phi [%i1, from1], [%i2, form2]
+	br label.to
+to.block:
+	%t1 = phi [%t_new, mid] [%l1, latch1], [%l2, latch2]
+	; delete phi, and continue to use t1
+*/
+void CFG::replaceSuccessors(std::set<LLVMBlock> froms, LLVMBlock to, LLVMBlock mid) {
+	auto mid_label_op = GetNewLabelOperand(mid->block_id);
+	// 1. replace all froms br label
+	for(auto from : froms) {
+		auto inst = *prev(from->Instruction_list.end());
+		if (auto br_uncond_inst = dynamic_cast<BrUncondInstruction*>(inst)) {
+			auto br_label = (LabelOperand*)(br_uncond_inst->GetDestLabel());
+			if (br_label->GetLabelNo() == to->block_id) {
+				br_uncond_inst->ChangeDestLabel(mid_label_op);
+			}
+		} else if (auto br_cond_inst = dynamic_cast<BrCondInstruction*>(inst)) {
+			auto ture_label = (LabelOperand*)(br_cond_inst->GetTrueLabel());
+			auto false_label = (LabelOperand*)(br_cond_inst->GetFalseLabel());
+			if (ture_label->GetLabelNo() == to->block_id) {
+				br_cond_inst->ChangeTrueLabel(mid_label_op);
+			}
+			if (false_label->GetLabelNo() == to->block_id) {
+				br_cond_inst->ChangeFalseLabel(mid_label_op);
+			} 
+		}
+	}
+
+	// 2. error : mov all phi inst [to -> mid], and delete phi inst at to.block
+	// ! Tip : may be phi inst args is come from latches.
+	// ! Tip : may be generate phi inst with only one pred, optimize it.
+	// Todo : call EOPPhi() to elim one-pred phi inst.
+	for (auto inst : to->Instruction_list) {
+		if (auto phi_inst = dynamic_cast<PhiInstruction*>(inst)) {
+			std::vector<std::pair<Operand, Operand>> phi_list_new;  // store phi_list that mid.block create
+			std::vector<std::pair<Operand, Operand>> phi_list_left; // store phi_list that to.block left
+			for(auto phi_pair : phi_inst->GetPhiList()) {
+				auto label_op = (LabelOperand*)phi_pair.first;
+				int label_no = label_op->GetLabelNo();
+				LLVMBlock label_block = (*block_map)[label_no];
+				if(froms.count(label_block)) {
+					phi_list_new.push_back(phi_pair);
+				} else {
+					phi_list_left.push_back(phi_pair);
+				}
+			}
+			// phi_list_new empty means all phi_label is come from latches, no need to update.
+			if(!phi_list_new.empty()) {
+				RegOperand* t_new = GetNewRegOperand(++max_reg);
+				// std::cerr << "generate new regop with regNo: " << max_reg << std::endl;
+				PhiInstruction* phi_inst_new = new PhiInstruction(phi_inst->GetResultType(), t_new, phi_list_new);
+				mid->InsertInstruction(1, phi_inst_new);
+
+				phi_list_left.push_back(std::make_pair(mid_label_op, t_new));
+				phi_inst->SetPhiList(phi_list_left);
+			}
+		}
+	}
+
+	// 3. mid.block insert br_inst to to.block
+	auto br_inst = new BrUncondInstruction(GetNewLabelOperand(to->block_id));
+	mid->InsertInstruction(1, br_inst);
+
+	// 4. rebuild cfg, quicker than a lot of addEdge, delEdge operations.
+	BuildCFG();
+}
+
+void CFG::replaceSuccessor(LLVMBlock from, LLVMBlock to, LLVMBlock mid) {
+	std::set<LLVMBlock> froms;
+	froms.insert(from);
+	replaceSuccessors(froms, to, mid);
+}
+
+void CFG::addEdge(LLVMBlock from, LLVMBlock to) {
+    G[from->block_id].insert(to);
+    invG[to->block_id].insert(from);
+}
+
+void CFG::delEdge(LLVMBlock from, LLVMBlock to) {
+    int from_id = from->block_id;
+    int to_id = to->block_id;
+
+    auto &succ_set = G[from_id];
+    succ_set.erase(to);
+
+    auto &pred_set = invG[to_id];
+    pred_set.erase(from);
+}
+
 void CFG::display(bool reverse) {
     std::cout << "\n=== Control Flow Graph Information ===" << std::endl;
     if (!reverse) {
