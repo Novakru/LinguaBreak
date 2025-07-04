@@ -210,12 +210,12 @@ int main(int argc, char** argv) {
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
         OneRetPass(&llvmIR).Execute();
         SCCPPass(&llvmIR).Execute();
-        SimplifyCFGPass(&llvmIR).RebuildCFG();
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
 		PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is needed
 		SimplifyCFGPass(&llvmIR).EOBB();  
 
         FunctionInlinePass(&llvmIR).Execute();
-        SimplifyCFGPass(&llvmIR).RebuildCFG2();
+        SimplifyCFGPass(&llvmIR).RebuildCFG();
         SimplifyCFGPass(&llvmIR).EOBB();  
 
 		LoopAnalysisPass(&llvmIR).Execute();
