@@ -9,7 +9,12 @@ void SimplifyCFGPass::Execute() {
 }
 void SimplifyCFGPass::EOBB() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
-        EliminateOneBrUncondBlocks(cfg);
+        EliminateOneBrUncondBlocks(cfg);//含重建CFG
+        //重建支配树 （正向）
+        delete DomInfo[cfg];
+        DomInfo[cfg] = new DominatorTree(cfg);
+        DomInfo[cfg]->BuildDominatorTree(false);
+        cfg->DomTree = DomInfo[cfg]; 
     }
 }
 void SimplifyCFGPass::EOPPhi() {
@@ -20,6 +25,11 @@ void SimplifyCFGPass::EOPPhi() {
         std::unordered_set<int> regno_tobedeleted{};
         LLVMBlock zero_block = (*(cfg->block_map))[0];
         EliminateOnePredPhi(cfg,zero_block ,regno_tobedeleted);
+    }
+}
+void SimplifyCFGPass::TOPPhi() {
+    for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+        TransformOnePredPhi(cfg);
     }
 }
 //1. 删除不可达基本块（不可达指令已在build cfg中删除）
@@ -103,12 +113,13 @@ void SimplifyCFGPass::EliminateNotExistPhi(CFG *C) {
 
 }
 //for sccp
-void SimplifyCFGPass::RebuildCFG(){
+void SimplifyCFGPass::RebuildCFGforSCCP(){
     // 重建CFG（遍历cfg，重建G与invG)
     DomInfo.clear();
     llvmIR->CFGInit();
     for (auto &[defI,cfg] : llvmIR->llvm_cfg) {
         //重建支配树 （正向）
+        delete DomInfo[cfg];
         DomInfo[cfg] = new DominatorTree(cfg);
         DomInfo[cfg]->BuildDominatorTree(false);
         cfg->DomTree = DomInfo[cfg]; 
@@ -119,12 +130,13 @@ void SimplifyCFGPass::RebuildCFG(){
     }
 }
 
-void SimplifyCFGPass::RebuildCFG2(){
+void SimplifyCFGPass::RebuildCFG(){
     // 重建CFG（遍历cfg，重建G与invG)
     DomInfo.clear();
     llvmIR->CFGInit();
     for (auto &[defI,cfg] : llvmIR->llvm_cfg) {
         //重建支配树 （正向）
+        delete DomInfo[cfg];
         DomInfo[cfg] = new DominatorTree(cfg);
         DomInfo[cfg]->BuildDominatorTree(false);
         cfg->DomTree = DomInfo[cfg]; 
@@ -247,7 +259,7 @@ void SimplifyCFGPass::EliminateOneBrUncondBlocks(CFG *C) {
         ++it;
     }
 }
-// 3. 删除只有一个前驱的phi指令
+// 3. 删除只有一个前驱的phi指令：主要用于SCCP的善后，产生的单前驱phi实际已经无用，我们删除这些phi和用到phi_result的后续指令
 void SimplifyCFGPass::EliminateOnePredPhi(CFG* C,LLVMBlock nowblock,std::unordered_set<int> regno_tobedeleted){
     //std::cout<<" start a block!"<<std::endl;
     if(nowblock->dfs_id>0)return;
@@ -311,4 +323,38 @@ void SimplifyCFGPass::EliminateOnePredPhi(CFG* C,LLVMBlock nowblock,std::unorder
             EliminateOnePredPhi(C,succ_block,regno_tobedeleted);
         }
         return ;
+}
+
+//对于优化后仅剩单个前驱的Phi指令，我们将其改为普通的赋值，删除phi
+void SimplifyCFGPass::TransformOnePredPhi(CFG* C){
+    for(auto &[id,block]:(*C->block_map)){
+        for(auto &inst:block->Instruction_list){
+            if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::PHI){
+                PhiInstruction* phi=(PhiInstruction*)inst;
+                auto phi_list=phi->GetPhiList();
+                if(phi_list.size()==1){
+                    Operand value=phi_list[0].second;
+                    int phi_res_regno=((RegOperand*)phi->GetResult())->GetRegNo();
+                    std::vector<Instruction> use_insts = (C->use_map)[phi_res_regno];
+
+                    //将后续use此phi指令result的指令的use_operand全部替换为phi的source operand
+                    for(auto &use_inst:use_insts){
+                        auto operands=use_inst->GetNonResultOperands();
+                        std::vector<Operand> new_operands; 
+                        new_operands.reserve(operands.size());
+                        for(auto &operand:operands){
+                            if(operand->GetOperandType()==BasicOperand::REG){
+                                if(((RegOperand*)operand)->GetRegNo()==phi_res_regno){
+                                    new_operands.emplace_back(value->OperandClone());
+                                    continue;
+                                }
+                            }
+                            new_operands.emplace_back(operand);
+                        }
+                        use_inst->SetNonResultOperands(new_operands);
+                    }
+                }
+            }
+        }
+    }
 }
