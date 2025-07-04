@@ -16,36 +16,31 @@ For : 记录调用图callGraph和函数大小funcSize
     - calleeReturn: block_id --> RetInstruction
     - funcSize
 */
-void FunctionInlinePass::buildCallGraph() {
-    for (auto &func : llvmIR->function_block_map) {
-        FuncDefInstruction caller = func.first;//调用者
-        for (auto &block : func.second) {
+void FunctionInlinePass::buildCallGraph(FuncDefInstruction caller) {
+    //for (auto &func : llvmIR->function_block_map) {
+        //FuncDefInstruction caller = func.first;//调用者
+        auto func = llvmIR->function_block_map[caller];
+        for (auto &block : func) {
             for (auto &inst : block.second->Instruction_list) {
                 if (inst->GetOpcode() == BasicInstruction::LLVMIROpcode::CALL) {
                     CallInstruction* callInst = (CallInstruction*)inst;
-                    FuncDefInstruction callee = llvmIR->FunctionNameTable[callInst->GetFunctionName()];//被调用者
-                    callGraph[caller].insert(callee);
+                    FuncDefInstruction callee = llvmIR->FunctionNameTable[callInst->GetFunctionName()];//记录call中func name 对应函数的FuncDefInstruction
+                    callGraph[caller].insert(callee);//记录调用关系
                 }else if(inst->GetOpcode() == BasicInstruction::LLVMIROpcode::RET){
                     RetInstruction* retInst = (RetInstruction*)inst;
                     auto id_ret = std::make_pair(block.first, retInst);
-                    calleeReturn[caller] = id_ret;
+                    calleeReturn[caller] = id_ret;//记录被调用函数的ret block id与ret inst 【需更新】
                 }else if(inst->GetOpcode() == BasicInstruction::LLVMIROpcode::PHI){
                     PhiInstruction *phi = (PhiInstruction*)inst;
                     auto phi_list = phi->GetPhiList();
                     for(auto &[label,reg]:phi_list){
                         int label_no=((LabelOperand*)label)->GetLabelNo();
-                        phiGraph[caller][label_no].insert(phi);
+                        phiGraph[caller][label_no].insert(phi); // 为phi指令记录block_id 与以此为源的phi insts
                     }
                 }
             }
         }
-        // 计算函数大小
-        int size = 0;
-        for (auto &block : func.second) {
-            size += block.second->Instruction_list.size();
-        }
-        funcSize[caller] = size;
-    }
+    //}
 }
 
 bool FunctionInlinePass::shouldInline(FuncDefInstruction caller, FuncDefInstruction callee) {
@@ -94,15 +89,15 @@ int FunctionInlinePass::renameLabel(FuncDefInstruction caller,int oldLabel, std:
     return newLabel;
 }
 
-LLVMBlock FunctionInlinePass::copyBasicBlock(FuncDefInstruction caller,LLVMBlock origBlock, std::unordered_map<int, int>& regMapping, std::unordered_map<int, int>& labelMapping) {
+LLVMBlock FunctionInlinePass::copyBasicBlock(FuncDefInstruction caller, LLVMBlock origBlock, std::unordered_map<int, int>& regMapping, std::unordered_map<int, int>& labelMapping) {
     int newLabel = renameLabel(caller,origBlock->block_id, labelMapping);
     LLVMBlock newBlock = new BasicBlock(newLabel);
+    //std::cout<<" inline block "<<origBlock->block_id<<" into block "<<newLabel<<std::endl;
     
+    //newBlock->comment = callee->GetFunctionName()+"__L"+ std::to_string(origBlock->block_id) +"   " + origBlock->comment;
     // 复制指令并重命名寄存器和标签
     for (auto &inst : origBlock->Instruction_list) {
-        //std::cout<<"[in copy] copy inst of  type: "<<inst->GetOpcode()<<std::endl;
         Instruction newInst = inst->InstructionClone();
-        //std::cout<<"          copy succeed!"<<std::endl;
         // 重命名结果寄存器
         if (inst->GetResult()&& inst->GetResult()->GetOperandType() == BasicOperand::REG) {
             int ResRegNo =((RegOperand*)(inst->GetResult()))->GetRegNo();
@@ -114,17 +109,29 @@ LLVMBlock FunctionInlinePass::copyBasicBlock(FuncDefInstruction caller,LLVMBlock
         std::vector<Operand> nonResultOps{};
         nonResultOps.reserve(OldOperands.size());
         for (auto &op : OldOperands) {
-            if (op->GetOperandType() == BasicOperand::REG) {
+            if (op->GetOperandType() == BasicOperand::REG) {//reg
                 int oldReg = ((RegOperand*)op)->GetRegNo();
                 Operand newOp = GetNewRegOperand(renameRegister(caller,oldReg, regMapping));
                 nonResultOps.emplace_back(newOp);
-            } else if (op->GetOperandType() == BasicOperand::LABEL) {
+            } else if (op->GetOperandType() == BasicOperand::LABEL) {//label（主要是br的）
                 int oldLabel = ((LabelOperand*)op)->GetLabelNo();
                 Operand newOp = GetNewLabelOperand(renameLabel(caller,oldLabel, labelMapping));
                 nonResultOps.emplace_back(newOp);
+            }else{//imm
+                nonResultOps.emplace_back(op);
             }
         }
         newInst->SetNonResultOperands(nonResultOps);
+        //重命名phi指令的源label
+        if(newInst->GetOpcode()==BasicInstruction::LLVMIROpcode::PHI){
+            auto phi_list=((PhiInstruction*)newInst)->GetPhiList();
+            for(int i=0;i<phi_list.size();i++){
+                int ori_label=((LabelOperand*)(phi_list[i].first))->GetLabelNo();
+                Operand new_label=GetNewLabelOperand(renameLabel(caller,ori_label,labelMapping));
+                auto new_phi_pair=std::make_pair(new_label,phi_list[i].second);
+                ((PhiInstruction*)newInst)->ChangePhiPair(i,new_phi_pair);
+            }
+        }
         newBlock->Instruction_list.push_back(newInst);
     }
     return newBlock;
@@ -138,25 +145,27 @@ void FunctionInlinePass::inlineFunction(int callerBlockId, LLVMBlock callerBlock
     // 【2】校正首尾对应关系
     // 【2.1】将被调函数形参的regno替换为调用者实参中的regno
     std::deque<Instruction> fparams_insts;//若call时用imm传实参，则通过add指令先放到寄存器里
-    auto args = callInst->GetNonResultOperands();
-    for (int i=0;i< args.size(); i++) {
-        if (args[i]->GetOperandType() == BasicOperand::REG) {
-            int paramReg = ((RegOperand*)args[i])->GetRegNo();
-            regMapping[i] = paramReg;
-        }else{
+    auto rargs = callInst->GetNonResultOperands();//实参列表
+    auto fargs = callee->GetNonResultOperands();//形参列表
+    for (int i=0;i< rargs.size(); i++) {
+        int f_paramReg =  ((RegOperand*)fargs[i])->GetRegNo();//形参regno
+
+        if (rargs[i]->GetOperandType() == BasicOperand::REG) {//实参为reg
+            int r_paramReg = ((RegOperand*)rargs[i])->GetRegNo();
+            regMapping[f_paramReg] = r_paramReg;
+        }else{//实参为imm，通过add指令转换为reg
             Instruction add_inst;
-            llvmIR->function_max_reg[caller]+=1;//必须超过调用者的regno范围
-            int result_regno=llvmIR->function_max_reg[caller];
+            int result_regno=(++llvmIR->function_max_reg[caller]);//必须超过调用者的regno范围
             RegOperand* paramReg= GetNewRegOperand(result_regno);
-            if(args[i]->GetOperandType() == BasicOperand::IMMI32){
+            if(rargs[i]->GetOperandType() == BasicOperand::IMMI32){
                 add_inst=new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::ADD,BasicInstruction::LLVMType::I32,
-                         args[i],new ImmI32Operand(0),paramReg);
-            }else if(args[i]->GetOperandType() == BasicOperand::IMMF32){
+                         rargs[i],new ImmI32Operand(0),paramReg);
+            }else if(rargs[i]->GetOperandType() == BasicOperand::IMMF32){
                 add_inst=new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::FADD,BasicInstruction::LLVMType::FLOAT32,
-                         args[i],new ImmF32Operand(0),paramReg);
+                         rargs[i],new ImmF32Operand(0),paramReg);
             }
             fparams_insts.push_back(add_inst);
-            regMapping[i] = result_regno;
+            regMapping[f_paramReg] = result_regno;
         }
     }
 
@@ -199,37 +208,50 @@ void FunctionInlinePass::inlineFunction(int callerBlockId, LLVMBlock callerBlock
         }
     }
 
-
     // 【2.3】处理内联函数的返回值，合并尾块  Inline_Function_ExitBlock ---> caller_block
-    auto [return_blockid,ret] = calleeReturn[caller];
-    LLVMBlock retBlock = llvmIR->function_block_map[caller][return_blockid];
+    auto [return_blockid,ret] = calleeReturn[callee];
+    int tail_blockid=labelMapping[return_blockid];
+    LLVMBlock retBlock = llvmIR->function_block_map[caller][tail_blockid];
     auto tailInst_list=retBlock->Instruction_list;//assert:最后一条指令必为ret
+    //（1）删除inlined function的原ret指令
     tailInst_list.pop_back();
+    //（2）将原ret指令的ret_val赋值给call_inst的result_reg（add 0)
     if(callInst->GetRetType()!=BasicInstruction::LLVMType::VOID){
-        Operand RetValue = ret->GetRetVal();
+        Operand RetValue;
+        Operand ori_RetValue=ret->GetRetVal();
+        if(ori_RetValue->GetOperandType()==BasicOperand::REG){
+            int ori_regno=((RegOperand*)ori_RetValue)->GetRegNo();
+            RetValue=GetNewRegOperand(regMapping[ori_regno]);
+        }else{
+            RetValue=ori_RetValue;
+        }
         Operand CallResult = callInst->GetResult();
-        assert(CallResult!=nullptr);
-        assert(CallResult->GetOperandType()==BasicOperand::REG);
-        int Callres_regno=((RegOperand*)CallResult)->GetRegNo();
+        int callres_regno = ((RegOperand*)CallResult)->GetRegNo();
         Instruction newAddInstr;
         if(ret->GetType()==BasicInstruction::LLVMType::I32){
             newAddInstr=new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::ADD,
-                        BasicInstruction::LLVMType::I32,RetValue,new ImmI32Operand(0),CallResult);
+                        BasicInstruction::LLVMType::I32,RetValue,new ImmI32Operand(0),GetNewRegOperand(callres_regno));
         }else if(ret->GetType()==BasicInstruction::LLVMType::FLOAT32){
             newAddInstr=new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::FADD,
-                        BasicInstruction::LLVMType::FLOAT32,RetValue,new ImmF32Operand(0),CallResult);
+                        BasicInstruction::LLVMType::FLOAT32,RetValue,new ImmF32Operand(0),GetNewRegOperand(callres_regno));
         }
         tailInst_list.push_back(newAddInstr);
+        // std::cout<<"function [ " <<callee->GetFunctionName()<<" ] is inlined to funciton [ "<<caller->GetFunctionName()<<
+        //     " ], with ret value be assigned to callres : "<<callres_regno<<std::endl;
     }
+    //（3）将原caller_block的call指令后的剩余指令添加到inlined_function的ret_block中
     for(auto &inst:caller_back_list){
         tailInst_list.push_back(inst);
     }
+    retBlock->Instruction_list=tailInst_list;
 
-    // 【2.4】处理后续phi指令的 源block_id
+    // 【2.4】处理caller后续phi指令的 源block_id
     int old_phi_ori=callerBlock->block_id;
-    int new_phi_ori=return_blockid;
+    int new_phi_ori=labelMapping[return_blockid];
+    //std::cout<<"old: "<<old_phi_ori<<" new: "<<new_phi_ori<<std::endl;
     for(auto &[id,phis]:phiGraph[caller]){
         if(id==old_phi_ori){
+            //std::cout<<"change following phis: from caller's "<<old_phi_ori<<" block to new "<<new_phi_ori<<" block"<<std::endl;
             for(auto &phi:phis){
                 //将source_blockid 改为新的
                 auto old_phi_list=phi->GetPhiList();
@@ -249,8 +271,21 @@ void FunctionInlinePass::inlineFunction(int callerBlockId, LLVMBlock callerBlock
 }
 
 void FunctionInlinePass::Execute() {
-    buildCallGraph();
+    //【1】初始化：遍历所有函数，构建Graph
+    for(auto &func : llvmIR->function_block_map){
+        FuncDefInstruction caller = func.first;//调用者
+        
+        buildCallGraph(caller);
+
+        // 计算函数大小
+        int size = 0;
+        for (auto &block : func.second) {
+            size += block.second->Instruction_list.size();
+        }
+        funcSize[caller] = size;
+    }
     
+    //【2】执行
     bool changed;
     do {
         changed = false;
@@ -270,10 +305,15 @@ void FunctionInlinePass::Execute() {
                             //std::cout<<"Inlining function: " << callee->GetFunctionName() << " into " << caller->GetFunctionName() << std::endl;
                             int caller_blockId= block.first;
                             LLVMBlock callerBlock = block.second;
-                            inlineFunction(caller_blockId,callerBlock,caller, callee, callInst);
+                            inlineFunction(caller_blockId,callerBlock,caller, callee, callInst);//执行内联
 
                             changed = true;
-                            inlined_function_names.insert(callee);
+                            inlined_function_names.insert(callee);//标记信息
+
+                            callGraph.erase(caller);
+                            calleeReturn.erase(caller);
+                            phiGraph.erase(caller);
+                            buildCallGraph(caller);//重新遍历，更新图
                             break;
                         }
                     }
@@ -285,7 +325,9 @@ void FunctionInlinePass::Execute() {
         }
     } while (changed);
 
-    //清理llvmIR->function_block_map中被内联的函数
+
+
+    //【3】清理llvmIR->function_block_map中被内联的函数
     auto it = llvmIR->function_block_map.begin();
     while (it != llvmIR->function_block_map.end()) {
         if (inlined_function_names.count(it->first)) {
@@ -304,8 +346,3 @@ void FunctionInlinePass::Execute() {
     }
     
 }
-
-/*
-（1）在function_block_map中删除被inline的函数记录 【检查是否还有其它map】
-（2）有必要统一维护、更新 def_use
-*/

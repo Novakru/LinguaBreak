@@ -102,6 +102,7 @@ void SimplifyCFGPass::EliminateNotExistPhi(CFG *C) {
     }
 
 }
+//for sccp
 void SimplifyCFGPass::RebuildCFG(){
     // 重建CFG（遍历cfg，重建G与invG)
     DomInfo.clear();

@@ -8,7 +8,7 @@ public:
     std::map<FuncDefInstruction, int> function_max_reg;
     std::map<FuncDefInstruction, int> function_max_label;
 
-    // 函数名称-->函数定义指令，用于FunctionInlinePass
+    // 函数名称-->函数定义指令  用于function Inline pass
 	std::unordered_map<std::string, FuncDefInstruction> FunctionNameTable;
 
     // 全局变量定义指令

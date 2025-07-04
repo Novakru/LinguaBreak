@@ -17,7 +17,7 @@ private:
     // 内联阈值，超过此值的函数不会被内联
     const int INLINE_THRESHOLD = 50;
     // 构建函数调用图
-    void buildCallGraph();
+    void buildCallGraph(FuncDefInstruction caller);
     // 判断函数是否适合内联
     bool shouldInline(FuncDefInstruction caller, FuncDefInstruction callee);
     // 执行函数内联
@@ -27,7 +27,7 @@ private:
     // 重命名基本块标签
     int renameLabel(FuncDefInstruction caller,int oldLabel, std::unordered_map<int, int>& labelMapping);
     // 复制基本块
-    LLVMBlock copyBasicBlock(FuncDefInstruction caller,LLVMBlock origBlock, std::unordered_map<int, int>& regMapping, std::unordered_map<int, int>& labelMapping);
+    LLVMBlock copyBasicBlock(FuncDefInstruction caller, LLVMBlock origBlock, std::unordered_map<int, int>& regMapping, std::unordered_map<int, int>& labelMapping);
     
 public:
     static const std::unordered_set<std::string> lib_function_names;

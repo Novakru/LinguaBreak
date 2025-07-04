@@ -842,7 +842,12 @@ Instruction PhiInstruction::InstructionClone(){
     return new_inst;
 }
 Instruction AllocaInstruction::InstructionClone(){
-    Instruction new_inst = new AllocaInstruction(type, result->OperandClone());
+    std::vector<int>new_dims;
+    new_dims.reserve(dims.size());
+    for(auto &dim:dims){
+        new_dims.emplace_back(dim);
+    }
+    Instruction new_inst = new AllocaInstruction(type, new_dims,result->OperandClone());
     return new_inst;
 }   
 Instruction BrCondInstruction::InstructionClone(){

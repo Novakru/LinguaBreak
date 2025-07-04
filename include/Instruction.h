@@ -867,7 +867,7 @@ public:
             args[i].second = ops[i];
         }
     }
-    void SetResult(Operand op) { }
+    void SetResult(Operand op) { result = op;}
     Instruction InstructionClone();
 };
 

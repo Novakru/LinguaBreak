@@ -414,7 +414,6 @@ void RiscV64Unit::LowerStack()
                                                                GetPhysicalReg(RISCV_sp), restore_offset[RISCV_fp]));
                 }
             }
-            std::cout<<"[in inst_select.cc line 417] label b: "<<b->getLabelId()<<"; size of b: "<<b->GetInsList().size()<<std::endl;
             auto y_ins = *(b->ReverseBegin());
             Assert(y_ins->arch == MachineBaseInstruction::RiscV);
             auto riscv_y_ins = (RiscV64Instruction *)y_ins;

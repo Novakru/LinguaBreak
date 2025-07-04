@@ -214,7 +214,7 @@ int main(int argc, char** argv) {
 
         FunctionInlinePass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFG2();
-        //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
+        SimplifyCFGPass(&llvmIR).EOBB();  
     // }
 
     if (option == 3) {
