@@ -6,7 +6,7 @@ bool TailCallElimPass::IsTailCallFunc(CFG *C) {
 		return false;
 	}
 
-	// location varry alloca at block_in, may be create mistake. 00007_DP.sy
+	// location varry alloca at block_in, may create mistake. 00007_DP.sy
 	auto block_in = (*C->block_map)[0];
 	auto block_in_id = block_in->block_id;
 	std::unordered_set<int> formals_reg; 

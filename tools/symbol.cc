@@ -104,6 +104,7 @@ Symbol* IdTable::add_id(std::string s) {
 /* SymbolRegTable */
 void SymbolRegTable::enter(Symbol* C, int reg){
 	symbol_table[current_scope][C] = reg; 
+    return;
 }
 int SymbolRegTable::look(Symbol* C){
     for (int i = current_scope; i >= 0; --i) {

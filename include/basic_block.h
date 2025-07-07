@@ -23,7 +23,7 @@ public:
     void InsertInstruction(int pos, Instruction Ins);
 
     void printIR(std::ostream &s);
-    BasicBlock(int id) : block_id(id) {}
+    BasicBlock(int id) : block_id(id) {dfs_id=0;}
 
 	bool operator==(const BasicBlock& other) const {
         return block_id == other.block_id;

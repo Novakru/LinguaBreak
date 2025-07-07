@@ -19,6 +19,8 @@
 #include "llvm/optimize/transform/peephole.h"
 #include "llvm/optimize/transform/sccp.h"
 #include "llvm/optimize/transform/tailcallelim.h"
+#include "llvm/optimize/transform/oneret.h"
+#include "llvm/optimize/transform/functioninline.h"
 #include "llvm/optimize/transform/licm.h"
 #include "llvm/optimize/transform/loopSimplify.h"
 #include "llvm/optimize/transform/loopRotate.h"
@@ -206,10 +208,16 @@ int main(int argc, char** argv) {
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
+        OneRetPass(&llvmIR).Execute();
         SCCPPass(&llvmIR).Execute();
-        SimplifyCFGPass(&llvmIR).RebuildCFG();
-		PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is need
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+		PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is needed
 		SimplifyCFGPass(&llvmIR).EOBB();  
+
+        FunctionInlinePass(&llvmIR).Execute();
+        SimplifyCFGPass(&llvmIR).RebuildCFG();
+        SimplifyCFGPass(&llvmIR).EOBB();  
+
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
 		// LoopRotate(&llvmIR).Execute();

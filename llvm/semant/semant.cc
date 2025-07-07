@@ -169,6 +169,7 @@ int GetArrayVal(NodeAttribute &val,std::vector<int> &arrayIndexes,BuiltinType::B
     }//val.IntInitVals,FloatInitVal中线性存放着各个数组元素
     if (type==BuiltinType::Int){return val.IntInitVals[index];}
     else if (type==BuiltinType::Float){return val.FloatInitVals[index];}//暂时只可能有参数为int或者float的情况
+    return -1;
     
 }
 
@@ -778,7 +779,7 @@ void __FuncDef::TypeCheck()
     // semant_table.symbol_table.beginScope();//进入新的作用域
 
     semant_table.FunctionTable[name->getName()] = this;
-
+    
     auto formal_vector = *formals;
     for (auto formal : formal_vector) {
         formal->TypeCheck();//逐一检查函数参数

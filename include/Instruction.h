@@ -126,7 +126,6 @@ class RegOperand : public BasicOperand {
 
 public:
     int GetRegNo() { return reg_no; }
-
     friend RegOperand *GetNewRegOperand(int RegNo);
     virtual std::string GetFullName();
     virtual BasicOperand* Clone() const  ;
@@ -208,7 +207,6 @@ class GlobalOperand : public BasicOperand {
 
 public:
     std::string GetName() { return name; }
-
     friend GlobalOperand *GetNewGlobalOperand(std::string name);
     virtual std::string GetFullName();
     virtual BasicOperand* Clone() const  ;
@@ -305,10 +303,11 @@ public:
     virtual ~BasicInstruction() = default;
     virtual void PrintIR(std::ostream &s) = 0;
     virtual Operand GetResult() = 0;
+    virtual void SetResult(Operand op) = 0;
     virtual int GetDefRegno() = 0;
     virtual std::set<int> GetUseRegno() = 0;
     virtual void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) =0;
-    virtual void ChangeResult(const std::map<int, int> &regNo_map) = 0;  // 新增：修改结果寄存器
+    virtual void ChangeResult(const std::map<int, int> &regNo_map) = 0; 
     virtual std::vector<Operand> GetNonResultOperands() = 0;
     virtual void SetNonResultOperands(std::vector<Operand> ops) = 0;
     virtual bool isPhi() const { return opcode == PHI; }
@@ -354,6 +353,7 @@ public:
         }
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 // store
@@ -398,6 +398,7 @@ public:
         }
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 //<result>=add <ty> <op1>,<op2>
@@ -450,6 +451,7 @@ public:
     int CompConst(int value1, int value2);
     float CompConst(float value1, float value2);
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 //<result>=icmp <cond> <ty> <op1>,<op2>
@@ -500,6 +502,7 @@ public:
     }
     int CompConst(int value1, int value2);
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 //<result>=fcmp <cond> <ty> <op1>,<op2>
@@ -546,6 +549,7 @@ public:
     }
     float CompConst(float value1,float value2);
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 // phi syntax:
@@ -582,7 +586,6 @@ public:
     virtual void PrintIR(std::ostream &s);
     Operand GetResult(){ return result; };
     LLVMType GetResultType(){ return type; };
-    void SetResult(Operand op){ result = op; }
     std::vector<std::pair<Operand, Operand>> GetPhiList(){ return phi_list; }
     void SetPhiList(std::vector<std::pair<Operand, Operand>> new_list){ 
         phi_list=new_list;
@@ -615,6 +618,7 @@ public:
     }
     bool NotEqual(Operand op1, Operand op2);
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 // alloca
@@ -655,6 +659,7 @@ public:
         // No operands to set
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 // Conditional branch
@@ -705,6 +710,7 @@ public:
         }
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 // Unconditional branch
@@ -738,6 +744,7 @@ public:
         }
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 /*
@@ -786,6 +793,7 @@ public:
         }
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 class GlobalStringConstInstruction : public BasicInstruction {
@@ -813,6 +821,7 @@ public:
         // No operands to set
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 /*
@@ -831,6 +840,7 @@ private:
     Operand result;    // result can be null
     std::string name;
     std::vector<std::pair<enum LLVMType, Operand>> args;
+    //FuncDefInstruction func_def_inst; // 记录被调用者的函数定义指令，用于FunctionInline
 
 public:
     // Construction Function:Set All datas
@@ -880,6 +890,7 @@ public:
         }
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 /*
@@ -924,6 +935,7 @@ public:
         }
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 /*
@@ -963,7 +975,6 @@ public:
 
     enum LLVMType GetType() { return type; }
     Operand GetResult() { return result; }
-    void SetResult(Operand op) { result = op; }
     Operand GetPtrVal() { return ptrval; }
     std::vector<int> GetDims() { return dims; }
     std::vector<Operand> GetIndexes() { return indexes; }
@@ -993,6 +1004,7 @@ public:
         }
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 class FunctionDefineInstruction : public BasicInstruction {
@@ -1014,7 +1026,6 @@ public:
     }
     enum LLVMType GetReturnType() { return return_type; }
     std::string GetFunctionName() { return Func_name; }
-
     void PrintIR(std::ostream &s);
     Operand GetResult(){ return nullptr; };
     
@@ -1035,6 +1046,7 @@ public:
         }
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 typedef FunctionDefineInstruction *FuncDefInstruction;
 
@@ -1052,7 +1064,6 @@ public:
     void InsertFormal(enum LLVMType t) { formals.push_back(t); }
     enum LLVMType GetReturnType() { return return_type; }
     std::string GetFunctionName() { return Func_name; }
-
     void PrintIR(std::ostream &s);
     
     Operand GetResult(){ return nullptr; };
@@ -1069,6 +1080,7 @@ public:
         // No operands to set
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 // 这条指令目前只支持float和i32的转换，如果你需要double, i64等类型，需要自己添加更多变量
@@ -1100,6 +1112,7 @@ public:
         }
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 // 这条指令目前只支持float和i32的转换，如果你需要double, i64等类型，需要自己添加更多变量
@@ -1132,6 +1145,7 @@ public:
         }
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 // 无符号扩展，你大概率需要它来将i1无符号扩展至i32(即对应c语言bool类型转int)
@@ -1167,6 +1181,7 @@ public:
         }
     }
     virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 std::ostream &operator<<(std::ostream &s, BasicInstruction::LLVMType type);

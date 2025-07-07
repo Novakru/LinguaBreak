@@ -8,13 +8,15 @@ public:
     std::map<FuncDefInstruction, int> function_max_reg;
     std::map<FuncDefInstruction, int> function_max_label;
 
+    // 函数名称-->函数定义指令  用于function Inline pass
+	std::unordered_map<std::string, FuncDefInstruction> FunctionNameTable;
+
     // 全局变量定义指令
     std::vector<Instruction> global_def{};
     // 函数声明指令
     std::vector<Instruction> function_declare{};
 
     // key为函数定义指令(需要保证函数定义指令与函数一一对应), value为函数对应的cfg
-    // 在中间代码生成中, 你可以暂时忽略该成员变量, 你可以在代码优化时再考虑该变量
     std::map<FuncDefInstruction, CFG *> llvm_cfg{};
 
     // key为函数定义指令, value为函数对应的所有基本块, 该成员变量会在输出中使用，所以你必须对该变量正确赋值
