@@ -1,5 +1,4 @@
 #include "licm.h"
-#define debug
 
 void LoopInvariantCodeMotionPass::Execute() {
     for(auto [defI, cfg] : llvmIR->llvm_cfg){

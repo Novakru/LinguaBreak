@@ -797,3 +797,295 @@ bool PhiInstruction::NotEqual(Operand op1, Operand op2){
     }
     return false;
 }
+
+// Operand Clone 函数实现
+BasicOperand* RegOperand::Clone() const {
+    return GetNewRegOperand(reg_no);
+}
+
+BasicOperand* ImmI32Operand::Clone() const {
+    return new ImmI32Operand(immVal);
+}
+
+BasicOperand* ImmI64Operand::Clone() const {
+    return new ImmI64Operand(immVal);
+}
+
+BasicOperand* ImmF32Operand::Clone() const {
+    return new ImmF32Operand(immVal);
+}
+
+BasicOperand* LabelOperand::Clone() const {
+    return GetNewLabelOperand(label_no);
+}
+
+BasicOperand* GlobalOperand::Clone() const {
+    return GetNewGlobalOperand(name);
+}
+
+// Instruction Clone 函数实现
+BasicInstruction* LoadInstruction::Clone() const {
+    Operand new_pointer = pointer->Clone();
+    Operand new_result = result->Clone();
+    return new LoadInstruction(type, new_pointer, new_result);
+}
+
+BasicInstruction* StoreInstruction::Clone() const {
+    Operand new_pointer = pointer->Clone();
+    Operand new_value = value->Clone();
+    return new StoreInstruction(type, new_pointer, new_value);
+}
+
+BasicInstruction* ArithmeticInstruction::Clone() const {
+    Operand new_op1 = op1->Clone();
+    Operand new_op2 = op2->Clone();
+    Operand new_result = result->Clone();
+    return new ArithmeticInstruction(opcode, type, new_op1, new_op2, new_result);
+}
+
+BasicInstruction* IcmpInstruction::Clone() const {
+    Operand new_op1 = op1->Clone();
+    Operand new_op2 = op2->Clone();
+    Operand new_result = result->Clone();
+    return new IcmpInstruction(type, new_op1, new_op2, cond, new_result);
+}
+
+BasicInstruction* FcmpInstruction::Clone() const {
+    Operand new_op1 = op1->Clone();
+    Operand new_op2 = op2->Clone();
+    Operand new_result = result->Clone();
+    return new FcmpInstruction(type, new_op1, new_op2, cond, new_result);
+}
+
+BasicInstruction* PhiInstruction::Clone() const {
+    Operand new_result = result->Clone();
+    std::vector<std::pair<Operand, Operand>> new_phi_list;
+    for(const auto& [label, val] : phi_list) {
+        new_phi_list.push_back({label->Clone(), val->Clone()});
+    }
+    return new PhiInstruction(type, new_result, new_phi_list);
+}
+
+BasicInstruction* AllocaInstruction::Clone() const {
+    Operand new_result = result->Clone();
+    if(dims.empty()) {
+        return new AllocaInstruction(type, new_result);
+    } else {
+        return new AllocaInstruction(type, dims, new_result);
+    }
+}
+
+BasicInstruction* BrCondInstruction::Clone() const {
+    Operand new_cond = cond->Clone();
+    Operand new_true_label = trueLabel->Clone();
+    Operand new_false_label = falseLabel->Clone();
+    return new BrCondInstruction(new_cond, new_true_label, new_false_label);
+}
+
+BasicInstruction* BrUncondInstruction::Clone() const {
+    Operand new_dest_label = destLabel->Clone();
+    return new BrUncondInstruction(new_dest_label);
+}
+
+BasicInstruction* GlobalVarDefineInstruction::Clone() const {
+    if(init_val != nullptr) {
+        Operand new_init_val = init_val->Clone();
+        return new GlobalVarDefineInstruction(name, type, new_init_val);
+    } else {
+        return new GlobalVarDefineInstruction(name, type, arrayval);
+    }
+}
+
+BasicInstruction* GlobalStringConstInstruction::Clone() const {
+    return new GlobalStringConstInstruction(str_val, str_name);
+}
+
+BasicInstruction* CallInstruction::Clone() const {
+    Operand new_result = (result != nullptr) ? result->Clone() : nullptr;
+    std::vector<std::pair<enum BasicInstruction::LLVMType, Operand>> new_args;
+    for(const auto& [arg_type, arg_op] : args) {
+        new_args.push_back({arg_type, arg_op->Clone()});
+    }
+    return new CallInstruction(ret_type, new_result, name, new_args);
+}
+
+BasicInstruction* RetInstruction::Clone() const {
+    Operand new_ret_val = (ret_val != nullptr) ? ret_val->Clone() : nullptr;
+    return new RetInstruction(ret_type, new_ret_val);
+}
+
+BasicInstruction* GetElementptrInstruction::Clone() const {
+    Operand new_result = result->Clone();
+    Operand new_ptrval = ptrval->Clone();
+    std::vector<Operand> new_indexes;
+    for(const auto& index : indexes) {
+        new_indexes.push_back(index->Clone());
+    }
+    return new GetElementptrInstruction(type, new_result, new_ptrval, dims, new_indexes, index_type);
+}
+
+BasicInstruction* FunctionDefineInstruction::Clone() const {
+    FunctionDefineInstruction* new_func = new FunctionDefineInstruction(return_type, Func_name);
+    for(const auto& formal : formals) {
+        new_func->InsertFormal(formal);
+    }
+    return new_func;
+}
+
+BasicInstruction* FunctionDeclareInstruction::Clone() const {
+    FunctionDeclareInstruction* new_func = new FunctionDeclareInstruction(return_type, Func_name);
+    for(const auto& formal : formals) {
+        new_func->InsertFormal(formal);
+    }
+    return new_func;
+}
+
+BasicInstruction* FptosiInstruction::Clone() const {
+    Operand new_result = result->Clone();
+    Operand new_value = value->Clone();
+    return new FptosiInstruction(new_result, new_value);
+}
+
+BasicInstruction* SitofpInstruction::Clone() const {
+    Operand new_result = result->Clone();
+    Operand new_value = value->Clone();
+    return new SitofpInstruction(new_result, new_value);
+}
+
+BasicInstruction* ZextInstruction::Clone() const {
+    Operand new_value = value->Clone();
+    Operand new_result = result->Clone();
+    return new ZextInstruction(to_type, new_result, from_type, new_value);
+}
+
+// ChangeResult 函数实现
+void LoadInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if (result->GetOperandType() == BasicOperand::REG) {
+        int old_regno = ((RegOperand*)result)->GetRegNo();
+        if (regNo_map.find(old_regno) != regNo_map.end()) {
+            result = GetNewRegOperand(regNo_map.at(old_regno));
+        }
+    }
+}
+
+void StoreInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    // Store 指令没有结果寄存器
+}
+
+void ArithmeticInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if (result->GetOperandType() == BasicOperand::REG) {
+        int old_regno = ((RegOperand*)result)->GetRegNo();
+        if (regNo_map.find(old_regno) != regNo_map.end()) {
+            result = GetNewRegOperand(regNo_map.at(old_regno));
+        }
+    }
+}
+
+void IcmpInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if (result->GetOperandType() == BasicOperand::REG) {
+        int old_regno = ((RegOperand*)result)->GetRegNo();
+        if (regNo_map.find(old_regno) != regNo_map.end()) {
+            result = GetNewRegOperand(regNo_map.at(old_regno));
+        }
+    }
+}
+
+void FcmpInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if (result->GetOperandType() == BasicOperand::REG) {
+        int old_regno = ((RegOperand*)result)->GetRegNo();
+        if (regNo_map.find(old_regno) != regNo_map.end()) {
+            result = GetNewRegOperand(regNo_map.at(old_regno));
+        }
+    }
+}
+
+void PhiInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if (result->GetOperandType() == BasicOperand::REG) {
+        int old_regno = ((RegOperand*)result)->GetRegNo();
+        if (regNo_map.find(old_regno) != regNo_map.end()) {
+            result = GetNewRegOperand(regNo_map.at(old_regno));
+        }
+    }
+}
+
+void AllocaInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if (result->GetOperandType() == BasicOperand::REG) {
+        int old_regno = ((RegOperand*)result)->GetRegNo();
+        if (regNo_map.find(old_regno) != regNo_map.end()) {
+            result = GetNewRegOperand(regNo_map.at(old_regno));
+        }
+    }
+}
+
+void BrCondInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    // 分支指令没有结果寄存器
+}
+
+void BrUncondInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    // 分支指令没有结果寄存器
+}
+
+void GlobalVarDefineInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    // 全局变量定义指令没有结果寄存器
+}
+
+void GlobalStringConstInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    // 全局字符串常量指令没有结果寄存器
+}
+
+void CallInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if (result != nullptr && result->GetOperandType() == BasicOperand::REG) {
+        int old_regno = ((RegOperand*)result)->GetRegNo();
+        if (regNo_map.find(old_regno) != regNo_map.end()) {
+            result = GetNewRegOperand(regNo_map.at(old_regno));
+        }
+    }
+}
+
+void RetInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    // 返回指令没有结果寄存器
+}
+
+void GetElementptrInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if (result->GetOperandType() == BasicOperand::REG) {
+        int old_regno = ((RegOperand*)result)->GetRegNo();
+        if (regNo_map.find(old_regno) != regNo_map.end()) {
+            result = GetNewRegOperand(regNo_map.at(old_regno));
+        }
+    }
+}
+
+void FunctionDefineInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    // 函数定义指令没有结果寄存器
+}
+
+void FunctionDeclareInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    // 函数声明指令没有结果寄存器
+}
+
+void FptosiInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if (result->GetOperandType() == BasicOperand::REG) {
+        int old_regno = ((RegOperand*)result)->GetRegNo();
+        if (regNo_map.find(old_regno) != regNo_map.end()) {
+            result = GetNewRegOperand(regNo_map.at(old_regno));
+        }
+    }
+}
+
+void SitofpInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if (result->GetOperandType() == BasicOperand::REG) {
+        int old_regno = ((RegOperand*)result)->GetRegNo();
+        if (regNo_map.find(old_regno) != regNo_map.end()) {
+            result = GetNewRegOperand(regNo_map.at(old_regno));
+        }
+    }
+}
+
+void ZextInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if (result->GetOperandType() == BasicOperand::REG) {
+        int old_regno = ((RegOperand*)result)->GetRegNo();
+        if (regNo_map.find(old_regno) != regNo_map.end()) {
+            result = GetNewRegOperand(regNo_map.at(old_regno));
+        }
+    }
+}

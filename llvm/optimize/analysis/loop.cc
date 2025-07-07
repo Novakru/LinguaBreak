@@ -69,27 +69,30 @@ void Loop::dispLoop(int depth, bool is_last) const {
 	print_field("Exitings", exitings);
 	print_field("Exits", exits);
 
-    for (size_t i = 0; i < sub_loops.size(); ++i) {
-        bool last_child = (i == sub_loops.size() - 1);
-        sub_loops[i]->dispLoop(depth + 1, last_child);
+    size_t i = 0;
+    size_t total = sub_loops.size();
+    for (Loop* subloop : sub_loops) {
+        bool last_child = (i == total - 1);
+        subloop->dispLoop(depth + 1, last_child);
+        i++;
     }
 }
 
 bool Loop::verifySimplifyForm(CFG* cfg) const {
 	bool flag = true;
-	flag &= (preheader != nullptr);
+	Assert(flag &= (preheader != nullptr));
 	if(!flag) return false;
 
 	int phid = preheader->block_id;
-	flag &= (phid != 0);
-	flag &= (cfg->GetSuccessor(phid).size() == 1);
+	Assert(flag &= (phid != 0));
+	Assert(flag &= (cfg->GetSuccessor(phid).size() == 1));
 
-	flag &= (latches.size() == 1);
+	Assert(flag &= (latches.size() == 1));
 
-	flag &= (exits.size() >= 1);
+	Assert(flag &= (exits.size() >= 1));
 	for(auto exit : exits) {
 		for(auto pred : cfg->GetPredecessor(exit)) {
-			flag &= (contains(pred));
+			Assert(flag &= (contains(pred)));
 		}
 	}
 	
@@ -111,7 +114,6 @@ void LoopInfo::analyze(CFG* cfg) {
 		for (auto pred : predecessors) {
 			if (dom_tree->dominates(bb, pred)) {  // bb is loop header
 				Loop* loop = getOrCreateLoop(bb); // create or get the loop with bb as header
-				// std::cerr << "find loop header: " << bb->block_id << std::endl;
 				discoverLoopBlocks(loop, pred, cfg); // maintain blocks
 				markExitingAndExits(loop, cfg);
 				break;
@@ -203,7 +205,7 @@ void LoopInfo::buildLoopNesting(DominatorTree* dom_tree) {
             parent->addSubLoop(loop);
             loop->setParentLoop(parent);
         } else {
-            top_level_loops.push_back(loop);
+            top_level_loops.insert(loop);
         }
     }
 
@@ -223,9 +225,12 @@ void LoopInfo::computeLoopDepth(Loop* loop) {
 
 void LoopInfo::displayLoopInfo() const {
     std::cout << "LoopInfo: Loop Hierarchy" << std::endl;
-    for (size_t i = 0; i < top_level_loops.size(); ++i) {
-        bool is_last = (i == top_level_loops.size() - 1);
-        top_level_loops[i]->dispLoop(0, is_last);
+    size_t i = 0;
+    size_t total = top_level_loops.size();
+    for (Loop* loop : top_level_loops) {
+        bool is_last = (i == total - 1);
+        loop->dispLoop(0, is_last);
+        i++;
     }
 }
 
@@ -241,6 +246,7 @@ void LoopInfo::simplify(CFG* cfg) {
         simplifyLoop(top_loop, cfg);
     }
 
+	cfg->BuildCFG();
     auto dom_tree = static_cast<DominatorTree*>(cfg->DomTree);
     dom_tree->BuildDominatorTree(false);
 }
@@ -252,7 +258,7 @@ void LoopInfo::simplifyLoop(Loop* loop, CFG* cfg) {
     }
 
     insertPreheader(loop, cfg); 
-    createDedicatedExits(loop, cfg);
+    createDedicatedExits(loop, cfg); 
 	mergeLatches(loop, cfg);
 }
 
@@ -318,10 +324,30 @@ void LoopInfo::createDedicatedExits(Loop* loop, CFG* cfg) {
         if (hasOutsidePred) {
             LLVMBlock dedicated_exit = cfg->GetNewBlock();
 			cfg->replaceSuccessors(exitings, exit, dedicated_exit);
-			if(dedicated_exit->block_id == 26) {
-				std::cerr << "here" << std::endl;
+			
+			// 检查新创建的 dedicated_exit 是否应该被添加到父循环中
+			// 如果子循环的出口边恰好是父循环的回边，新块需要成为父循环的 latch
+			Loop* parent_loop = loop->getParentLoop();
+			while (parent_loop) {
+				// 检查 dedicated_exit 是否指向父循环的 header
+				auto successors = cfg->GetSuccessor(dedicated_exit);
+				if (successors.find(parent_loop->getHeader()) != successors.end()) {
+					// 这是一个回边，需要将 dedicated_exit 添加到父循环并成为 latch
+					parent_loop->addBlock(dedicated_exit);
+					// 如果 exitings 中存在 latch , 需要删除
+					for(auto exiting : exitings) {
+						if(parent_loop->contains(exiting)) {
+							parent_loop->removeLatch(exiting);
+						}
+					}
+					parent_loop->addLatch(dedicated_exit);
+					
+					// 更新父循环的 exiting 和 exits
+					markExitingAndExits(parent_loop, cfg);
+				}
+				parent_loop = parent_loop->getParentLoop();
 			}
-			// in this func, preheader-header-block-exiting is not update, exit maybe update.
+			
 			new_exits.insert(dedicated_exit);
         } else {
 			new_exits.insert(exit);
@@ -333,19 +359,19 @@ void LoopInfo::createDedicatedExits(Loop* loop, CFG* cfg) {
 	while(curr_loop) {
 		markExitingAndExits(curr_loop, cfg);
 		curr_loop = curr_loop->getParentLoop();
-	}
+	}	
 }
 
 void LoopInfo::mergeLatches(Loop* loop, CFG* cfg) {
     auto latches = loop->getLatches();
 	std::set<LLVMBlock> latchSet(latches.begin(), latches.end());
-    if (latches.size() <= 1) return;
+    if (latches.size() == 1) return;
 
     LLVMBlock header = loop->getHeader();
     LLVMBlock new_latch = cfg->GetNewBlock();
 	cfg->replaceSuccessors(latchSet, header, new_latch);
 	
-	loop->setLatches({});  // clear
+	loop->clearLatches();  // clear
     loop->addLatch(new_latch);
 
     auto curr_loop = loop;
@@ -356,7 +382,11 @@ void LoopInfo::mergeLatches(Loop* loop, CFG* cfg) {
 }
 
 bool LoopInfo::verifySimplifyForm(CFG* cfg) {
-	std::queue<Loop*> q(std::deque<Loop*>(top_level_loops.begin(), top_level_loops.end()));
+	std::queue<Loop*> q;
+	for (Loop* loop : top_level_loops) {
+		q.push(loop);
+	}
+	
 	while(!q.empty()) {
 		Loop* curr_loop = q.front();
 		if(!curr_loop->verifySimplifyForm(cfg))

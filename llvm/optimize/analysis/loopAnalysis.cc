@@ -7,7 +7,9 @@ void LoopAnalysisPass::Execute() {
 		LoopInfo* loopInfo = new LoopInfo();
 		loopInfo->analyze(cfg);
 		#ifdef debug
-			std::cerr << "LoopAnalysis result:" << std::endl;
+			auto definst = (FunctionDefineInstruction*)defI;
+			std::string funcName = definst->GetFunctionName();
+			std::cerr <<  funcName + "(): LoopAnalysis result:" << std::endl;
 			loopInfo->displayLoopInfo();
 		#endif
         cfg->loopInfo = loopInfo;
