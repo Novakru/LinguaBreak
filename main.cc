@@ -24,6 +24,7 @@
 #include "llvm/optimize/transform/licm.h"
 #include "llvm/optimize/transform/loopSimplify.h"
 #include "llvm/optimize/transform/loopRotate.h"
+#include "llvm/optimize/transform/basic_cse.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -217,8 +218,11 @@ int main(int argc, char** argv) {
         FunctionInlinePass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFG();
         SimplifyCFGPass(&llvmIR).EOBB();  
+        //---
+        SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree cse
 
 		LoopAnalysisPass(&llvmIR).Execute();
+        //--
 		LoopSimplifyPass(&llvmIR).Execute();
 		// LoopRotate(&llvmIR).Execute();
 		LoopInvariantCodeMotionPass(&llvmIR).Execute(); // Scalar Version
