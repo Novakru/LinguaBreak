@@ -16,7 +16,7 @@ void OneRetPass::Execute(){
                     ret_type=ret->GetType();
                     if(ret_type!=BasicInstruction::LLVMType::VOID){
                         Operand retval=ret->GetRetVal();
-                        auto phi_pair=std::make_pair(GetNewLabelOperand(id),retval->OperandClone());
+                        auto phi_pair=std::make_pair(GetNewLabelOperand(id),retval->Clone());
                         ret_phi_list[defI].push_back(phi_pair);
                     }
                 }

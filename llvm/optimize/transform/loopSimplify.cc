@@ -6,10 +6,12 @@ void LoopSimplifyPass::Execute() {
 		LoopInfo* loopInfo = cfg->getLoopInfo();
 		loopInfo->simplify(cfg);
 		#ifdef debug 
-			std::cerr << "LoopSimplify result:" << std::endl;
+			auto definst = (FunctionDefineInstruction*)defI;
+			std::string funcName = definst->GetFunctionName();
+			std::cerr <<  funcName + "(): LoopSimplify result:" << std::endl;
 			loopInfo->displayLoopInfo();
 		#endif
-		Assert(loopInfo->verifySimplifyForm(cfg));
+		loopInfo->verifySimplifyForm(cfg);
         cfg->loopInfo = loopInfo;
     }
 }

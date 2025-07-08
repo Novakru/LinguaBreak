@@ -345,7 +345,7 @@ void SimplifyCFGPass::TransformOnePredPhi(CFG* C){
                         for(auto &operand:operands){
                             if(operand->GetOperandType()==BasicOperand::REG){
                                 if(((RegOperand*)operand)->GetRegNo()==phi_res_regno){
-                                    new_operands.emplace_back(value->OperandClone());
+                                    new_operands.emplace_back(value->Clone());
                                     continue;
                                 }
                             }

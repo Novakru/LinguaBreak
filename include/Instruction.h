@@ -110,9 +110,10 @@ protected:
 
 public:
     BasicOperand() {}
+    virtual ~BasicOperand() = default;
     operand_type GetOperandType() { return operandType; }
     virtual std::string GetFullName() = 0;
-    virtual Operand OperandClone()=0;
+    virtual BasicOperand* Clone() const = 0;  // 纯虚函数
 };
 
 // @register operand;%r+register No
@@ -127,7 +128,7 @@ public:
     int GetRegNo() { return reg_no; }
     friend RegOperand *GetNewRegOperand(int RegNo);
     virtual std::string GetFullName();
-    virtual Operand OperandClone();
+    virtual BasicOperand* Clone() const  ;
 };
 RegOperand *GetNewRegOperand(int RegNo);
 
@@ -143,7 +144,7 @@ public:
         this->immVal = immVal;
     }
     virtual std::string GetFullName();
-    virtual Operand OperandClone();
+    virtual BasicOperand* Clone() const  ;
 };
 
 // @integer64 immediate
@@ -158,7 +159,7 @@ public:
         this->immVal = immVal;
     }
     virtual std::string GetFullName();
-    virtual Operand OperandClone();
+    virtual BasicOperand* Clone() const  ;
 };
 
 // @float32 immediate
@@ -175,7 +176,7 @@ public:
         this->immVal = immVal;
     }
     virtual std::string GetFullName();
-    virtual Operand OperandClone();
+    virtual BasicOperand* Clone() const  ;
 };
 
 // @label %L+label No
@@ -191,7 +192,7 @@ public:
 
     friend LabelOperand *GetNewLabelOperand(int LabelNo);
     virtual std::string GetFullName();
-    virtual Operand OperandClone();
+    virtual BasicOperand* Clone() const  ;
 };
 
 LabelOperand *GetNewLabelOperand(int RegNo);
@@ -208,7 +209,7 @@ public:
     std::string GetName() { return name; }
     friend GlobalOperand *GetNewGlobalOperand(std::string name);
     virtual std::string GetFullName();
-    virtual Operand OperandClone();
+    virtual BasicOperand* Clone() const  ;
 };
 
 GlobalOperand *GetNewGlobalOperand(std::string name);
@@ -299,15 +300,22 @@ public:
     int GetOpcode() { return opcode; }    // one solution: convert to pointer of subclasses
     int GetBlockID(){ return BlockID; }
     void SetBlockID(int id){ BlockID = id; }
+    virtual ~BasicInstruction() = default;
     virtual void PrintIR(std::ostream &s) = 0;
     virtual Operand GetResult() = 0;
     virtual void SetResult(Operand op) = 0;
     virtual int GetDefRegno() = 0;
     virtual std::set<int> GetUseRegno() = 0;
     virtual void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) =0;
+    virtual void ChangeResult(const std::map<int, int> &regNo_map) = 0; 
     virtual std::vector<Operand> GetNonResultOperands() = 0;
     virtual void SetNonResultOperands(std::vector<Operand> ops) = 0;
-    virtual Instruction InstructionClone() =0;
+    virtual bool isPhi() const { return opcode == PHI; }
+    virtual bool isTerminator() const {
+        return opcode == BR_COND || opcode == BR_UNCOND || opcode == RET;
+    }
+	// 如果要通过基类指针 Instruction 拷贝其实际指向的子类对象 (loopRoate 首次用到)
+    virtual BasicInstruction* Clone() const = 0; 
 };
 
 // load
@@ -333,6 +341,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         vec.push_back(pointer);
@@ -343,8 +352,8 @@ public:
             pointer = ops[0];
         }
     }
-    void SetResult(Operand op) { result = op;}
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 // store
@@ -373,6 +382,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         vec.push_back(pointer);
@@ -387,8 +397,8 @@ public:
             value = ops[1];
         }
     }
-    void SetResult(Operand op) { pointer = op;}
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 //<result>=add <ty> <op1>,<op2>
@@ -423,6 +433,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         vec.push_back(op1);
@@ -439,8 +450,8 @@ public:
     }
     int CompConst(int value1, int value2);
     float CompConst(float value1, float value2);
-    void SetResult(Operand op) { result = op;}
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 //<result>=icmp <cond> <ty> <op1>,<op2>
@@ -474,6 +485,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         vec.push_back(op1);
@@ -489,8 +501,8 @@ public:
         }
     }
     int CompConst(int value1, int value2);
-    void SetResult(Operand op) { result = op;}
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 //<result>=fcmp <cond> <ty> <op1>,<op2>
@@ -520,6 +532,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         vec.push_back(op1);
@@ -535,9 +548,8 @@ public:
         }
     }
     float CompConst(float value1,float value2);
-    void SetResult(Operand op) { result = op;}
-    Instruction InstructionClone();
-
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 // phi syntax:
@@ -574,7 +586,6 @@ public:
     virtual void PrintIR(std::ostream &s);
     Operand GetResult(){ return result; };
     LLVMType GetResultType(){ return type; };
-    void SetResult(Operand op){ result = op; }
     std::vector<std::pair<Operand, Operand>> GetPhiList(){ return phi_list; }
     void SetPhiList(std::vector<std::pair<Operand, Operand>> new_list){ 
         phi_list=new_list;
@@ -592,6 +603,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         for(auto [labelop, valop] : phi_list){
@@ -605,7 +617,8 @@ public:
         }
     }
     bool NotEqual(Operand op1, Operand op2);
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 // alloca
@@ -637,6 +650,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         return vec;
@@ -644,8 +658,8 @@ public:
     void SetNonResultOperands(std::vector<Operand> ops) {
         // No operands to set
     }
-    void SetResult(Operand op) { result = op;}
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 // Conditional branch
@@ -676,6 +690,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         vec.push_back(cond);
@@ -694,8 +709,8 @@ public:
             falseLabel = ops[2];
         }
     }
-    void SetResult(Operand op) { }
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 // Unconditional branch
@@ -712,12 +727,12 @@ public:
     }
     void SetTarget(Operand op){ destLabel = op; }
     virtual void PrintIR(std::ostream &s);
-    void ReplaceRegByMap(const std::map<int, int> &Rule){};
     Operand GetResult(){ return nullptr; };
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeDestLabel(Operand op) { destLabel=op; }
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         vec.push_back(destLabel);
@@ -728,8 +743,8 @@ public:
             destLabel = ops[0];
         }
     }
-    void SetResult(Operand op) {}
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 /*
@@ -759,9 +774,12 @@ public:
     }
     virtual void PrintIR(std::ostream &s);
     Operand GetResult(){ return nullptr; };
+
+    
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         if(init_val != nullptr){
@@ -774,8 +792,8 @@ public:
             init_val = ops[0];
         }
     }
-    void SetResult(Operand op) { }
-    Instruction InstructionClone(){return nullptr; }
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 class GlobalStringConstInstruction : public BasicInstruction {
@@ -787,11 +805,14 @@ public:
     }
 
     virtual void PrintIR(std::ostream &s);
-    void ReplaceRegByMap(const std::map<int, int> &Rule){};
+    
     Operand GetResult(){ return nullptr; };
+    
+    
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         return vec;
@@ -799,8 +820,8 @@ public:
     void SetNonResultOperands(std::vector<Operand> ops) {
         // No operands to set
     }
-    void SetResult(Operand op) { }
-    Instruction InstructionClone(){return nullptr; }
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 /*
@@ -855,6 +876,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         for(auto [tp, op] : args){
@@ -867,8 +889,8 @@ public:
             args[i].second = ops[i];
         }
     }
-    void SetResult(Operand op) { result = op;}
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 /*
@@ -899,6 +921,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         if(ret_val != nullptr) {
@@ -911,8 +934,8 @@ public:
             ret_val = ops[0];
         }
     }
-    void SetResult(Operand op) { }
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 /*
@@ -952,7 +975,6 @@ public:
 
     enum LLVMType GetType() { return type; }
     Operand GetResult() { return result; }
-    void SetResult(Operand op) { result = op; }
     Operand GetPtrVal() { return ptrval; }
     std::vector<int> GetDims() { return dims; }
     std::vector<Operand> GetIndexes() { return indexes; }
@@ -961,6 +983,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         for(auto op : indexes){
@@ -980,7 +1003,8 @@ public:
             }
         }
     }
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 class FunctionDefineInstruction : public BasicInstruction {
@@ -1004,9 +1028,11 @@ public:
     std::string GetFunctionName() { return Func_name; }
     void PrintIR(std::ostream &s);
     Operand GetResult(){ return nullptr; };
+    
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         for(auto op : formals_reg){
@@ -1019,8 +1045,8 @@ public:
             formals_reg[i] = ops[i];
         }
     }
-    void SetResult(Operand op) { }
-    Instruction InstructionClone(){return nullptr; }
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 typedef FunctionDefineInstruction *FuncDefInstruction;
 
@@ -1039,11 +1065,13 @@ public:
     enum LLVMType GetReturnType() { return return_type; }
     std::string GetFunctionName() { return Func_name; }
     void PrintIR(std::ostream &s);
-    void ReplaceRegByMap(const std::map<int, int> &Rule){};
+    
     Operand GetResult(){ return nullptr; };
+    
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         return vec;
@@ -1051,8 +1079,8 @@ public:
     void SetNonResultOperands(std::vector<Operand> ops) {
         // No operands to set
     }
-    void SetResult(Operand op) {}
-    Instruction InstructionClone(){return nullptr; }
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { }
 };
 
 // 这条指令目前只支持float和i32的转换，如果你需要double, i64等类型，需要自己添加更多变量
@@ -1072,6 +1100,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         vec.push_back(value);
@@ -1082,8 +1111,8 @@ public:
             value = ops[0];
         }
     }
-    void SetResult(Operand op) { result = op;}
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 // 这条指令目前只支持float和i32的转换，如果你需要double, i64等类型，需要自己添加更多变量
@@ -1104,6 +1133,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         vec.push_back(value);
@@ -1114,8 +1144,8 @@ public:
             value = ops[0];
         }
     }
-    void SetResult(Operand op) { result = op;}
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 // 无符号扩展，你大概率需要它来将i1无符号扩展至i32(即对应c语言bool类型转int)
@@ -1139,6 +1169,7 @@ public:
     int GetDefRegno();
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
+    void ChangeResult(const std::map<int, int> &regNo_map)  ;
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         vec.push_back(value);
@@ -1149,8 +1180,8 @@ public:
             value = ops[0];
         }
     }
-    void SetResult(Operand op) { result = op;}
-    Instruction InstructionClone();
+    virtual BasicInstruction* Clone() const  ;
+    inline void SetResult(Operand op) { result = op; }
 };
 
 std::ostream &operator<<(std::ostream &s, BasicInstruction::LLVMType type);

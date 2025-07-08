@@ -97,7 +97,7 @@ LLVMBlock FunctionInlinePass::copyBasicBlock(FuncDefInstruction caller, LLVMBloc
     //newBlock->comment = callee->GetFunctionName()+"__L"+ std::to_string(origBlock->block_id) +"   " + origBlock->comment;
     // 复制指令并重命名寄存器和标签
     for (auto &inst : origBlock->Instruction_list) {
-        Instruction newInst = inst->InstructionClone();
+        Instruction newInst = inst->Clone();
         // 重命名结果寄存器
         if (inst->GetResult()&& inst->GetResult()->GetOperandType() == BasicOperand::REG) {
             int ResRegNo =((RegOperand*)(inst->GetResult()))->GetRegNo();
