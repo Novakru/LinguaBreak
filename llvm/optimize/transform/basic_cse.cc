@@ -378,8 +378,8 @@ void SimpleCSEPass::Execute() {
         CSEInit(cfg);
         BasicBlockCSEOptimizer optimizer(cfg);
         optimizer.optimize();
-        DomTreeCSEOptimizer optimizer(cfg);
-        optimizer.optimize();
+        DomTreeCSEOptimizer optimizer2(cfg);
+        optimizer2.optimize();
     }
 }
 void SimpleCSEPass::BlockExecute() {
