@@ -232,7 +232,6 @@ void BasicBlockCSEOptimizer::applyRegisterReplacements() {
     // 应用寄存器替换
     for (auto [id, bb] : *C->block_map) {
         for (auto I : bb->Instruction_list) {
-            //I->ReplaceRegByMap(reg_replace_map);
             I->ChangeResult(reg_replace_map);
             I->ChangeReg(reg_replace_map,reg_replace_map);
         }
@@ -311,17 +310,6 @@ void DomTreeCSEOptimizer::processRegularInstruction(BasicInstruction* I, std::se
         instCSEMap[info] = GetResultRegNo(I);
         tmpCSESet.insert(info);
     }
-    // auto Info = GetCSEInfo(I);
-    // auto CSEiter = instCSEMap.find(Info);
-    // if (CSEiter != instCSEMap.end()) {
-    //     // I->PrintIR(std::cerr);
-    //     eraseSet.insert(I);
-    //     regReplaceMap[I->GetResultRegNo()] = CSEiter->second;
-    //     changed |= true;
-    // } else {
-    //     instCSEMap.insert({Info, I->GetResultRegNo()});
-    //     tmpCSESet.insert(Info);
-    // }
 }
 
 // void DomTreeCSEOptimizer::cleanupTemporaryEntries(const std::set<InstCSEInfo>& tmpCSESet, 
@@ -371,7 +359,6 @@ void DomTreeCSEOptimizer::removeDeadInstructions() {
 void DomTreeCSEOptimizer::applyRegisterReplacements() {
     for (auto [id, bb] : *C->block_map) {
         for (auto I : bb->Instruction_list) {
-            //I->ReplaceRegByMap(regReplaceMap);
             I->ChangeResult(regReplaceMap);
             I->ChangeReg(regReplaceMap,regReplaceMap);
         }
@@ -389,8 +376,10 @@ void SimpleCSEPass::SimpleDomTreeWalkCSE(CFG* C) {
 void SimpleCSEPass::Execute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         CSEInit(cfg);
-        SimpleBlockCSE(cfg);
-        SimpleDomTreeWalkCSE(cfg);
+        BasicBlockCSEOptimizer optimizer(cfg);
+        optimizer.optimize();
+        DomTreeCSEOptimizer optimizer(cfg);
+        optimizer.optimize();
     }
 }
 void SimpleCSEPass::BlockExecute() {
