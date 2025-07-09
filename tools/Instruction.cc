@@ -194,6 +194,11 @@ void LoadInstruction::ChangeReg(const std::map<int, int> &store_map, const std::
 }
 
 void StoreInstruction::ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map){
+    if (pointer->GetOperandType() == BasicOperand::REG) {
+        auto pointer_reg = (RegOperand *)pointer;
+        if (use_map.find(pointer_reg->GetRegNo()) != use_map.end())
+            this->pointer = GetNewRegOperand(use_map.find(pointer_reg->GetRegNo())->second);
+    }
     if(value->GetOperandType()==BasicOperand::REG){
         int regno = ((RegOperand*)value)->GetRegNo();
         if(use_map.find(regno)!=use_map.end()){
@@ -255,7 +260,20 @@ void FcmpInstruction::ChangeReg(const std::map<int, int> &store_map, const std::
 }
 
 void PhiInstruction::ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map){
-    
+    for (auto &label_pair : phi_list) {
+        auto &op1 = label_pair.first;
+        if (op1->GetOperandType() == BasicOperand::REG) {
+            auto op1_reg = (RegOperand *)op1;
+            if (use_map.find(op1_reg->GetRegNo()) != use_map.end())
+                op1 = GetNewRegOperand(use_map.find(op1_reg->GetRegNo())->second);
+        }
+        auto &op2 = label_pair.second;
+        if (op2->GetOperandType() == BasicOperand::REG) {
+            auto op2_reg = (RegOperand *)op2;
+            if (use_map.find(op2_reg->GetRegNo()) != use_map.end())
+                op2 = GetNewRegOperand(use_map.find(op2_reg->GetRegNo())->second);
+        }
+    }
 }
 
 void AllocaInstruction::ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map){}
@@ -1047,6 +1065,11 @@ void RetInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
 }
 
 void GetElementptrInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if (ptrval->GetOperandType() == BasicOperand::REG) {
+        auto result_reg = (RegOperand *)ptrval;
+        if (regNo_map.find(result_reg->GetRegNo()) != regNo_map.end())
+            this->ptrval = GetNewRegOperand(regNo_map.find(result_reg->GetRegNo())->second);
+    }
     if (result->GetOperandType() == BasicOperand::REG) {
         int old_regno = ((RegOperand*)result)->GetRegNo();
         if (regNo_map.find(old_regno) != regNo_map.end()) {
