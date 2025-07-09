@@ -79,7 +79,7 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
         BuildPhiWeb(cfg);
         
         for (auto [id, block] : *(cfg->block_map)) {
-            std::cout<<"[in inst_select.cc line 82] block id: "<<id<<"; size: "<<block->Instruction_list.size()<<std::endl;
+            // std::cout<<"[in inst_select.cc line 82] block id: "<<id<<"; size: "<<block->Instruction_list.size()<<std::endl;
 
             cur_block = new RiscV64Block(id);
             curblockmap[id] = cur_block;
