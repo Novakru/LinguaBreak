@@ -1,15 +1,6 @@
 #include "functioninline.h"
 #include <functional>
 
-const std::unordered_set<std::string> FunctionInlinePass::lib_function_names = {
-    "getint", "getch", "getfloat", "getarray", "getfarray",
-    "putint", "putch", "putfloat", "putarray", "putfarray",
-    "_sysy_starttime", "_sysy_stoptime",
-    "llvm.memset.p0.i32", "llvm.umax.i32", "llvm.umin.i32",
-    "llvm.smax.i32", "llvm.smin.i32"
-};
-
-
 /*
 For : 记录调用图callGraph和函数大小funcSize
     - callGraph构建

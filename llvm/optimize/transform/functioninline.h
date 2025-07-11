@@ -2,6 +2,7 @@
 #define FUNCTIONINLINE_H
 #include "../../include/ir.h"
 #include "../pass.h"
+#include "../lib_function_names.h"
 
 
 class FunctionInlinePass : public IRPass { 
@@ -30,7 +31,6 @@ private:
     LLVMBlock copyBasicBlock(FuncDefInstruction caller, LLVMBlock origBlock, std::unordered_map<int, int>& regMapping, std::unordered_map<int, int>& labelMapping);
     
 public:
-    static const std::unordered_set<std::string> lib_function_names;
     std::unordered_set<FuncDefInstruction> inlined_function_names;
     FunctionInlinePass(LLVMIR *IR) : IRPass(IR) {}
     void Execute();

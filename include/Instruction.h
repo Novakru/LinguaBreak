@@ -844,6 +844,7 @@ private:
 
 public:
     // Construction Function:Set All datas
+    CallInstruction(){}
     CallInstruction(enum LLVMType retType, Operand res, std::string FuncName,
                     std::vector<std::pair<enum LLVMType, Operand>> arguments)
         : ret_type(retType), result(res), name(FuncName), args(arguments) {
@@ -984,6 +985,7 @@ public:
     std::set<int> GetUseRegno();
     void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) ;
     void ChangeResult(const std::map<int, int> &regNo_map)  ;
+    int ComputeIndex();
     std::vector<Operand> GetNonResultOperands() {
         std::vector<Operand> vec;
         for(auto op : indexes){

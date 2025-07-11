@@ -24,13 +24,14 @@ public:
     int max_reg = 0;
     int max_label = 0;
     FuncDefInstruction function_def;
-    std::unordered_map<int, std::pair<int,Instruction>> def_instr_map; // SSA 的value只定义一次。result_regno -> block_id,def_Instruction
+    std::unordered_map<int, std::pair<int,Instruction>> def_instr_map; // result_regno -> block_id,def_Instruction【SCCP】（SSA 的value只定义一次）
 
     /*this is the pointer to the value of LLVMIR.function_block_map
       you can see it in the LLVMIR::CFGInit()*/
     std::map<int, LLVMBlock> *block_map;
-    std::unordered_set<int> block_ids; // 所有基本块的id集合
-    std::unordered_map<int,std::vector<Instruction>> use_map;// phi-result-regno  --> the insts that use the regno
+    std::set<int> block_ids; // 所有基本块的id集合
+    std::unordered_map<int,std::vector<Instruction>> use_map;// regno  --> the insts that use the regno
+    std::unordered_map<int,Instruction> def_map;
 
     // 使用邻接表存图
     std::unordered_map<int,std::set<LLVMBlock>> G{};       // control flow graph

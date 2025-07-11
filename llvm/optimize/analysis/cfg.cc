@@ -88,12 +88,18 @@ void CFG::SearchB(LLVMBlock B){
                 B->Instruction_list.erase(std::next(it), B->Instruction_list.end());
             return;
         }else{
+            //use_map
             auto use_regs = intr->GetNonResultOperands();
             for(auto &operand:use_regs){
                 if(operand->GetOperandType()==BasicOperand::REG){
                     int regno=((RegOperand*)operand)->GetRegNo();
                     use_map[regno].push_back(intr);
                 }
+            }
+            //def_map
+            int def_regno=intr->GetDefRegno();
+            if(def_regno!=-1){
+                def_map[def_regno]=intr;
             }
         }
     }
@@ -104,6 +110,7 @@ void CFG::BuildCFG() {
     invG.clear();
     block_ids.clear();
     use_map.clear();
+    def_map.clear();
     
     // 重置dfs编号
     dfs_num = 0;

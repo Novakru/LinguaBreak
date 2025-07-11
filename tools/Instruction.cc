@@ -1089,3 +1089,27 @@ void ZextInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
         }
     }
 }
+
+int GetElementptrInstruction::ComputeIndex(){
+    int index = 0;
+    int size = 1;
+
+    for (auto &dim : dims) {
+        size*=dim;
+    }
+
+    for (int i = 0; i < indexes.size(); i++) {
+        if(indexes[i]->GetOperandType() == BasicOperand::REG){
+            return -1;
+        }
+        assert(indexes[i]->GetOperandType() == BasicOperand::IMMI32);
+        int index_val=((ImmI32Operand *)indexes[i])->GetIntImmVal();
+        index += index_val* size;
+        
+        if (i < dims.size()) {
+            size /= dims[i];
+        }
+    }
+    return index;
+
+}

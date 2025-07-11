@@ -5,10 +5,10 @@
 
 class LLVMIR {
 public:
-    std::map<FuncDefInstruction, int> function_max_reg;
-    std::map<FuncDefInstruction, int> function_max_label;
+    std::unordered_map<FuncDefInstruction, int> function_max_reg;
+    std::unordered_map<FuncDefInstruction, int> function_max_label;
 
-    // 函数名称-->函数定义指令  用于function Inline pass
+    // 函数名称-->函数定义指令  用于functionInline / AliasAnalysis
 	std::unordered_map<std::string, FuncDefInstruction> FunctionNameTable;
 
     // 全局变量定义指令
@@ -17,11 +17,11 @@ public:
     std::vector<Instruction> function_declare{};
 
     // key为函数定义指令(需要保证函数定义指令与函数一一对应), value为函数对应的cfg
-    std::map<FuncDefInstruction, CFG *> llvm_cfg{};
+    std::unordered_map<FuncDefInstruction, CFG *> llvm_cfg{};
 
     // key为函数定义指令, value为函数对应的所有基本块, 该成员变量会在输出中使用，所以你必须对该变量正确赋值
     // 你必须保证函数的入口基本块为0号基本块，否则在后端会出现错误。
-    std::map<FuncDefInstruction, std::map<int, LLVMBlock>> function_block_map;
+    std::unordered_map<FuncDefInstruction, std::map<int, LLVMBlock>> function_block_map;
 
     // 我们用函数定义指令来对应一个函数
     // 在LLVMIR中新建一个函数
