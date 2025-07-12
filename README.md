@@ -51,6 +51,12 @@ chmod +x ~/LinguaBreak/generate_cfg.sh
 sudo ./generate_cfg.sh
 ```
 
+### OutPut Error 段错误相关
+OutPut Error 段错误相关, 可以借助如下命令行指令获取具体的错误位置
+``` bash
+llvm-as-18 test_output/example/temp.out.ll
+```
+
 ### 使用gdb调试
 
 - **方式一**: 使用gdb终端调试
