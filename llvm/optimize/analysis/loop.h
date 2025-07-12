@@ -4,7 +4,7 @@
 #include <stack>
 #include "algorithm"
 
-// #define debug
+#define debug
 
 typedef std::vector<LLVMBlock>::iterator block_iterator;
 

@@ -218,6 +218,37 @@ int PhysicalRegistersAllocTools::getIdleReg(LiveInterval interval) {
 
     // return -1;
 }
+int PhysicalRegistersAllocTools::getIdleReg(LiveInterval interval, std::vector<int> preferred_regs) {
+    // 检查寄存器是否与任何别名寄存器的活跃区间冲突
+    auto isRegisterConflicting = [this, &interval](int reg) {
+        for (auto conflict_j : getAliasRegs(reg)) {
+            for (auto& other_interval : phy_occupied[conflict_j]) {
+                if (interval & other_interval) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+    // 第一阶段：尝试首选寄存器
+    for (int reg : preferred_regs) {
+        if (!isRegisterConflicting(reg)) {
+            return reg;
+        }
+    }
+    // 收集已尝试的寄存器
+    std::unordered_set<int> tried_regs(preferred_regs.begin(), preferred_regs.end());
+    // 第二阶段：尝试有效寄存器（排除已尝试的）
+    std::vector<int> valid_regs = getValidRegs(interval);
+    for (int reg : valid_regs) {
+        if (tried_regs.count(reg) == 0 && !isRegisterConflicting(reg)) {
+            return reg;
+        }
+    }
+    
+
+    return -1; // 无可用寄存器
+}
 //自定义优先级尝试
 // int PhysicalRegistersAllocTools::getIdleReg(LiveInterval interval) {
 //     // 定义寄存器优先级顺序

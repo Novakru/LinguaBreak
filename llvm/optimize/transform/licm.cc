@@ -72,22 +72,22 @@ void LoopInvariantCodeMotionPass::RunLICMOnLoop(Loop* loop, DominatorTree* dt) {
 			inst->PrintIR(std::cerr);
 		}
 		
-		std::vector<Instruction> isInvariant_insts, dominatesAllExits_insts;
-		for (auto bb : loop->getBlocks()) {
-			bool dflag = dominatesAllExits(bb, loop, dt);
-			for (auto inst : bb->Instruction_list) {
-				if (isInvariant(inst, loop)) { isInvariant_insts.push_back(inst); } 
-				if (dflag) { dominatesAllExits_insts.push_back(inst); } 
-			}
-		}
-		std::cerr << "isInvariant inst list: " << std::endl;
-		for(auto inst : isInvariant_insts) {
-			inst->PrintIR(std::cerr);
-		}
-		std::cerr << "dominatesAllExits inst list: " << std::endl;
-		for(auto inst : dominatesAllExits_insts) {
-			inst->PrintIR(std::cerr);
-		}
+		// std::vector<Instruction> isInvariant_insts, dominatesAllExits_insts;
+		// for (auto bb : loop->getBlocks()) {
+		// 	bool dflag = dominatesAllExits(bb, loop, dt);
+		// 	for (auto inst : bb->Instruction_list) {
+		// 		if (isInvariant(inst, loop)) { isInvariant_insts.push_back(inst); } 
+		// 		if (dflag) { dominatesAllExits_insts.push_back(inst); } 
+		// 	}
+		// }
+		// std::cerr << "isInvariant inst list: " << std::endl;
+		// for(auto inst : isInvariant_insts) {
+		// 	inst->PrintIR(std::cerr);
+		// }
+		// std::cerr << "dominatesAllExits inst list: " << std::endl;
+		// for(auto inst : dominatesAllExits_insts) {
+		// 	inst->PrintIR(std::cerr);
+		// }
 	#endif
 
     std::stack<Instruction, std::vector<Instruction>> work(candidates);

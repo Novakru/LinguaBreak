@@ -12,7 +12,6 @@
 
 #include "llvm/optimize/analysis/loopAnalysis.h"
 #include "llvm/optimize/analysis/dominator_tree.h"
-#include "llvm/optimize/analysis/AliasAnalysis.h"
 
 #include "llvm/optimize/transform/simplify_cfg.h"
 #include "llvm/optimize/transform/mem2reg.h"
@@ -25,6 +24,7 @@
 #include "llvm/optimize/transform/licm.h"
 #include "llvm/optimize/transform/loopSimplify.h"
 #include "llvm/optimize/transform/loopRotate.h"
+#include "llvm/optimize/transform/basic_cse.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -48,7 +48,7 @@ extern std::vector<std::string> error_msgs;
 IdTable id_table;
 int line = 1;
 bool optimize_flag = false;
-
+std::map<Register, std::set<Register>> reg_to_reg;
 void print_usage() {
     std::cerr << "Usage:\n";
     std::cerr << "  compiler -S [-o output_file] input_file [-O1]\n";
@@ -218,15 +218,19 @@ int main(int argc, char** argv) {
         FunctionInlinePass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFG();
         SimplifyCFGPass(&llvmIR).EOBB();  
-
+        //---
+        SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree cse
+		
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
-		// LoopRotate(&llvmIR).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
+		LoopRotate(&llvmIR).Execute();
+		LoopAnalysisPass(&llvmIR).Execute();
+		LoopSimplifyPass(&llvmIR).Execute();
 		LoopInvariantCodeMotionPass(&llvmIR).Execute(); // Scalar Version
-
-        AliasAnalysisPass(&llvmIR).Execute();
+		SimplifyCFGPass(&llvmIR).EOBB();  
        
-        //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，以及use_map&def_map重建
+        //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }
 
     if (option == 3) {

@@ -20,9 +20,11 @@ private:
     void rotateLoop(Loop* loop, DominatorTree* dt, CFG* cfg);
     bool canRotate(Loop* loop, CFG* cfg);
 	void findAndDeleteCondInsts(Loop* loop, CFG* cfg);
+	void findCondInsts(Loop* loop, CFG* cfg);
 	void replaceUncondByCond(LLVMBlock bb, Operand true_label, Operand false_label, int& max_reg);
     void doRotate(Loop* loop, CFG* cfg);
-    void addPhi2Exit(Loop* loop, CFG* cfg);
+    void fixPhi(Loop* loop, CFG* cfg, LLVMBlock exit_bb);
+	void CheckAllPhi(CFG* cfg);
 };
 
 #endif
