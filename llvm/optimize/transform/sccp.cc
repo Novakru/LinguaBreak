@@ -81,7 +81,7 @@ void SCCPPass::SCCP(){
         for(auto &block:cfg->GetSuccessor(0)){
             CFGWorkList.push_back(block);
         }
-//std::cout<<" ---------------------- A NEW CFG ---------------------- "<<std::endl;
+        //std::cout<<" ---------------------- A NEW CFG ---------------------- "<<std::endl;
         buildSSAGraph(cfg);
         //补充FuncDef的参数的Lattice定义信息
         //std::cout<<"build: --func_def" << std::endl;
@@ -138,17 +138,16 @@ void SCCPPass::SCCP(){
         }
 
         // (3) replace llvm ir instructions
+        /*
+            下面对所有指令进行常量替换，即已经识别为const的RegOperand替换为ImmOperand；
+                - 如果一个指令的作用不在于计算值（即def_regno=-1,如store/br/ret/void call)，必须保留这些指令，只需将其use_operand替换为imm
+                - 如果一个指令的作用在于计算出值（如Arithmetic等），若其result已知结果，则此指令无意义，删除；result未知则保留，同时替换use_operand
+        */
         for(auto &[id,block]:*(cfg->block_map)){
             if(block->dfs_id == 0) continue; //不可达块
             auto old_instructions = block->Instruction_list;
             block->Instruction_list.clear();
             for(auto &inst:old_instructions){
-                /*
-                - phi: 常量则删除，剩余的定为变量，保留phi
-                - bruncond:若条件为常量，则直接替换为uncond
-                - return : def_no==-1，更新返回值
-                - others: 普通处理
-                */
                 int def_no=inst->GetDefRegno();
                 //[1]非定义reg型指令，一定要有
                 if(def_no==-1){
@@ -199,7 +198,20 @@ void SCCPPass::SCCP(){
                                     ops.push_back(new ImmF32Operand(ret_value));
                                     ret_inst->SetNonResultOperands(ops);
                                 }
-                                
+                            }
+                        }
+                    }
+                    //[1.4] store指令：将返回值替换为常量
+                    else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::STORE){
+                        StoreInstruction* store_inst=(StoreInstruction*)inst;
+                        if(store_inst->GetValue()->GetOperandType()==BasicOperand::REG){
+                            int regno = ((RegOperand*)(store_inst->GetValue()))->GetRegNo();
+                            if(ValueLattice[regno]->status==LatticeStatus::CONST&&ValueLattice[regno]->valtype==Lattice::INT){
+                                int store_value = ValueLattice[regno]->val.intVal;
+                                store_inst->SetValue(new ImmI32Operand(store_value));
+                            }else if(ValueLattice[regno]->status==LatticeStatus::CONST&&ValueLattice[regno]->valtype==Lattice::FLOAT){                               
+                                float store_value = ValueLattice[regno]->val.floatVal;
+                                store_inst->SetValue(new ImmF32Operand(store_value));
                             }
                         }
                     }
@@ -209,8 +221,8 @@ void SCCPPass::SCCP(){
                     if(ValueLattice[def_no]->status==LatticeStatus::UNDEF){
                         block->Instruction_list.push_back(inst);/////////////////可能有部分源来自不可达块，此指令按理说会冗余？
                     }
-                    //[2]定义reg型指令，若结果已为const，则删除此inst
-                    //[3]定义reg型指令，若结果为变量，则更新其操作数
+                    //[2]定义reg的指令，若结果已为const，则删除此inst
+                    //[3]定义reg的指令，若结果为变量，则更新其操作数
                     if(ValueLattice[def_no]->status==LatticeStatus::OVERDEF){
                         std::vector<Operand> operands = inst->GetNonResultOperands();
                         for(auto &operand:operands){
@@ -232,9 +244,7 @@ void SCCPPass::SCCP(){
                 }
             }
         }
-
     }
-
 }
 
 // 3. visit Phi 

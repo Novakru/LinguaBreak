@@ -211,13 +211,15 @@ int main(int argc, char** argv) {
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
         OneRetPass(&llvmIR).Execute();
-        SCCPPass(&llvmIR).Execute();
+        SCCPPass(&llvmIR).Execute();//intra-sccp
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
 		PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is needed
 		SimplifyCFGPass(&llvmIR).EOBB();  
 
         FunctionInlinePass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFG();
+        //SCCPPass(&llvmIR).Execute();//inter-sccp
+        //SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         SimplifyCFGPass(&llvmIR).EOBB();  
         //---
         SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree cse
