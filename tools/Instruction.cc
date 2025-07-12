@@ -1111,6 +1111,23 @@ void ZextInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
 }
 
 int GetElementptrInstruction::ComputeIndex(){
+    int res = 0;
+    int size = 1;
 
-    return 0;
+    for (auto sz : dims) {
+        size *= sz;
+    }
+
+    for (int i = 0; i < indexes.size(); i++) {
+        if (indexes[i]->GetOperandType() == BasicOperand::IMMI32) {
+            res += (((ImmI32Operand *)indexes[i])->GetIntImmVal()) * size;
+        } else if (indexes[i]->GetOperandType() == BasicOperand::REG) {
+            return -1;
+        }
+        if (i < dims.size()) {
+            size /= dims[i];
+        }
+    }
+
+    return res;
 }

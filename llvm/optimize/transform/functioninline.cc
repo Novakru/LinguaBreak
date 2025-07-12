@@ -385,6 +385,6 @@ void FunctionInlinePass::Execute() {
     }
 
     //【4】重组GEP
-    //recombineGEP();
+    recombineGEP();
     
 }
