@@ -48,7 +48,7 @@ extern std::vector<std::string> error_msgs;
 IdTable id_table;
 int line = 1;
 bool optimize_flag = false;
-
+std::map<Register, std::set<Register>> reg_to_reg;
 void print_usage() {
     std::cerr << "Usage:\n";
     std::cerr << "  compiler -S [-o output_file] input_file [-O1]\n";

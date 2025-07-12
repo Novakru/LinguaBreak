@@ -70,11 +70,9 @@ public:
     // 生成将溢出寄存器写入栈的指令
     Register GenerateWriteCode(std::list<MachineBaseInstruction *>::iterator &it, int raw_stk_offset,
         MachineDataType type);
-
     //相当于VirtualRegisterRewrite
     void VirtualRegisterRewrite();
     void RewriteInFunc();
-
 	void ShowAllAllocResult();
 };
 
@@ -92,7 +90,36 @@ public:
     void ExecuteInFunc(MachineFunction *func);
 };
 
+class UnionFind {
+private:
+    std::map<Register, Register> parent;
 
+public:
+    // 初始化虚拟寄存器集合
+    void initialize(const std::map<Register, LiveInterval> intervals) {
+        for (const auto& [reg, interval] : intervals) {
+            if (reg.is_virtual) parent[reg] = reg;
+        }
+    }
+
+    // 带路径压缩的查找根节点
+    Register findRoot(Register vreg) {
+        if (parent[vreg] == vreg) 
+            return vreg;
+        
+        // 路径压缩
+        return parent[vreg] = findRoot(parent[vreg]);
+    }
+
+    // 合并两个集合
+    void unionSets(Register a, Register b) {
+        Register rootA = findRoot(a);
+        Register rootB = findRoot(b);
+        if (!(rootA == rootB)) {
+            parent[rootB] = rootA;
+        }
+    }
+};
 //寄存器分配类，记录全局变量及全局函数、维护物理寄存器分配、代码溢出等信息
 //关键函数是，更新当前函数各个寄存器的活跃区间（维护intervals）
 // class RegisterAllocation : public MachinePass {
