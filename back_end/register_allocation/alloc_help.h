@@ -80,6 +80,35 @@ public:
         }
         return false;
     }
+    LiveInterval operator|(const LiveInterval &that) const {
+        LiveInterval ret(this->reg);
+        ret.reference_count = this->reference_count + that.reference_count - 2;
+        auto it = segments.begin();
+        auto jt = that.segments.begin();
+        while (1) {
+            if (it == segments.end() && jt == that.segments.end()) {
+                break;
+            }
+            if (it == segments.end()) {
+                ret.segments.push_back(*jt);
+                ++jt;
+                continue;
+            }
+            if (jt == that.segments.end()) {
+                ret.segments.push_back(*it);
+                ++it;
+                continue;
+            }
+            if (it->begin < jt->begin) {
+                ret.segments.push_back(*it);
+                ++it;
+            } else {
+                ret.segments.push_back(*jt);
+                ++jt;
+            }
+        }
+        return ret;
+    }
 
     // 更新引用计数
     void IncreaseReferenceCount(int count) { reference_count += count; }
@@ -272,6 +301,7 @@ public:
 
     // 获取空闲的（活跃区间不冲突的）物理寄存器, 返回物理寄存器编号
     int getIdleReg(LiveInterval interval);
+    int getIdleReg(LiveInterval interval, std::vector<int> preferred_regs);
     //暂时修改
     // int getIdleReg(LiveInterval interval, std::vector<int> preferd_regs,
     //                               std::vector<int> noprefer_regs);

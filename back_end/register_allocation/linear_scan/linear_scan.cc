@@ -1,6 +1,6 @@
 #include"linear_scan.h"
 #include"../../inst_process/machine_instruction.h"
-
+extern std::map<Register, std::set<Register>> reg_to_reg;
 void FastLinearScan::VirtualRegisterRewrite() {
     for (auto func : unit->functions) {
         current_func = func;
@@ -91,8 +91,20 @@ bool FastLinearScan::DoAllocInCurrentFunc() {
         auto interval=unalloc_queue.top();
         unalloc_queue.pop();
         auto cur_vreg=interval.getReg();
+        std::vector<int> preferred_regs;
+        for (auto reg : reg_to_reg[cur_vreg]) {
+            if(!reg.is_virtual)
+            {
+                preferred_regs.push_back(reg.reg_no);//偏好物理寄存器
+            }
+            else if(reg.is_virtual&&(alloc_result[mfun].find(reg) != alloc_result[mfun].end())&&alloc_result[mfun][reg].in_mem == false)
+            {
+                preferred_regs.push_back(alloc_result[mfun][reg].phy_reg_no);
+            }
+        }
         //2）尝试获取空闲物理寄存器（通过活跃区间）
-        int phy_reg_id = phy_regs_tools->getIdleReg(interval);
+        //int phy_reg_id = phy_regs_tools->getIdleReg(interval);
+        int phy_reg_id = phy_regs_tools->getIdleReg(interval, preferred_regs);
         //std::cout<<"reg_no="<<cur_vreg.reg_no<<" , idlereg="<<phy_reg_id<<"\n";
         //A.如果有空闲的物理寄存器，占用它
         if (phy_reg_id >= 0) {
@@ -159,14 +171,6 @@ void FastLinearScan::Execute() {
     // 你需要保证此时不存在phi指令
     for (auto func : unit->functions) {
         not_allocated_funcs.push(func);
-        //调试信息
-        // for(auto &b:func->blocks)
-        // {
-        //     for(auto ins:*b)
-        //     {
-
-        //     }
-        // }
     }
     //1.逐一处理函数
     while (!not_allocated_funcs.empty()) {
@@ -179,9 +183,8 @@ void FastLinearScan::Execute() {
         alloc_result[current_func].clear();
         not_allocated_funcs.pop();
 
-        //4.计算活跃区间
+        //4.计算活跃区间并消除冗余复制指令
         UpdateIntervalsInCurrentFunc();
-
         if (DoAllocInCurrentFunc()) {    // 5.尝试进行分配
             // 6.如果发生溢出，插入spill指令后将所有物理寄存器退回到虚拟寄存器，重新分配
             SpillCodeGen(current_func, &alloc_result[current_func]);    // 生成溢出代码
@@ -226,6 +229,7 @@ void InstructionNumber::ExecuteInFunc(MachineFunction *func) {
 void FastLinearScan::UpdateIntervalsInCurrentFunc() {
     //1.清空之前的活跃区间数据（以函数为单位，可能处理过其他函数）
     intervals.clear(); 
+    reg_to_reg.clear();//清空寄存器复制情况
     //2.获取当前函数，当前函数对应的控制流图
     auto mfun = current_func; 
     auto mcfg = mfun->getMachineCFG(); 
@@ -275,7 +279,33 @@ void FastLinearScan::UpdateIntervalsInCurrentFunc() {
              ++reverse_it) 
         {
             auto ins = *reverse_it; // 获取当前指令对象
-
+            //统计寄存器复制关系
+            if(ins->arch==MachineBaseInstruction::RiscV)
+            {
+                auto riscv_ins=static_cast<RiscV64Instruction*>(ins);
+                auto op=riscv_ins->getOpcode();
+                auto rs1=riscv_ins->getRs1();
+                auto rs2=riscv_ins->getRs2();
+                auto rd=riscv_ins->getRd();
+                if(op==RISCV_ADD||op==RISCV_ADDW)
+                {
+                    if(rs1.reg_no==RISCV_x0)
+                    {
+                        reg_to_reg[rs2].insert(rd);
+                        reg_to_reg[rd].insert(rs2);
+                    }
+                    else if(rs2.reg_no==RISCV_x0)
+                    {
+                        reg_to_reg[rs1].insert(rd);
+                        reg_to_reg[rd].insert(rs1);
+                    }
+                }
+                else if(op==RISCV_FMV_S)
+                {
+                    reg_to_reg[rs1].insert(rd);
+                    reg_to_reg[rd].insert(rs1);
+                }
+            }
             // 处理指令的写寄存器（定义操作）
             for (auto reg : ins->GetWriteReg()) {
                 // 更新最后一次定义位置
@@ -326,20 +356,55 @@ void FastLinearScan::UpdateIntervalsInCurrentFunc() {
         last_def.clear();
     } // 结束基本块遍历
 
-    // 调试输出：打印合并前的活跃区间信息
-    // std::cerr << "Check Intervals " << mfun->getFunctionName().c_str() 
-    //           << " Before Coalesce" << std::endl;
-    // for (auto interval_pair : intervals) {
-    //     auto reg = interval_pair.first;
-    //     auto interval = interval_pair.second;
-    //     std::cerr << reg.is_virtual << " " << reg.reg_no << " ";
-    //     for (auto seg : interval) {
-    //         std::cerr << "[" << seg.begin << "," << seg.end << ") "; // 打印区间段
-    //     }
-    //     std::cerr << "Ref: " << interval.getReferenceCount(); // 引用计数
-    //     std::cerr << "\n";
-    // }
-    // std::cerr << "\n";
+    //区间合并算法：将相邻或可兼容的活跃区间合并，减少寄存器分配时的冲突可能性
+    UnionFind uf;
+    uf.initialize(intervals);
+
+    // 合并操作
+    for (const auto& [reg, interval] : intervals) {
+        if (!reg.is_virtual) continue;
+        
+        for (auto other : reg_to_reg[reg]) {
+            if (!other.is_virtual) continue;
+            
+            Register rootReg = uf.findRoot(reg);
+            Register rootOther = uf.findRoot(other);
+            
+            // 跳过相同集合或重叠区间
+            if (rootReg == rootOther || (intervals[rootReg] & intervals[rootOther])) 
+                continue;
+            
+            // 合并活跃区间
+            intervals[rootReg] =intervals[rootReg]|intervals[rootOther];
+            
+            // 转移复制关系
+            for (auto src : reg_to_reg[rootOther]) {
+                if (!src.is_virtual) {
+                    reg_to_reg[src].insert(rootReg);
+                    reg_to_reg[rootReg].insert(src);
+                }
+            }
+            
+            // 执行并查集合并
+            uf.unionSets(rootReg, rootOther);
+            intervals.erase(rootOther);
+        }
+    }
+
+    // 更新指令寄存器引用
+    auto updateRegisterRef = [&](Register& reg) {
+        if (reg.is_virtual) 
+            reg = uf.findRoot(reg);
+    };
+
+    for (auto block : current_func->blocks) {
+        for (auto ins : *block) {
+            for (auto& reg : ins->GetReadReg()) 
+                updateRegisterRef(*reg);
+            for (auto& reg : ins->GetWriteReg()) 
+                updateRegisterRef(*reg);
+        }
+    }
 }
 
 // void FastLinearScan::SpillCodeGen(MachineFunction *function, std::map<Register, AllocResult> *alloc_result) {
