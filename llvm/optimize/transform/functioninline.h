@@ -17,6 +17,8 @@ private:
     std::unordered_map<FuncDefInstruction,std::unordered_map<int,std::set<PhiInstruction*>>>phiGraph;
     // 内联阈值，超过此值的函数不会被内联
     const int INLINE_THRESHOLD = 50;
+
+
     // 构建函数调用图
     void buildCallGraph(FuncDefInstruction caller);
     // 判断函数是否适合内联
@@ -29,6 +31,8 @@ private:
     int renameLabel(FuncDefInstruction caller,int oldLabel, std::unordered_map<int, int>& labelMapping);
     // 复制基本块
     LLVMBlock copyBasicBlock(FuncDefInstruction caller, LLVMBlock origBlock, std::unordered_map<int, int>& regMapping, std::unordered_map<int, int>& labelMapping);
+    // 重组由于函数传参被截断的GEP指令，使得数组都是一次引用
+    void recombineGEP();
     
 public:
     std::unordered_set<FuncDefInstruction> inlined_function_names;

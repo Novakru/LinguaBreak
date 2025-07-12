@@ -261,6 +261,54 @@ void FunctionInlinePass::inlineFunction(int callerBlockId, LLVMBlock callerBlock
     }
 }
 
+void FunctionInlinePass::recombineGEP(){
+    for(auto &[defI,cfg]:llvmIR->llvm_cfg){
+        std::unordered_map<int,GetElementptrInstruction*> half_geps;//res_ptr->GEP
+        std::unordered_map<int,std::unordered_set<GetElementptrInstruction*>> gep_use_map;//use_ptr->GEP
+
+        //【1】收集信息
+        for(auto &[id,block]:*(cfg->block_map)){
+            for(auto &inst:block->Instruction_list){
+                if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::GETELEMENTPTR){
+                    GetElementptrInstruction* gep=(GetElementptrInstruction*)inst;
+                    // 1.记录ptr-->gep的映射
+                    Operand ptr=gep->GetPtrVal();
+                    if(ptr->GetOperandType()==BasicOperand::REG){
+                        int ptr_regno=((RegOperand*)ptr)->GetRegNo();
+                        gep_use_map[ptr_regno].insert(gep);
+                    }
+                    
+                    // 2.找出二次引用的数组GEP，记录res-->gep的映射
+                    if((gep->GetDims().size()+1)>gep->GetIndexes().size()){
+                        int res_regno=gep->GetDefRegno();
+                        half_geps[res_regno]=gep;
+                    }
+                }
+            }
+        }
+        //【2】重组GEP  TODO:后续要删除gep1死代码
+        for(auto &[regno,gep1]:half_geps){
+            auto gep2s=gep_use_map[regno];
+
+            Operand ptr1=gep1->GetPtrVal();
+            auto dims1=gep1->GetDims();
+            auto indexes1=gep1->GetIndexes();
+
+            for(auto &gep2:gep2s){
+                gep2->set_dims(dims1);
+                gep2->set_ptr(ptr1->Clone());
+                
+                std::vector<Operand> new_indexes=indexes1;
+                for(auto &index2:gep2->GetIndexes()){
+                    new_indexes.push_back(index2->Clone());
+                }
+                gep2->set_indexes(new_indexes);
+
+            }
+        }
+    }
+}
+
 void FunctionInlinePass::Execute() {
     //【1】初始化：遍历所有函数，构建Graph
     for(auto &func : llvmIR->function_block_map){
@@ -335,5 +383,8 @@ void FunctionInlinePass::Execute() {
             ++it;
         }
     }
+
+    //【4】重组GEP
+    //recombineGEP();
     
 }

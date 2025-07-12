@@ -354,9 +354,9 @@ int LoadInstruction::GetDefRegno(){
 }
 
 int StoreInstruction::GetDefRegno(){
-    if(pointer->GetOperandType()==BasicOperand::REG){
-        return ((RegOperand*)pointer)->GetRegNo();
-    }
+    // if(pointer->GetOperandType()==BasicOperand::REG){
+    //     return ((RegOperand*)pointer)->GetRegNo();
+    // }
     return -1;
 }
 

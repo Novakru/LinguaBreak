@@ -840,7 +840,6 @@ private:
     Operand result;    // result can be null
     std::string name;
     std::vector<std::pair<enum LLVMType, Operand>> args;
-    //FuncDefInstruction func_def_inst; // 记录被调用者的函数定义指令，用于FunctionInline
 
 public:
     // Construction Function:Set All datas
@@ -968,11 +967,14 @@ public:
         : type(typ), index_type(idx_typ), result(res), ptrval(ptr), dims(dim), indexes(index) {
         opcode = GETELEMENTPTR;
     }
+    void set_ptr(Operand ptr) { ptrval = ptr; }
     void push_dim(int d) { dims.push_back(d); }
+    void set_dims(std::vector<int> new_dims) { dims = new_dims; }
     void push_idx_reg(int idx_reg_no) { indexes.push_back(GetNewRegOperand(idx_reg_no)); }
     void push_idx_imm32(int imm_idx) { indexes.push_back(new ImmI32Operand(imm_idx)); }
     void push_index(Operand idx) { indexes.push_back(idx); }
     void change_index(int i, Operand op) { indexes[i] = op; }
+    void set_indexes(std::vector<Operand> new_indexes) { indexes = new_indexes; }
 
     enum LLVMType GetType() { return type; }
     Operand GetResult() { return result; }

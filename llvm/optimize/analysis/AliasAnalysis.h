@@ -14,6 +14,13 @@
         if( QueryAlias(op1,op2, cfg) == MustAlias )...
     - 查看某指令(store/load/call)是否Mod/Ref某ptr：
         if( QueryInstModRef(inst,op,cfg) == Ref )...
+4. 对于GEP指令Index为RegOperand的情况，我们无法直接判定为是否相同，统一认为存在别名冲突的风险，即MustAlias
+5. 我们假定数组基址作为ptr不在分析范围之内
+    即：
+    %r1 = Alloc ...
+    %r2 = getelementptr ... , ptr %r1, i32 0， i32 0, ...
+    我们认为查询分析的Operand都是有实际意义的数组元素ptr，如%r2，而非数组声明时的起始地址%r1，尽管它们可能指向同一块内存
+6. 对于call函数名称为lib_function_names中的指令，我们不做处理，并非是它们没有mod/ref，而是参数不会被查询到（见5）
 */
 enum AliasStatus{ 
     NoAlias=0, 
@@ -62,7 +69,10 @@ private:
     std::unordered_map<CFG*,CallInfo>ReCallGraph;
     std::unordered_set<CFG*>LeafFuncs;
 
+    void FindPhi();
+
     PtrInfo GetPtrInfo(Operand op, CFG* cfg);
+    Operand CalleeParamToCallerArgu(Operand op, CFG* callee_cfg, CallInstruction* CallI);
     void RWInfoAnalysis();
     void GatherRWInfos(CFG*cfg);
 
@@ -78,6 +88,7 @@ public:
 
     void Test();
     void PrintAAResult();
+
 };
 
 #endif
