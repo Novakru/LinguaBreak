@@ -175,7 +175,6 @@ void SCCPPass::SCCP(){
                                     float arg_value = ValueLattice[regno]->val.floatVal;
                                     arg_operand=new ImmF32Operand(arg_value);
                                 }
-                                
                             }
                         }
                         call_inst->SetNonResultOperands(args);
@@ -218,27 +217,29 @@ void SCCPPass::SCCP(){
 
                     block->Instruction_list.push_back(inst);
                 }else {
-                    if(ValueLattice[def_no]->status==LatticeStatus::UNDEF){
-                        block->Instruction_list.push_back(inst);/////////////////可能有部分源来自不可达块，此指令按理说会冗余？
-                    }
                     //[2]定义reg的指令，若结果已为const，则删除此inst
-                    //[3]定义reg的指令，若结果为变量，则更新其操作数
-                    if(ValueLattice[def_no]->status==LatticeStatus::OVERDEF){
+                    //[3]定义reg的指令，若结果为变量/不确定，则保留此inst，并更新其操作数
+                    if(ValueLattice[def_no]->status==LatticeStatus::OVERDEF||ValueLattice[def_no]->status==LatticeStatus::UNDEF){
                         std::vector<Operand> operands = inst->GetNonResultOperands();
+                        std::vector<Operand> new_operands; new_operands.reserve(operands.size());
                         for(auto &operand:operands){
                             if(operand->GetOperandType()==BasicOperand::REG){
                                 int regno=((RegOperand*)operand)->GetRegNo();
                                 if(ValueLattice[regno]->status==LatticeStatus::CONST&&ValueLattice[regno]->valtype==Lattice::INT){
                                     int use_value = ValueLattice[regno]->val.intVal;
-                                    operand = new ImmI32Operand(use_value);
+                                    new_operands.emplace_back(new ImmI32Operand(use_value));
 
                                 }else if(ValueLattice[regno]->status==LatticeStatus::CONST&&ValueLattice[regno]->valtype==Lattice::FLOAT){     
                                     float use_value = ValueLattice[regno]->val.floatVal;
-                                    operand = new ImmF32Operand(use_value);
+                                    new_operands.emplace_back(new ImmF32Operand(use_value));
+                                }else{
+                                    new_operands.emplace_back(operand);
                                 }
+                            }else{
+                                new_operands.emplace_back(operand);
                             }
                         }
-                        inst->SetNonResultOperands(operands);
+                        inst->SetNonResultOperands(new_operands);
                         block->Instruction_list.push_back(inst);
                     }
                 }
@@ -487,7 +488,6 @@ void SCCPPass::visit_other_operations(CFG* cfg,Instruction inst){
                 }else{
                     ValueLattice[def_regno]->setLattice(def_status,0);
                 }
-
                 break;
             }
             case BasicInstruction::LLVMIROpcode::FCMP:{
@@ -635,7 +635,7 @@ void SCCPPass::visit_other_operations(CFG* cfg,Instruction inst){
     if(def_regno != -1){
         // 传递更新结果，即将SSA后继加入SSAWorkList
         Lattice new_lattice = *ValueLattice[def_regno];
-        if(new_lattice.NE(origin_lattice)){
+        if(new_lattice.NE(origin_lattice)){ //若def_reg的状态改变，则需要继续后传
             std::set<int> succs;
             cfg->GetSSAGraphAllSucc(succs,def_regno);
             for(auto &s:succs){

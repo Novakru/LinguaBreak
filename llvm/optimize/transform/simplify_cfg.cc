@@ -328,7 +328,8 @@ void SimplifyCFGPass::EliminateOnePredPhi(CFG* C,LLVMBlock nowblock,std::unorder
 //对于优化后仅剩单个前驱的Phi指令，我们将其改为普通的赋值，删除phi
 void SimplifyCFGPass::TransformOnePredPhi(CFG* C){
     for(auto &[id,block]:(*C->block_map)){
-        for(auto &inst:block->Instruction_list){
+        for(auto it=block->Instruction_list.begin();it!=block->Instruction_list.end();){
+            Instruction inst=*it;
             if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::PHI){
                 PhiInstruction* phi=(PhiInstruction*)inst;
                 auto phi_list=phi->GetPhiList();
@@ -353,8 +354,11 @@ void SimplifyCFGPass::TransformOnePredPhi(CFG* C){
                         }
                         use_inst->SetNonResultOperands(new_operands);
                     }
+                    it=block->Instruction_list.erase(it);
+                    continue;
                 }
             }
+            ++it;
         }
     }
 }

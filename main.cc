@@ -211,17 +211,17 @@ int main(int argc, char** argv) {
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
         OneRetPass(&llvmIR).Execute();
-        SCCPPass(&llvmIR).Execute();//intra-sccp
+        SCCPPass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
 		PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is needed
 		SimplifyCFGPass(&llvmIR).EOBB();  
 
         FunctionInlinePass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFG();
-        //SCCPPass(&llvmIR).Execute();//inter-sccp
-        //SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        // SCCPPass(&llvmIR).Execute();
+        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         SimplifyCFGPass(&llvmIR).EOBB();  
-        //---
+        // //---
         SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree cse
 		
 		LoopAnalysisPass(&llvmIR).Execute();
@@ -231,8 +231,9 @@ int main(int argc, char** argv) {
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
 		LoopInvariantCodeMotionPass(&llvmIR).Execute(); // Scalar Version
+        SimplifyCFGPass(&llvmIR).TOPPhi();
 		SimplifyCFGPass(&llvmIR).EOBB();  
-
+        
         AliasAnalysisPass(&llvmIR).Execute();
        
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
