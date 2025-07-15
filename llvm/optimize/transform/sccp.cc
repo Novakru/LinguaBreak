@@ -77,6 +77,7 @@ void SCCPPass::SCCP(){
         ValueLattice.clear();
         CFGWorkList.clear();
         SSAWorkList.clear();
+        edges_to_remove.clear();
         cfg->def_instr_map.clear();
         for(auto &block:cfg->GetSuccessor(0)){
             CFGWorkList.push_back(block);
@@ -103,10 +104,10 @@ void SCCPPass::SCCP(){
             //(2.1)访问指令进行常量传播
             for(auto &inst:top->Instruction_list){
                 if(inst->GetOpcode() == BasicInstruction::LLVMIROpcode::PHI){
-                    visit_phi(cfg,(PhiInstruction*)inst);
+                    visit_phi(cfg,(PhiInstruction*)inst,top->block_id);
                 }else if(top->dfs_id ==1){
                     // 仅在第一次访问block时才访问其它操作
-                    visit_other_operations(cfg,inst);
+                    visit_other_operations(cfg,inst,top->block_id);
                 }
             }
             std::set<LLVMBlock> succ = cfg->GetSuccessor(top);
@@ -121,15 +122,15 @@ void SCCPPass::SCCP(){
                 int ssa_top = SSAWorkList.front();
                 SSAWorkList.pop_front();
 
+                int block_id = cfg->def_instr_map[ssa_top].first;
                 Instruction inst = cfg->def_instr_map[ssa_top].second;
                 if(inst->GetOpcode() == BasicInstruction::LLVMIROpcode::PHI){
-                    visit_phi(cfg,(PhiInstruction*)inst);
+                    visit_phi(cfg,(PhiInstruction*)inst,block_id);
                 }else{
-                    int block_id = cfg->def_instr_map[ssa_top].first;
                     std::set<LLVMBlock> preds=cfg->GetPredecessor(block_id);
                     for(auto &pred:preds){
                         if(pred->dfs_id>0){
-                            visit_other_operations(cfg,inst);
+                            visit_other_operations(cfg,inst,block_id);
                             break;
                         }
                     }
@@ -249,13 +250,26 @@ void SCCPPass::SCCP(){
 }
 
 // 3. visit Phi 
-void SCCPPass::visit_phi(CFG* cfg,PhiInstruction* phi){
+void SCCPPass::visit_phi(CFG* cfg, PhiInstruction* phi, int block_id){
     int def_regno = phi->GetDefRegno();
     Lattice origin_lattice = *ValueLattice[def_regno];
 
-    auto operands = phi->GetNonResultOperands();
+    //【0】剪枝
+    if(edges_to_remove.count(block_id)){
+        int label_to_remove=edges_to_remove[block_id];
+        auto phi_list0 = phi->GetPhiList();
+        std::vector<std::pair<Operand, Operand>> phi_list;
+        for(auto &phi_pair:phi_list0){
+            int label_no=((LabelOperand*)phi_pair.first)->GetLabelNo();
+            if(label_no!=label_to_remove){
+                phi_list.push_back(phi_pair);
+            }
+        }
+        phi->SetPhiList(phi_list);
+    }
+    //【1】常量传播
     auto phi_list = phi->GetPhiList();
-    assert(operands.size()>1);
+    auto operands = phi->GetNonResultOperands();
     //[1] int 
     if(phi->GetResultType() == BasicInstruction::I32){
         LatticeStatus def_status = LatticeStatus::CONST;
@@ -265,9 +279,6 @@ void SCCPPass::visit_phi(CFG* cfg,PhiInstruction* phi){
         for(int i=0;i<operands.size();i++){
             if(operands[i]->GetOperandType() == BasicOperand::REG){//reg
                 int regno = ((RegOperand*)operands[i])->GetRegNo();
-                // if(ValueLattice[regno] == nullptr){
-                //     //std::cout<<"ValueLattice[regno] is nullptr!"<<" regno: "<<regno<<std::endl;
-                // }
                 def_status = Intersect(def_status,ValueLattice[regno]->status);
                 operand_values[i] = ValueLattice[regno]->val.intVal;
                 
@@ -343,7 +354,7 @@ void SCCPPass::visit_phi(CFG* cfg,PhiInstruction* phi){
     }
 
  
-    // 传递更新结果，即将SSA后继加入SSAWorkList
+    // 【3】传递更新结果，即将SSA后继加入SSAWorkList
     if(ValueLattice[phi->GetDefRegno()]->NE(origin_lattice)){
         std::set<int> succs;
         cfg->GetSSAGraphAllSucc(succs,def_regno);
@@ -355,7 +366,7 @@ void SCCPPass::visit_phi(CFG* cfg,PhiInstruction* phi){
 }
 
 // 5. visit Other Operations
-void SCCPPass::visit_other_operations(CFG* cfg,Instruction inst){
+void SCCPPass::visit_other_operations(CFG* cfg,Instruction inst, int block_id){
     int def_regno = inst->GetDefRegno();
     Lattice origin_lattice;
     if(def_regno!=-1){
@@ -569,9 +580,11 @@ void SCCPPass::visit_other_operations(CFG* cfg,Instruction inst){
                     if(is_true){//若cond为常量，确定了target，直接替换为uncond
                         CFGWorkList.push_back((*cfg->block_map)[true_label]);
                         brcond_inst->ChangeFalseLabel(GetNewLabelOperand(true_label));
+                        edges_to_remove[false_label]=block_id;
                     }else{
                         CFGWorkList.push_back((*cfg->block_map)[false_label]);
                         brcond_inst->ChangeTrueLabel(GetNewLabelOperand(false_label));
+                        edges_to_remove[true_label]=block_id;
                     }
                 }else{
                     CFGWorkList.push_back((*cfg->block_map)[true_label]);

@@ -218,10 +218,10 @@ int main(int argc, char** argv) {
 
         FunctionInlinePass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFG();
-        // SCCPPass(&llvmIR).Execute();
-        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        SCCPPass(&llvmIR).Execute();
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         SimplifyCFGPass(&llvmIR).EOBB();  
-        // //---
+        //---
         SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree cse
 		
 		LoopAnalysisPass(&llvmIR).Execute();

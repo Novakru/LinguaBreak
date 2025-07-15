@@ -16,6 +16,7 @@ private:
             float floatVal; 
         }val;
         enum ValType{VOID,INT,FLOAT}valtype;
+        
         Lattice() : status(LatticeStatus::UNDEF) {val.intVal=0;valtype=VOID;}
         void setLattice(LatticeStatus s,int v)  { status = s; val.intVal=v;valtype=INT;}
         void setLattice(LatticeStatus s,float v) {status = s; val.floatVal=v;valtype=FLOAT;}
@@ -41,11 +42,12 @@ private:
         }
     std::deque<BasicBlock*> CFGWorkList;
     std::deque<int> SSAWorkList;
+    std::unordered_map<int,int> edges_to_remove;//【label_block ~ br_block】（br_cond-->br_uncond，删除了一条边，边上的数据流传递也该删除（phi））
 
     void buildSSAGraph(CFG* cfg);
     void SCCP();
-    void visit_phi(CFG* cfg, PhiInstruction* phi);
-    void visit_other_operations(CFG* cfg,Instruction inst);
+    void visit_phi(CFG* cfg, PhiInstruction* phi , int block_id);
+    void visit_other_operations(CFG* cfg,Instruction inst , int block_id);
 
 public:
     SCCPPass(LLVMIR *IR) : IRPass(IR) {}
