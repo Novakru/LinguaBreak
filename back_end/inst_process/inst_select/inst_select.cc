@@ -1158,9 +1158,9 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				auto fadd_d_instr = rvconstructor->ConstructR(RISCV_FADD_S, rd, imm_reg, rt);
 				cur_block->push_back(fadd_d_instr);
 			} else {
-				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
-				Register imm_op1_reg = GetNewTempRegister(INT64);
-				Register imm_op2_reg = GetNewTempRegister(INT64);
+				auto rd = GetNewRegister(rd_op->GetRegNo(), FLOAT64);
+				Register imm_op1_reg = GetNewTempRegister(FLOAT64);
+				Register imm_op2_reg = GetNewTempRegister(FLOAT64);
 				InsertImmFloat32Instruction(imm_op1_reg, imm_op1, cur_block);
 				InsertImmFloat32Instruction(imm_op2_reg, imm_op2, cur_block);
 				
@@ -1194,9 +1194,9 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				auto fsub_d_instr = rvconstructor->ConstructR(RISCV_FSUB_S, rd, imm_reg, rt);
 				cur_block->push_back(fsub_d_instr);
 			} else {
-				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
-				Register imm_op1_reg = GetNewTempRegister(INT64);
-				Register imm_op2_reg = GetNewTempRegister(INT64);
+				auto rd = GetNewRegister(rd_op->GetRegNo(), FLOAT64);
+				Register imm_op1_reg = GetNewTempRegister(FLOAT64);
+				Register imm_op2_reg = GetNewTempRegister(FLOAT64);
 				InsertImmFloat32Instruction(imm_op1_reg, imm_op1, cur_block);
 				InsertImmFloat32Instruction(imm_op2_reg, imm_op2, cur_block);
 				
@@ -1230,9 +1230,9 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				auto fmul_d_instr = rvconstructor->ConstructR(RISCV_FMUL_S, rd, imm_reg, rt);
 				cur_block->push_back(fmul_d_instr);
 			} else {
-				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
-				Register imm_op1_reg = GetNewTempRegister(INT64);
-				Register imm_op2_reg = GetNewTempRegister(INT64);
+				auto rd = GetNewRegister(rd_op->GetRegNo(), FLOAT64);
+				Register imm_op1_reg = GetNewTempRegister(FLOAT64);
+				Register imm_op2_reg = GetNewTempRegister(FLOAT64);
 				InsertImmFloat32Instruction(imm_op1_reg, imm_op1, cur_block);
 				InsertImmFloat32Instruction(imm_op2_reg, imm_op2, cur_block);
 				
@@ -1266,9 +1266,9 @@ template <> void RiscV64Unit::ConvertAndAppend<ArithmeticInstruction *>(Arithmet
 				auto fdiv_d_instr = rvconstructor->ConstructR(RISCV_FDIV_S, rd, imm_reg, rt);
 				cur_block->push_back(fdiv_d_instr);
 			}  else {
-				auto rd = GetNewRegister(rd_op->GetRegNo(), INT64);
-				Register imm_op1_reg = GetNewTempRegister(INT64);
-				Register imm_op2_reg = GetNewTempRegister(INT64);
+				auto rd = GetNewRegister(rd_op->GetRegNo(), FLOAT64);
+				Register imm_op1_reg = GetNewTempRegister(FLOAT64);
+				Register imm_op2_reg = GetNewTempRegister(FLOAT64);
 				InsertImmFloat32Instruction(imm_op1_reg, imm_op1, cur_block);
 				InsertImmFloat32Instruction(imm_op2_reg, imm_op2, cur_block);
 				
