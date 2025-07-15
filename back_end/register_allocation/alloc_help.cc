@@ -173,7 +173,6 @@ bool PhysicalRegistersAllocTools::ReleaseMem(int offset, LiveInterval interval) 
 }
 
 int PhysicalRegistersAllocTools::getIdleReg(LiveInterval interval) {
-    //TODO("getIdleReg");
     for(auto i:getValidRegs(interval))
     {
         int flag=true;
@@ -192,31 +191,6 @@ int PhysicalRegistersAllocTools::getIdleReg(LiveInterval interval) {
     }
 
     return -1;
-    // PRINT("\nVreg: ");
-    // interval.Print();
-    // for(auto i:getValidRegs(interval))
-    // {
-    //     int ok=true;
-    //     for(auto conflict_j:getAliasRegs(i))
-    //     {
-    //         for(auto other_interval:phy_occupied[conflict_j])
-    //         {
-    //             PRINT("\nTry Phy %d",i);
-    //             PRINT("Other:");
-    //             other_interval.Print();
-    //             if(interval&other_interval)//检查活跃区间是否重叠
-    //             {
-    //                 PRINT("\n->Fail\n");
-    //                 ok=false;
-    //                 break;
-    //             }
-    //             else{PRINT("\n->Success\n");}
-    //         }
-    //     }
-    //     if(ok){return i;}
-    // }
-
-    // return -1;
 }
 int PhysicalRegistersAllocTools::getIdleReg(LiveInterval interval, std::vector<int> preferred_regs) {
     // 检查寄存器是否与任何别名寄存器的活跃区间冲突
