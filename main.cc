@@ -220,22 +220,22 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).RebuildCFG();
         SCCPPass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        SimplifyCFGPass(&llvmIR).EOBB();  
+        SimplifyCFGPass(&llvmIR).EOBB();   
         //---
         SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree cse
 		
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
-		LoopRotate(&llvmIR).Execute();
+		// LoopRotate(&llvmIR).Execute();
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
-		LoopInvariantCodeMotionPass(&llvmIR).Execute(); // Scalar Version
+		AliasAnalysisPass aa(&llvmIR); 
+		aa.Execute();
+		LoopInvariantCodeMotionPass(&llvmIR, &aa).Execute();
         SimplifyCFGPass(&llvmIR).TOPPhi();
 		SimplifyCFGPass(&llvmIR).EOBB();  
         
-        AliasAnalysisPass(&llvmIR).Execute();
-       
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }
 

@@ -42,8 +42,8 @@ INCLUDES = $(addprefix -I, $(SRCDIR))
 # LDFLAGS += -fsanitize=address,undefined
 
 # 未定义行为检测
-# CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES) -fsanitize=undefined -fno-omit-frame-pointer
-# LDFLAGS += -fsanitize=undefined 
+# CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES) -fsanitize=undefined -fno-omit-frame-pointer -g
+# LDFLAGS += -fsanitize=undefined -g
 
 CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES)
 
@@ -95,8 +95,8 @@ format:
 
 ##################### Debug ###################
 # Debug 编译参数
-CFLAGS_DBG := -g -O0 -MMD -std=c++17 $(INCLUDES)
-LDFLAGS_DBG := -g -O0 -std=c++17
+CFLAGS_DBG := -g -O2 -MMD -std=c++17 $(INCLUDES)
+LDFLAGS_DBG := -g -O2 -std=c++17
 
 BINARY := compiler
 BINARY_DBG := $(BINARY)-dbg

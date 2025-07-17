@@ -4,7 +4,7 @@
 
 void LoopAnalysisPass::Execute() {
 	for (auto [defI, cfg] : llvmIR->llvm_cfg) {
-		LoopInfo* loopInfo = new LoopInfo();
+		LoopInfo* loopInfo = (cfg->getLoopInfo() == nullptr) ? new LoopInfo() : cfg->getLoopInfo();
 		loopInfo->analyze(cfg);
 		#ifdef debug
 			auto definst = (FunctionDefineInstruction*)defI;

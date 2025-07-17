@@ -50,8 +50,9 @@ struct PtrInfo{
 struct RWInfo{
     std::unordered_set<Operand> ReadRoots;
     std::unordered_set<Operand> WriteRoots;
+    bool has_lib_func_call = false;
 
-    RWInfo(){}
+    RWInfo(){ has_lib_func_call = false; }
     void AddRead(Operand root){ ReadRoots.insert(root); }
     void AddWrite(Operand root){ WriteRoots.insert(root); }
 };
@@ -85,6 +86,10 @@ public:
     AliasStatus QueryAlias(Operand op1,Operand op2, CFG* cfg);
     ModRefStatus QueryInstModRef(Instruction inst, Operand op, CFG* cfg);
     void Execute();
+
+    std::unordered_map<CFG*,std::unordered_map<int,PtrInfo>>& GetPtrMap() { return ptrmap; }
+	std::unordered_map<CFG*,RWInfo>& GetRWMap() { return rwmap; }
+    std::unordered_map<CFG*,CallInfo>& GetReCallGraph() { return ReCallGraph; }
 
     void Test();
     void PrintAAResult();

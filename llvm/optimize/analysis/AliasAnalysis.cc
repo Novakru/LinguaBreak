@@ -37,29 +37,33 @@ bool AliasAnalysisPass::IsSameArraySameConstIndex(GetElementptrInstruction* inst
     - 同数组不同静态索引的指针一定不存在别名冲突
     - SysY中产生指针的指令只有Getelementptr（源）和phi；第一代（源）ptr的别名集中仅它自己
 2.Analysis:
-    - 别名集中同源 --> MustAlias （衍生自同一个GEP指令产生的源ptr)
-    - 根对应的GEP指令同ptr、同ConstIndex --> MustAlias（衍生自位置不同但内容相同的GEP指令各自产生的源ptr)
+    - case 1. 别名集中同源 --> MustAlias （衍生自同一个GEP指令产生的源ptr)
+    - case 2. 根对应的GEP指令同ptr、同ConstIndex --> MustAlias（衍生自位置不同但内容相同的GEP指令各自产生的源ptr)
+		- case 2.1. 根为全局指针 （globalOprand）
+		- case 2.2. 根为局部指针或者参数指针 （regOperand）
     - 其它情况 --> NoAlias
 */
 AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
-    if(op1==op2){
+    if(op1==op2 || op1 == nullptr || op2 == nullptr){
         return MustAlias;
     }
 
     PtrInfo info1=GetPtrInfo(op1,cfg);
     PtrInfo info2=GetPtrInfo(op2,cfg); 
 
-    //情况0.5 （我们认为不会这样访问，不过提供查询结果）
-    if(info1.root==op2||info2.root==op1){// a 与 a[3]的别名存在冲突
-        return MustAlias;
-    }
+    // 情况0.5 （我们认为不会这样访问，不过提供查询结果）
+    // if(info1.root==op2||info2.root==op1){// a 与 a[3]的别名存在冲突
+    //     return MustAlias;
+    // }
 
     //不同全局变量之间、全局变量和局部变量之间 不会发生别名冲突
     if(info1.type==PtrInfo::types::Global||info2.type==PtrInfo::types::Global){
         if(info1.type==PtrInfo::types::Global&&info2.type==PtrInfo::types::Global){
             if(info1.root!=info2.root){
                 return NoAlias;
-            }
+            } else { // case 2.2 a, a <=> a[0], a[0]
+				return MustAlias;
+			}
         }else{
             return NoAlias;
         }
@@ -72,9 +76,10 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
         }
     }
 
-    //情况2
+    //情况2.2
     Instruction inst1,inst2;
     for(auto &op:info1.AliasOps){
+        if(op->GetOperandType() != BasicOperand::REG) continue;
         int regno=((RegOperand*)op)->GetRegNo();
         if(cfg->def_map[regno]->GetOpcode()==BasicInstruction::LLVMIROpcode::GETELEMENTPTR){
             inst1=cfg->def_map[regno];
@@ -82,13 +87,32 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
         }
     }
     for(auto &op:info2.AliasOps){
+        if(op->GetOperandType() != BasicOperand::REG) continue;
         int regno=((RegOperand*)op)->GetRegNo();
         if(cfg->def_map[regno]->GetOpcode()==BasicInstruction::LLVMIROpcode::GETELEMENTPTR){
             inst2=cfg->def_map[regno];
             break;
         }
     }
-    //assert(inst1!=nullptr&&inst2!=nullptr); 即 info1.source!=Undef &&  info1.source!=Undef
+
+	// 不存在 gep 指令表明为 op 为 alloca 指令的结果，表示为偏移为 0 的 gep 指令。
+	// s.t. a 表示成 a[0]
+    if (inst1 == nullptr && op1 != nullptr) {
+        std::vector<int> dim; 
+        std::vector<Operand> idxs = { new ImmI32Operand(0) };
+        auto idx_typ = BasicInstruction::LLVMType::I32;
+		auto typ = BasicInstruction::LLVMType::I32;  // 类型不影响后续判断
+        inst1 = new GetElementptrInstruction(typ, op1, op1, dim, idxs, idx_typ);
+    }
+    if (inst2 == nullptr && op2 != nullptr) {
+        std::vector<int> dim;
+        std::vector<Operand> idxs = { new ImmI32Operand(0) };
+        auto idx_typ = BasicInstruction::LLVMType::I32;
+		auto typ = BasicInstruction::LLVMType::I32;  
+        inst2 = new GetElementptrInstruction(typ, op2, op2, dim, idxs, idx_typ);
+    }
+    // Assert(inst1!=nullptr&&inst2!=nullptr);  // 即 info1.source!=Undef &&  info1.source!=Undef
+	
     if(IsSameArraySameConstIndex((GetElementptrInstruction*)inst1,(GetElementptrInstruction*)inst2)){
         return MustAlias;
     }
@@ -242,11 +266,16 @@ void AliasAnalysisPass::PtrPropagationAnalysis(){
 }
 
 //分析每个CFG的读写情况；并通过调用流汇总
+/* 1. 库函数B conservatively 认为有副作用。
+   2. 如果A直接调用了库函数B，A 的 mod/ref 信息应该被标记为“modref”，即 conservatively 认为 A 也有副作用。
+   3. 如果A间接调用了库函数B（比如A调用C，C调用B），只要分析能追踪到，A 也应该被认为是“modref”。
+*/
 void AliasAnalysisPass::RWInfoAnalysis(){
     //【1】收集每个CFG的读写信息，同时建立反向CallGraph
     for(auto &[defI,cfg]:llvmIR->llvm_cfg){
         RWInfo rwinfo;
         LeafFuncs.insert(cfg);
+        rwinfo.has_lib_func_call = false;
         for(auto &[id,block]:*(cfg->block_map)){
             for(auto &inst:block->Instruction_list){
                 if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::LOAD){
@@ -263,15 +292,25 @@ void AliasAnalysisPass::RWInfoAnalysis(){
                     }
                 }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::CALL){
                     auto func_name=((CallInstruction*)inst)->GetFunctionName();
-                    if(!lib_function_names.count(func_name)){
+                    if(lib_function_names.count(func_name)){
+                        rwinfo.has_lib_func_call = true;
+                    } else {
                         auto func_def=llvmIR->FunctionNameTable[func_name];
                         auto son_cfg=llvmIR->llvm_cfg[func_def];
                         if(son_cfg!=cfg){//递归函数只记一次
                             ReCallGraph[son_cfg].callers[cfg]=(*(CallInstruction*)inst);//构建反向CallGraph
                             LeafFuncs.erase(cfg);//调用了其他函数的函数不能作为leaf
                         }
-                        
                     }
+                }
+            }
+        }
+        // 如果有库函数调用，保守地认为所有全局和参数都被读写
+        if(rwinfo.has_lib_func_call == true){
+            for(auto &[regno, info] : ptrmap[cfg]){
+                if(info.type == PtrInfo::types::Global || info.type == PtrInfo::types::Param){
+                    rwinfo.AddRead(info.root);
+                    rwinfo.AddWrite(info.root);
                 }
             }
         }

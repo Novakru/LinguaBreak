@@ -258,7 +258,30 @@ void SimplifyCFGPass::EliminateOneBrUncondBlocks(CFG *C) {
         }
         ++it;
     }
+    // [6] 清理所有phi指令中引用已被删除块的元素
+    std::set<int> valid_labels;
+    for (const auto& pair : *C->block_map) {
+        valid_labels.insert(pair.first);
+    }
+    for (auto& pair : *C->block_map) {
+        LLVMBlock block = pair.second;
+        for (auto& instr : block->Instruction_list) {
+            if (instr->GetOpcode() == BasicInstruction::LLVMIROpcode::PHI) {
+                PhiInstruction* phi = (PhiInstruction*)instr;
+                auto phi_list = phi->GetPhiList();
+                std::vector<std::pair<Operand, Operand>> new_phi_list;
+                for (const auto& phi_pair : phi_list) {
+                    int label = ((LabelOperand*)phi_pair.first)->GetLabelNo();
+                    if (valid_labels.find(label) != valid_labels.end()) {
+                        new_phi_list.push_back(phi_pair);
+                    }
+                }
+                phi->SetPhiList(new_phi_list);
+            }
+        }
+    }
 }
+
 // 3. 删除只有一个前驱的phi指令：主要用于SCCP的善后，产生的单前驱phi实际已经无用，我们删除这些phi和用到phi_result的后续指令
 void SimplifyCFGPass::EliminateOnePredPhi(CFG* C,LLVMBlock nowblock,std::unordered_set<int> regno_tobedeleted){
     //std::cout<<" start a block!"<<std::endl;
