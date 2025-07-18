@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
-		// LoopRotate(&llvmIR).Execute();
+		LoopRotate(&llvmIR).Execute();
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
 		AliasAnalysisPass aa(&llvmIR); 
