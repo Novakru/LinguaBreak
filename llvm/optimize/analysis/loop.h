@@ -4,7 +4,7 @@
 #include <stack>
 #include "algorithm"
 
-// #define debug
+#define debug
 
 typedef std::vector<LLVMBlock>::iterator block_iterator;
 
@@ -107,6 +107,7 @@ public:
 	void simplifyLoop(Loop* loop, CFG* cfg);
 	void insertPreheader(Loop* loop, CFG* cfg);
 	void createDedicatedExits(Loop* loop, CFG* cfg);
+	void ensureExitNotLatch(Loop* loop, CFG* cfg);
 	void mergeLatches(Loop* loop, CFG* cfg);
 	bool verifySimplifyForm(CFG* cfg);
 

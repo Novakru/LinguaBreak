@@ -234,9 +234,79 @@ void CFG::replaceSuccessors(std::set<LLVMBlock> froms, LLVMBlock to, LLVMBlock m
 }
 
 void CFG::replaceSuccessor(LLVMBlock from, LLVMBlock to, LLVMBlock mid) {
-	std::set<LLVMBlock> froms;
-	froms.insert(from);
-	replaceSuccessors(froms, to, mid);
+    // 1. 修改from块的跳转指令，将目标从to改为mid
+    auto& from_instructions = from->Instruction_list;
+    if (!from_instructions.empty()) {
+        auto last_inst = from_instructions.back();
+        if (last_inst->GetOpcode() == BasicInstruction::LLVMIROpcode::BR_UNCOND) {
+            // 无条件跳转
+            auto br_uncond = dynamic_cast<BrUncondInstruction*>(last_inst);
+            if (br_uncond) {
+                auto label_op = br_uncond->GetDestLabel();
+                if (label_op->GetOperandType() == BasicOperand::LABEL) {
+                    int label_no = ((LabelOperand*)label_op)->GetLabelNo();
+                    if (label_no == to->block_id) {
+                        // 创建新的标签操作数，指向mid块
+                        auto new_label = GetNewLabelOperand(mid->block_id);
+                        br_uncond->SetTarget(new_label);
+                    }
+                }
+            }
+        } else if (last_inst->GetOpcode() == BasicInstruction::LLVMIROpcode::BR_COND) {
+            // 条件跳转
+            auto br_cond = dynamic_cast<BrCondInstruction*>(last_inst);
+            if (br_cond) {
+                auto true_label = br_cond->GetTrueLabel();
+                auto false_label = br_cond->GetFalseLabel();
+                
+                // 检查并修改true分支
+                if (true_label->GetOperandType() == BasicOperand::LABEL) {
+                    int label_no = ((LabelOperand*)true_label)->GetLabelNo();
+                    if (label_no == to->block_id) {
+                        auto new_label = GetNewLabelOperand(mid->block_id);
+                        br_cond->SetTrueLabel(new_label);
+                    }
+                }
+                
+                // 检查并修改false分支
+                if (false_label->GetOperandType() == BasicOperand::LABEL) {
+                    int label_no = ((LabelOperand*)false_label)->GetLabelNo();
+                    if (label_no == to->block_id) {
+                        auto new_label = GetNewLabelOperand(mid->block_id);
+                        br_cond->SetFalseLabel(new_label);
+                    }
+                }
+            }
+        }
+    }
+    
+    // 2. 修改to块中phi指令的前驱映射，将from改为mid
+    for (auto inst : to->Instruction_list) {
+        if (inst->isPhi()) {
+            auto phi_inst = dynamic_cast<PhiInstruction*>(inst);
+            if (phi_inst) {
+                auto phi_list = phi_inst->GetPhiList();
+                std::vector<std::pair<Operand, Operand>> new_phi_list;
+                
+                for (auto& [label_op, value_op] : phi_list) {
+                    if (label_op->GetOperandType() == BasicOperand::LABEL) {
+                        int label_no = ((LabelOperand*)label_op)->GetLabelNo();
+                        if (label_no == from->block_id) {
+                            // 将前驱从from改为mid
+                            auto new_label = GetNewLabelOperand(mid->block_id);
+                            new_phi_list.push_back({new_label, value_op});
+                        } else {
+                            new_phi_list.push_back({label_op, value_op});
+                        }
+                    } else {
+                        new_phi_list.push_back({label_op, value_op});
+                    }
+                }
+                
+                phi_inst->SetPhiList(new_phi_list);
+            }
+        }
+    }
 }
 
 void CFG::addEdge(LLVMBlock from, LLVMBlock to) {

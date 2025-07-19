@@ -4,7 +4,9 @@
 void LoopSimplifyPass::Execute() {
 	for (auto [defI, cfg] : llvmIR->llvm_cfg) {
 		LoopInfo* loopInfo = cfg->getLoopInfo();
-		loopInfo->simplify(cfg);
+		if(!loopInfo->verifySimplifyForm(cfg)) {
+			loopInfo->simplify(cfg);
+		}
 		#ifdef debug 
 			auto definst = (FunctionDefineInstruction*)defI;
 			std::string funcName = definst->GetFunctionName();

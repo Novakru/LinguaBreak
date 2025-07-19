@@ -2,6 +2,7 @@ import argparse
 import subprocess
 import os
 import time
+import csv
 
 def execute(command):
     return subprocess.run(command, capture_output=True, text=True)
@@ -48,7 +49,7 @@ def execute_compilation(input_file, output_file, compile_option, opt_level):
     compile_time = compile_end - compile_start
     return result.returncode == 0, compile_time
 
-def execute_llvm(input_file, output_file, stdin, stdout, testout, opt_level):
+def execute_llvm(input_file, output_file, stdin, stdout, testout, opt_level, time_stats):
     # 编译阶段
     compile_start = time.time()
     if not execute_compilation(input_file, output_file, "-llvm", opt_level)[0]:
@@ -86,12 +87,17 @@ def execute_llvm(input_file, output_file, stdin, stdout, testout, opt_level):
 
     if check_file(testout, stdout) == 0:
         print(f"\033[92mAccept \033[0m{input_file}")
+        time_stats.append({
+            'test_case': os.path.basename(input_file),
+            'compile_time': f"{compile_time:.6f}",
+            'run_time': f"{run_time:.6f}"
+        })
         return 1, compile_time, run_time
     else:
         print(f"\033[91mWrong Answer on \033[0m{input_file}")
         return 0, compile_time, run_time
 
-def execute_asm(input_file, output_file, stdin, stdout, testout, opt_level):
+def execute_asm(input_file, output_file, stdin, stdout, testout, opt_level, time_stats):
     # 编译阶段
     compile_start = time.time()
     if not execute_compilation(input_file, output_file, "-S", opt_level)[0]:
@@ -129,10 +135,30 @@ def execute_asm(input_file, output_file, stdin, stdout, testout, opt_level):
 
     if check_file(testout, stdout) == 0:
         print(f"\033[92mAccept \033[0m{input_file}")
+        time_stats.append({
+            'test_case': os.path.basename(input_file),
+            'compile_time': f"{compile_time:.6f}",
+            'run_time': f"{run_time:.6f}"
+        })
         return 1, compile_time, run_time
     else:
         print(f"\033[91mWrong Answer on \033[0m{input_file}")
         return 0, compile_time, run_time
+
+def write_time_stats_to_csv(time_stats, step, opt_level):
+    if not time_stats:
+        return
+        
+    csv_file = f"{step}_time_stats.csv"
+    with open(csv_file, 'w', newline='') as csvfile:
+        fieldnames = ['test_case', 'compile_time', 'run_time']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for stat in time_stats:
+            writer.writerow(stat)
+            
+    print(f"\nTime statistics written to {csv_file}")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('input_folder')
@@ -159,6 +185,7 @@ ac = 0
 total = 0
 total_compile_time = 0
 total_run_time = 0
+time_stats = []
 
 for file in os.listdir(input_folder):
     if file.endswith(".sy"):
@@ -177,13 +204,13 @@ for file in os.listdir(input_folder):
         
         if step == "llvm":
             output_file = f"{output_folder}/{name}.ll"
-            result, compile_time, run_time = execute_llvm(input_path, output_file, stdin, stdout_file, testout, opt_level)
+            result, compile_time, run_time = execute_llvm(input_path, output_file, stdin, stdout_file, testout, opt_level, time_stats)
             ac += result
             total_compile_time += compile_time
             total_run_time += run_time
         elif step == "target":
             output_file = f"{output_folder}/{name}.s"
-            result, compile_time, run_time = execute_asm(input_path, output_file, stdin, stdout_file, testout, opt_level)
+            result, compile_time, run_time = execute_asm(input_path, output_file, stdin, stdout_file, testout, opt_level, time_stats)
             ac += result
             total_compile_time += compile_time
             total_run_time += run_time
@@ -206,4 +233,8 @@ if total_compile_time + total_run_time > 0:
     print(f"编译占比: {(total_compile_time/(total_compile_time + total_run_time))*100:.1f}%")
     print(f"运行占比: {(total_run_time/(total_compile_time + total_run_time))*100:.1f}%")
 
-os.system("rm -f tmp.out a.out") 
+# Write time statistics to CSV if we have any
+if step in ["llvm", "target"]:
+    write_time_stats_to_csv(time_stats, step, opt_level)
+
+os.system("rm -f tmp.out a.out")
