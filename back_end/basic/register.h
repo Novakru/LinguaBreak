@@ -63,7 +63,7 @@ public:
     bool is_virtual;    // 是否为虚拟寄存器
     MachineDataType type;
 
-    Register() {}
+    Register() : is_virtual(false) {}
     Register(bool is_virtual, int reg_no, MachineDataType type, bool save = false)
         : is_virtual(is_virtual), reg_no(reg_no), type(type) {}
     int getDataWidth() { return type.getDataWidth(); }
