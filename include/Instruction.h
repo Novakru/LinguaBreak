@@ -602,9 +602,13 @@ public:
         }
     }
     void ChangePhiPair(int index, std::pair<Operand, Operand> new_pair){ 
-        def_regno.erase(((RegOperand*)phi_list[index].second)->GetRegNo());
+        if (phi_list[index].second->GetOperandType() == BasicOperand::REG) {
+            def_regno.erase(((RegOperand*)phi_list[index].second)->GetRegNo());
+        }
         phi_list[index] = new_pair; 
-        def_regno.insert(((RegOperand*)phi_list[index].second)->GetRegNo());
+        if (phi_list[index].second->GetOperandType() == BasicOperand::REG) {
+            def_regno.insert(((RegOperand*)phi_list[index].second)->GetRegNo());
+        }
     }
     int GetDefRegno() override;
     std::set<int> GetUseRegno() override;
