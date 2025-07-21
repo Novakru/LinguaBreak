@@ -11,30 +11,42 @@ quick_read:
 .quick_read_1:
 	call		getch
 	addw		a0,a0,x0
+	add			a0,a0,x0
 	addiw		fp,x0,0
+	add			fp,fp,x0
 	jal			x0,.quick_read_2
 .quick_read_2:
+	add			a0,a0,x0
+	add			fp,fp,x0
 	addiw		t0,x0,48
 	blt			a0,t0,.quick_read_7
 	jal			x0,.quick_read_5
 .quick_read_5:
 	add			t0,a0,x0
 	addiw		s1,x0,0
+	add			s1,s1,x0
 	addiw		t1,x0,57
 	bgt			a0,t1,.quick_read_7
 	jal			x0,.quick_read_13
 .quick_read_7:
+	add			fp,fp,x0
 	addiw		t0,x0,45
 	beq			a0,t0,.quick_read_10
 	jal			x0,.quick_read_11
 .quick_read_10:
 	addiw		fp,x0,1
+	add			fp,fp,x0
 	jal			x0,.quick_read_11
 .quick_read_11:
+	add			fp,fp,x0
 	call		getch
 	addw		a0,a0,x0
+	add			a0,a0,x0
+	add			fp,fp,x0
 	jal			x0,.quick_read_2
 .quick_read_13:
+	add			t0,t0,x0
+	add			s1,s1,x0
 	addiw		t1,x0,48
 	bge			t0,t1,.quick_read_16
 	jal			x0,.quick_read_19
@@ -50,6 +62,8 @@ quick_read:
 	subw		s1,t0,t1
 	call		getch
 	addw		t0,a0,x0
+	add			t0,t0,x0
+	add			s1,s1,x0
 	jal			x0,.quick_read_13
 .quick_read_19:
 	add			a0,s1,x0
@@ -59,8 +73,11 @@ quick_read:
 .quick_read_22:
 	addiw		t0,x0,0
 	subw		a0,t0,s1
+	add			a0,a0,x0
 	jal			x0,.quick_read_25
 .quick_read_25:
+	add			a0,a0,x0
+	add			a0,a0,x0
 	addi		sp,sp,32
 	ld			ra,-8(sp)
 	ld			fp,-16(sp)
@@ -71,6 +88,7 @@ find:
 	sd			fp,-16(sp)
 	sd			ra,-8(sp)
 	addi		sp,sp,-16
+	add			a0,a0,x0
 	jal			x0,.find_2
 .find_2:
 	addiw		t0,x0,1
@@ -84,11 +102,14 @@ find:
 	jal			x0,.find_6
 .find_6:
 	lw			a0,0(fp)
+	add			a0,a0,x0
 	call		find
 	addw		t1,a0,x0
 	sw			t1,0(fp)
+	add			t1,t1,x0
 	jal			x0,.find_8
 .find_8:
+	add			t1,t1,x0
 	add			a0,t1,x0
 	addi		sp,sp,16
 	ld			ra,-8(sp)
@@ -101,20 +122,25 @@ same:
 	sd			ra,-8(sp)
 	addi		sp,sp,-32
 	add			fp,a1,x0
+	add			a0,a0,x0
 	jal			x0,.same_2
 .same_2:
+	add			a0,a0,x0
 	call		find
 	addw		s1,a0,x0
 	add			a0,fp,x0
 	call		find
 	addw		a0,a0,x0
 	addiw		t0,x0,1
+	add			t0,t0,x0
 	beq			s1,a0,.same_7
 	jal			x0,.same_6
 .same_6:
 	addiw		t0,x0,0
+	add			t0,t0,x0
 	jal			x0,.same_7
 .same_7:
+	add			t0,t0,x0
 	add			a0,t0,x0
 	addi		sp,sp,32
 	ld			ra,-8(sp)
@@ -139,6 +165,7 @@ main:
 	la			t0,n
 	lw			t0,0(t0)
 	addiw		t1,x0,1
+	add			t1,t1,x0
 	addiw		t2,x0,1
 	ble			t2,t0,.main_24
 	jal			x0,.main_23
@@ -151,8 +178,10 @@ main:
 .main_5:
 	call		getch
 	addw		a0,a0,x0
+	add			a0,a0,x0
 	jal			x0,.main_6
 .main_6:
+	add			a0,a0,x0
 	addiw		t0,x0,81
 	bne			a0,t0,.main_9
 	jal			x0,.main_12
@@ -163,6 +192,7 @@ main:
 .main_10:
 	call		getch
 	addw		a0,a0,x0
+	add			a0,a0,x0
 	jal			x0,.main_6
 .main_12:
 	addiw		t0,x0,81
@@ -174,8 +204,10 @@ main:
 	call		quick_read
 	addw		a1,a0,x0
 	add			a0,fp,x0
+	add			a1,a1,x0
 	call		same
 	addw		a0,a0,x0
+	add			a0,a0,x0
 	call		putint
 	addiw		a0,x0,10
 	call		putch
@@ -183,10 +215,12 @@ main:
 .main_16:
 	call		quick_read
 	addw		a0,a0,x0
+	add			a0,a0,x0
 	call		find
 	addw		fp,a0,x0
 	call		quick_read
 	addw		a0,a0,x0
+	add			a0,a0,x0
 	call		find
 	addw		a0,a0,x0
 	addiw		t0,x0,1
@@ -211,6 +245,7 @@ main:
 	ld			fp,-16(sp)
 	jalr		x0,ra,0
 .main_20:
+	add			t2,t2,x0
 	addiw		t1,x0,1
 	mul			t1,t2,t1
 	slli		t1,t1,2
@@ -224,6 +259,7 @@ main:
 	ble			t3,t0,.main_20
 	jal			x0,.main_23
 .main_23:
+	add			t1,t1,x0
 	jal			x0,.main_2
 .main_24:
 	la			t0,n
@@ -231,6 +267,7 @@ main:
 	la			t1,n
 	lw			t1,0(t1)
 	addiw		t2,x0,1
+	add			t2,t2,x0
 	jal			x0,.main_20
 	.data
 n:
