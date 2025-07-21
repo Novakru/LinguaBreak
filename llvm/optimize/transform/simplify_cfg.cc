@@ -455,7 +455,19 @@ void DFS_MergeBlocks(LLVMBlock block, CFG* cfg, std::unordered_map<int, int>& bl
                     block->Instruction_list.insert(block->Instruction_list.end(),
                                                    merge_block->Instruction_list.begin(),
                                                    merge_block->Instruction_list.end());
-                    cfg->block_map->erase(merge_block_id); // 从CFG中删除
+                    
+                    //更新G和invG
+                    for (auto &succ_block : cfg->GetSuccessor(merge_block_id)) {
+                        cfg->G[block->block_id].insert(succ_block);
+                        cfg->G[block->block_id].erase(merge_block);
+                        cfg->invG[succ_block->block_id].insert(block);
+                        cfg->invG[succ_block->block_id].erase(merge_block);
+                    }
+                    cfg->G.erase(merge_block_id);
+                    cfg->invG.erase(merge_block_id);
+
+                    // 从CFG中删除merge_block
+                    cfg->block_map->erase(merge_block_id); 
                     block_id_map[merge_block_id] = block->block_id; // 记录映射关系
                 }
 
@@ -484,7 +496,18 @@ void DFS_MergeBlocks(LLVMBlock block, CFG* cfg, std::unordered_map<int, int>& bl
                     block->Instruction_list.insert(block->Instruction_list.end(),
                                                    merge_block->Instruction_list.begin(),
                                                    merge_block->Instruction_list.end());
-                    cfg->block_map->erase(merge_block_id); // 从CFG中删除
+                    //更新G和invG
+                    for (auto &succ_block : cfg->GetSuccessor(merge_block_id)) {
+                        cfg->G[block->block_id].insert(succ_block);
+                        cfg->G[block->block_id].erase(merge_block);
+                        cfg->invG[succ_block->block_id].insert(block);
+                        cfg->invG[succ_block->block_id].erase(merge_block);
+                    }
+                    cfg->G.erase(merge_block_id);
+                    cfg->invG.erase(merge_block_id);
+                    
+                    // 从CFG中删除merge_block
+                    cfg->block_map->erase(merge_block_id); 
                     block_id_map[merge_block_id] = block->block_id; // 记录映射关系
                 }
 
