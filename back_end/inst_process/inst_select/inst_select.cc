@@ -1,6 +1,7 @@
 #include"inst_select.h"
 #include"machine_instruction.h"
 #include <functional>
+#define USE_AUIPC_LW_OPTIMIZATION 1 // Set to 1 to use auipc+lw, 0 to use la+lw
 
 // 所有模板特化声明
 template <> void RiscV64Unit::ConvertAndAppend<Instruction>(Instruction inst);
@@ -868,25 +869,25 @@ template <> void RiscV64Unit::ConvertAndAppend<LoadInstruction*>(LoadInstruction
 		}
 
     } else if (inst->GetPointer()->GetOperandType() == BasicOperand::GLOBAL) {
-		// auipc %1, %pcrel_hi(a)
-		// lw %2,%pcrel_lo(a)(%1)  #riscv
+		Register ptr_reg = GetNewTempRegister(INT64);
         auto global_op = (GlobalOperand *)inst->GetPointer();
         auto rd_op = (RegOperand *)inst->GetResult();
 		Register rd = GetNewRegister(rd_op->GetRegNo(), target_type);
 
-        Register ptr_reg = GetNewTempRegister(INT64);
+#if USE_AUIPC_LW_OPTIMIZATION
 		// bug: (.text+0x20c): dangerous relocation: %pcrel_lo missing matching %pcrel_hi
-		// auto auipc_inst = rvconstructor->ConstructUImm_pcrel_hi(RISCV_AUIPC, ptr_reg, RiscVLabel(global_op->GetName(), true));
-		// auto lw_inst = rvconstructor->ConstructIImm_pcrel_lo(op_code, rd, ptr_reg, RiscVLabel(global_op->GetName(), true));
+		auto auipc_inst = rvconstructor->ConstructUImm_pcrel_hi(RISCV_AUIPC, ptr_reg, RiscVLabel(global_op->GetName(), true));
+		auto lw_inst = rvconstructor->ConstructIImm_pcrel_lo(op_code, rd, ptr_reg, RiscVLabel(global_op->GetName(), true));
 
-		// cur_block->push_back(auipc_inst);
-		// cur_block->push_back(lw_inst);
-
+		cur_block->push_back(auipc_inst);
+		cur_block->push_back(lw_inst);
+#else
 		auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(global_op->GetName(), true));
 		auto lw_inst = rvconstructor->ConstructIImm(op_code, rd, ptr_reg, 0);
 
 		cur_block->push_back(la_inst);
 		cur_block->push_back(lw_inst);
+#endif
     }
 }
 
@@ -938,18 +939,20 @@ template <> void RiscV64Unit::ConvertAndAppend<StoreInstruction*>(StoreInstructi
 		GlobalOperand* global_op = (GlobalOperand *)inst->GetPointer();
 
 		auto ptr_reg = GetNewTempRegister(INT64);
+#if USE_AUIPC_LW_OPTIMIZATION
 		// bug: (.text+0x20c): dangerous relocation: %pcrel_lo missing matching %pcrel_hi
-		// auto auipc_inst = rvconstructor->ConstructUImm_pcrel_hi(RISCV_AUIPC, ptr_reg, RiscVLabel(global_op->GetName(), true));
-		// auto sw_inst = rvconstructor->ConstructSImm(op_code, value_reg, ptr_reg, 0);
+		auto auipc_inst = rvconstructor->ConstructUImm_pcrel_hi(RISCV_AUIPC, ptr_reg, RiscVLabel(global_op->GetName(), true));
+		auto sw_inst = rvconstructor->ConstructSImm(op_code, value_reg, ptr_reg, 0);
 
-		// cur_block->push_back(auipc_inst);
-		// cur_block->push_back(sw_inst);
-
+		cur_block->push_back(auipc_inst);
+		cur_block->push_back(sw_inst);
+#else
 		auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(global_op->GetName(), true));
 		auto sw_inst = rvconstructor->ConstructSImm(op_code, value_reg, ptr_reg, 0);
 
 		cur_block->push_back(la_inst);
 		cur_block->push_back(sw_inst);
+#endif
 	}
 }
 
