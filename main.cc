@@ -239,6 +239,9 @@ int main(int argc, char** argv) {
         // SimplifyCFGPass(&llvmIR).RebuildCFG();
         SimplifyCFGPass(&llvmIR).TOPPhi();
 		SimplifyCFGPass(&llvmIR).EOBB();  
+
+        SimplifyCFGPass(&llvmIR).MergeBlocks();
+        SimplifyCFGPass(&llvmIR).RebuildCFG();
         
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }

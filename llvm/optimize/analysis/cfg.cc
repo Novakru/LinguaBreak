@@ -22,6 +22,7 @@ void LLVMIR::CFGInit() {
 void CFG::SearchB(LLVMBlock B){
     if(B->dfs_id!=0)return;
     B->dfs_id = ++dfs_num;//全局
+    block_ids.insert(B->block_id);
     //遍历此基本块的所有指令
     for(auto it = B->Instruction_list.begin(); it != B->Instruction_list.end(); ++it){
         auto &intr = *it;

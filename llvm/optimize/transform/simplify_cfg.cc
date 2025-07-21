@@ -385,3 +385,157 @@ void SimplifyCFGPass::TransformOnePredPhi(CFG* C){
         }
     }
 }
+
+
+int getMergeType(LLVMBlock block, CFG* cfg){
+    int pred_count = cfg->GetPredecessor(block).size();
+    int succ_count = cfg->GetSuccessor(block).size();
+    if (pred_count == 1 && succ_count == 1) {
+        return 1; // 单前驱单后继---> merge_body
+    } else if (pred_count == 1 && succ_count > 1) {
+        return 2; // 单前驱多后继---> merge_tail
+    } else if (pred_count > 1 && succ_count == 1) {
+        return 3; // 多前驱单后继---> merge_head 
+    } else if (pred_count > 1 && succ_count > 1){
+        return 4; // 多前驱多后继
+    } else if (pred_count ==1 && succ_count == 0) {
+        return 5; // 单前驱无后继---> merge_tail
+    } else if (pred_count >1 && succ_count == 0) {
+        return 6; // 多前驱无后继
+    } else {
+        return 0; // 无前驱，entry
+    }
+}
+
+void DFS_MergeBlocks(LLVMBlock block, CFG* cfg, std::unordered_map<int, int>& block_id_map){
+    if(block->dfs_id > 0) return; // 已访问过
+    block->dfs_id=1;
+    
+    int merge_type = getMergeType(block, cfg);
+    //std::cout<<"DFS_MergeBlocks: "<<block->block_id<<" merge_type: "<<merge_type<<std::endl;
+    switch (merge_type){
+        case 5:
+        case 6: //无后继，终止遍历
+            return ;
+        case 0: // 无前驱，entry，不合并，直接考察后继
+        {
+            for (auto &succ_block : cfg->GetSuccessor(block)) {
+                DFS_MergeBlocks(succ_block, cfg, block_id_map);
+            }
+            return ;
+        }
+        case 2:
+        case 4://多个后继，不能和后继块合并，依次考察每个后继
+        {
+            for (auto &succ_block : cfg->GetSuccessor(block)) {
+                DFS_MergeBlocks(succ_block, cfg, block_id_map);
+            }
+            return ;
+        }
+        case 1:
+        case 3://单个后继，可以和后继块合并
+        {   std::vector<int> merge_blockids;
+            LLVMBlock nextbb = *(cfg->GetSuccessor(block).begin());
+            while(getMergeType(nextbb,cfg)==1){
+                nextbb->dfs_id = 1; // 标记为已访问
+                merge_blockids.push_back(nextbb->block_id);
+                nextbb = *(cfg->GetSuccessor(nextbb).begin());
+            }
+            int last_mergetype=getMergeType(nextbb,cfg);
+            if(last_mergetype==2 || last_mergetype == 5){//单前驱，可以作为merge_tail
+                //合并list的最后一块
+                nextbb->dfs_id = 1; // 标记为已访问
+                merge_blockids.push_back(nextbb->block_id);
+
+                //将merge_blockids中的所有块合并到block中
+                for (int merge_block_id : merge_blockids) {
+                    LLVMBlock merge_block = cfg->GetBlockWithId(merge_block_id);
+                    // 将merge_block的指令移动到block中
+                    block->Instruction_list.pop_back();
+                    block->Instruction_list.insert(block->Instruction_list.end(),
+                                                   merge_block->Instruction_list.begin(),
+                                                   merge_block->Instruction_list.end());
+                    cfg->block_map->erase(merge_block_id); // 从CFG中删除
+                    block_id_map[merge_block_id] = block->block_id; // 记录映射关系
+                }
+
+
+                // std::cout<<"Merge blocks: ";
+                // for (int merge_block_id : merge_blockids) {
+                //     std::cout << merge_block_id << " ";
+                // }
+                // std::cout<< std::endl;
+
+                int last_block_id = merge_blockids.back();
+                // 继续访问后继
+                for (auto &succ_block : cfg->GetSuccessor(last_block_id)) {
+                    DFS_MergeBlocks(succ_block, cfg, block_id_map);
+                }
+
+            }else if(last_mergetype==3 || last_mergetype==4 || last_mergetype==6){ //多个前驱，不能与前驱块合并，仅处理其前的blocks，并考察各自
+
+                //将merge_blockids中的所有块合并到block中
+                for (int merge_block_id : merge_blockids) {
+                    LLVMBlock merge_block = cfg->GetBlockWithId(merge_block_id);
+                    if (merge_block == nullptr) continue; 
+                    // 将merge_block的指令移动到block中
+                    assert(block->Instruction_list.back()->GetOpcode() == BasicInstruction::LLVMIROpcode::BR_UNCOND);
+                    block->Instruction_list.pop_back();
+                    block->Instruction_list.insert(block->Instruction_list.end(),
+                                                   merge_block->Instruction_list.begin(),
+                                                   merge_block->Instruction_list.end());
+                    cfg->block_map->erase(merge_block_id); // 从CFG中删除
+                    block_id_map[merge_block_id] = block->block_id; // 记录映射关系
+                }
+
+                // std::cout<<"Merge blocks: ";
+                // for (int merge_block_id : merge_blockids) {
+                //     std::cout << merge_block_id << " ";
+                // }
+                // std::cout<< std::endl;
+
+                //各自考察
+                DFS_MergeBlocks(nextbb, cfg, block_id_map);
+            }else {
+                assert(0);
+            }
+            return ;
+        }
+    }
+
+}
+
+void SimplifyCFGPass::MergeBlocks() {
+
+    for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+        //std::cout << "--------------In function: " << defI->GetFunctionName()<<"------------------" << std::endl;
+        // 重置dfs编号
+        for (auto [id, block] : *(cfg->block_map)) {
+            block->dfs_id = 0;
+        }
+        std::unordered_map<int, int> block_id_map;
+        // 从入口块开始，合并通过br_uncond相连的多个连续基本块
+        LLVMBlock entry_block = (*(cfg->block_map))[0];
+        DFS_MergeBlocks(entry_block, cfg, block_id_map);
+        // 更新phi指令中的label
+        for (auto &[id, block] : *(cfg->block_map)) {
+            for (auto &intr : block->Instruction_list) {
+                if (intr->GetOpcode() == BasicInstruction::LLVMIROpcode::PHI) {
+                    PhiInstruction *phi_intr = (PhiInstruction *)intr;
+                    auto phi_list = phi_intr->GetPhiList();
+                    std::vector<std::pair<Operand, Operand>> new_phi_list;
+                    for (const auto &pair : phi_list) {
+                        int label_no = ((LabelOperand *)pair.first)->GetLabelNo();
+                        if (block_id_map.count(label_no)) {
+                            int new_label_no = block_id_map[label_no];
+                            new_phi_list.emplace_back(GetNewLabelOperand(new_label_no), pair.second);
+                        } else {
+                            new_phi_list.push_back(pair);
+                        }
+                    }
+                    phi_intr->SetPhiList(new_phi_list);
+                }
+            }
+        }
+    }
+}
