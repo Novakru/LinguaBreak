@@ -14,7 +14,7 @@ enum RelocType {
 class MachineBaseInstruction {
 public:
     //enum { ARM = 0, RiscV, PHI};
-    enum { ARM = 0, RiscV, PHI,COPY};
+    enum { ARM = 0, RiscV, PHI, COPY, LOCAL_LABEL };
     const int arch;
 
 private:
@@ -47,6 +47,7 @@ private:
     int imm;
     RiscVLabel label;
     RelocType reloc_type;
+    int local_label_id; // For local labels like 3:
 
     // 下面两个变量的具体作用见ConstructCall函数
     int callireg_num;
@@ -115,9 +116,10 @@ private:
 
     friend class RiscV64InstructionConstructor;
 
-    RiscV64Instruction() : MachineBaseInstruction(MachineBaseInstruction::RiscV), imm(0), use_label(false), reloc_type(NONE) {}
+    RiscV64Instruction() : MachineBaseInstruction(MachineBaseInstruction::RiscV), imm(0), use_label(false), reloc_type(NONE), local_label_id(-1) {}
 
 public:
+    RiscV64Instruction(int id) : MachineBaseInstruction(MachineBaseInstruction::LOCAL_LABEL), local_label_id(id) {} // For LOCAL_LABEL
     void setOpcode(int op, bool use_label) {
         this->op = op;
         this->use_label = use_label;
@@ -132,6 +134,7 @@ public:
     void setCallfregNum(int n) { callfreg_num = n; }
     void setRetType(int use) { ret_type = use; }
     void setRelocType(RelocType type) { reloc_type = type; }
+    void setLocalLabelId(int id) { local_label_id = id; }
     Register getRd() { return rd; }
     Register getRs1() { return rs1; }
     Register getRs2() { return rs2; }
@@ -141,8 +144,12 @@ public:
     int getImm() { return imm; }
     RiscVLabel getLabel() { return label; }
     RelocType getRelocType() { return reloc_type; }
+    int getLocalLabelId() { return local_label_id; }
     int getOpcode() { return op; }
     std::vector<Register *> GetReadReg() {
+        if (arch == LOCAL_LABEL) {
+            return {};
+        }
         switch (OpTable.at(op).ins_formattype) {
         case RvOpInfo::R_type:
             return GetR_typeReadreg();
@@ -167,6 +174,9 @@ public:
     }
     
     std::vector<Register *> GetWriteReg() {
+        if (arch == LOCAL_LABEL) {
+            return {};
+        }
         switch (OpTable.at(op).ins_formattype) {
         case RvOpInfo::R_type:
             return GetR_typeWritereg();
@@ -190,7 +200,12 @@ public:
         ERROR("Unexpected insformat");
     }
    
-    int GetLatency() { return OpTable.at(op).latency; }
+    int GetLatency() {
+        if (arch == LOCAL_LABEL) {
+            return 0;
+        }
+        return OpTable.at(op).latency;
+    }
 };
 
 class RiscV64InstructionConstructor {
@@ -264,6 +279,7 @@ public:
         ret->setRs1(Rs1);
         ret->setLabel(label);
         ret->setRelocType(PCREL_LO);
+        ret->setLocalLabelId(label.get_local_label_id());
         return ret;
     }
 
@@ -286,6 +302,8 @@ public:
         ret->setRs1(value);
         ret->setRs2(ptr);
         ret->setLabel(label);
+        ret->setRelocType(PCREL_LO);
+        ret->setLocalLabelId(label.get_local_label_id());
         return ret;
     }
     // example: b(cond) Rs1, Rs2,label  =>  bne Rs1, Rs2, .L3(标签具体如何输出见riscv64_printasm.cc)
@@ -296,6 +314,7 @@ public:
         ret->setRs1(Rs1);
         ret->setRs2(Rs2);
         ret->setLabel(label);
+        ret->setRelocType(PCREL_HI);
         return ret;
     }
     // example: lui Rd, imm
@@ -350,6 +369,10 @@ public:
         ret->setCallfregNum(fregnum);
         ret->setLabel(RiscVLabel(funcname, false));
         return ret;
+    }
+    
+    RiscV64Instruction *ConstructLocalLabel(int id) {
+        return new RiscV64Instruction(id);
     }
 };
 extern RiscV64InstructionConstructor *rvconstructor;

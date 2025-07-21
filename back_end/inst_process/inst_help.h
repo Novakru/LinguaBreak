@@ -69,6 +69,9 @@ public:
     virtual int get_mem_id() const { 
         throw std::runtime_error("Not a memory label"); 
     }
+    virtual int get_local_label_id() const {
+        throw std::runtime_error("Not a local label");
+    }
     virtual std::string get_data_name() const { 
         throw std::runtime_error("Not a data symbol"); 
     }
@@ -127,6 +130,23 @@ public:
     }
 };
 
+class LocalLabel : public Label {
+public:
+    int local_id;
+
+    LocalLabel(int id)
+        : Label(LabelType::DataSymbol), local_id(id) {} // Note: Using DataSymbol for now
+
+    int get_local_label_id() const override { return local_id; }
+    std::string get_data_name() const override { return ""; } // Return empty string for local labels
+    bool is_hi() const override { return false; } // Not applicable for local labels
+
+
+    std::unique_ptr<Label> clone() const override {
+        return std::make_unique<LocalLabel>(*this);
+    }
+};
+
 class RiscVLabel {
 private:
     std::unique_ptr<Label> label;
@@ -139,6 +159,9 @@ public:
 
     RiscVLabel(const std::string& name, bool is_hi) 
         : label(std::make_unique<DataSymbolLabel>(name, is_hi)) {}
+
+    RiscVLabel(int local_id)
+        : label(std::make_unique<LocalLabel>(local_id)) {}
 
     // 拷贝构造函数和赋值运算符
     RiscVLabel(const RiscVLabel& other) 
@@ -159,6 +182,10 @@ public:
         return label && label->type == LabelType::DataSymbol; 
     }
 
+    bool is_local_label() const {
+        return label && dynamic_cast<LocalLabel*>(label.get()) != nullptr;
+    }
+
     // 访问成员（类型安全）
     int get_jmp_id() const {
         if (!is_jump()) throw std::runtime_error("Not a jump label");
@@ -168,6 +195,11 @@ public:
     std::string get_data_name() const {
         if (!is_data_symbol()) throw std::runtime_error("Not a data symbol");
         return static_cast<DataSymbolLabel*>(label.get())->get_data_name();
+    }
+
+    int get_local_label_id() const {
+        if(!is_local_label()) throw std::runtime_error("Not a local label");
+        return static_cast<LocalLabel*>(label.get())->get_local_label_id();
     }
 
     bool is_hi() const {
@@ -184,8 +216,14 @@ public:
             case LabelType::Jump:
                 return get_jmp_id() == other.get_jmp_id();
             case LabelType::DataSymbol:
-                return get_data_name() == other.get_data_name() 
-                    && is_hi() == other.is_hi();
+                if (is_local_label() && other.is_local_label()) {
+                    return get_local_label_id() == other.get_local_label_id();
+                }
+                if (is_data_symbol() && other.is_data_symbol() && !is_local_label() && !other.is_local_label()){
+                    return get_data_name() == other.get_data_name() 
+                        && is_hi() == other.is_hi();
+                }
+                return false;
             default:
                 return false; // 其他类型暂不处理
         }

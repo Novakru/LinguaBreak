@@ -2,6 +2,7 @@
 #include"machine_instruction.h"
 #include <functional>
 #define USE_AUIPC_LW_OPTIMIZATION 1 // Set to 1 to use auipc+lw, 0 to use la+lw
+static int local_label_counter = 0;
 
 // 所有模板特化声明
 template <> void RiscV64Unit::ConvertAndAppend<Instruction>(Instruction inst);
@@ -876,8 +877,10 @@ template <> void RiscV64Unit::ConvertAndAppend<LoadInstruction*>(LoadInstruction
 
 #if USE_AUIPC_LW_OPTIMIZATION
 		// bug: (.text+0x20c): dangerous relocation: %pcrel_lo missing matching %pcrel_hi
+		int local_id = ++local_label_counter;
+		cur_block->push_back(rvconstructor->ConstructLocalLabel(local_id));
 		auto auipc_inst = rvconstructor->ConstructUImm_pcrel_hi(RISCV_AUIPC, ptr_reg, RiscVLabel(global_op->GetName(), true));
-		auto lw_inst = rvconstructor->ConstructIImm_pcrel_lo(op_code, rd, ptr_reg, RiscVLabel(global_op->GetName(), true));
+		auto lw_inst = rvconstructor->ConstructIImm_pcrel_lo(op_code, rd, ptr_reg, RiscVLabel(local_id));
 
 		cur_block->push_back(auipc_inst);
 		cur_block->push_back(lw_inst);
@@ -940,11 +943,11 @@ template <> void RiscV64Unit::ConvertAndAppend<StoreInstruction*>(StoreInstructi
 
 		auto ptr_reg = GetNewTempRegister(INT64);
 #if USE_AUIPC_LW_OPTIMIZATION
-		// bug: (.text+0x20c): dangerous relocation: %pcrel_lo missing matching %pcrel_hi
+		int local_id = ++local_label_counter;
+		cur_block->push_back(rvconstructor->ConstructLocalLabel(local_id));
 		auto auipc_inst = rvconstructor->ConstructUImm_pcrel_hi(RISCV_AUIPC, ptr_reg, RiscVLabel(global_op->GetName(), true));
-		auto sw_inst = rvconstructor->ConstructSImm(op_code, value_reg, ptr_reg, 0);
-
 		cur_block->push_back(auipc_inst);
+		auto sw_inst = rvconstructor->ConstructSLabel(op_code, value_reg, ptr_reg, RiscVLabel(local_id));
 		cur_block->push_back(sw_inst);
 #else
 		auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(global_op->GetName(), true));
