@@ -99,13 +99,21 @@ template <> void RiscV64Printer::printAsm<RiscV64Instruction *>(RiscV64Instructi
             printRVfield(ins->getRs1());
             s << ",";
             if (ins->getUseLabel()) {
-                printRVfield(ins->getLabel());
+                if (ins->getRelocType() == PCREL_LO) {
+                    s << "%pcrel_lo(" << ins->getLabel().get_data_name() << ")";
+                } else {
+                    printRVfield(ins->getLabel());
+                }
             } else {
                 s << ins->getImm();
             }
         } else {
             if (ins->getUseLabel()) {
-                printRVfield(ins->getLabel());
+                if (ins->getRelocType() == PCREL_LO) {
+                    s << "%pcrel_lo(" << ins->getLabel().get_data_name() << ")";
+                } else {
+                    printRVfield(ins->getLabel());
+                }
             } else {
                 s << ins->getImm();
             }
@@ -143,6 +151,9 @@ template <> void RiscV64Printer::printAsm<RiscV64Instruction *>(RiscV64Instructi
         if (ins->getUseLabel()) {
 			if(ins->getOpcode() == RISCV_LA) 
 				s << ins->getLabel().get_data_name();
+			else if (ins->getRelocType() == PCREL_HI) {
+                s << "%pcrel_hi(" << ins->getLabel().get_data_name() << ")";
+            }
 			else 
 				printRVfield(ins->getLabel());
         } else {

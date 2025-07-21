@@ -238,7 +238,7 @@ void RiscV64Unit::LowerStack()
         //一、前置工作->获取被调用者保存寄存器的定义块与读写块信息
         //1.设置当前函数
         cur_func=func;
-        //2.设置“寄存器定义块（写）”与“寄存器读写块”的信息，一维代表寄存器编号，二维代表出现块的编号
+        //2.设置"寄存器定义块（写）"与"寄存器读写块"的信息，一维代表寄存器编号，二维代表出现块的编号
         std::vector<std::vector<int>> saveregs_occurblockids,saveregs_rwblockids;
         //GatherUseSregs(func,saveregs_occurblockids,saveregs_rwblockids);
         saveregs_occurblockids.resize(TotalRegs);
@@ -246,7 +246,7 @@ void RiscV64Unit::LowerStack()
         //3.遍历当前函数的所有基本块来设置
         for(auto &b:func->blocks)
         {
-            //1）保存“被调用者保存寄存器”s0-s11,fs0-fs11,ra，保证函数被调用后这些寄存器的值能恢复原样
+            //1）保存"被调用者保存寄存器"s0-s11,fs0-fs11,ra，保证函数被调用后这些寄存器的值能恢复原样
             std::bitset<TotalRegs> RegNeedSaved;
             RegNeedSaved.set(RISCV_s0);
             RegNeedSaved.set(RISCV_s1);
@@ -875,6 +875,13 @@ template <> void RiscV64Unit::ConvertAndAppend<LoadInstruction*>(LoadInstruction
 		Register rd = GetNewRegister(rd_op->GetRegNo(), target_type);
 
         Register ptr_reg = GetNewTempRegister(INT64);
+		// bug: (.text+0x20c): dangerous relocation: %pcrel_lo missing matching %pcrel_hi
+		// auto auipc_inst = rvconstructor->ConstructUImm_pcrel_hi(RISCV_AUIPC, ptr_reg, RiscVLabel(global_op->GetName(), true));
+		// auto lw_inst = rvconstructor->ConstructIImm_pcrel_lo(op_code, rd, ptr_reg, RiscVLabel(global_op->GetName(), true));
+
+		// cur_block->push_back(auipc_inst);
+		// cur_block->push_back(lw_inst);
+
 		auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(global_op->GetName(), true));
 		auto lw_inst = rvconstructor->ConstructIImm(op_code, rd, ptr_reg, 0);
 
@@ -931,6 +938,13 @@ template <> void RiscV64Unit::ConvertAndAppend<StoreInstruction*>(StoreInstructi
 		GlobalOperand* global_op = (GlobalOperand *)inst->GetPointer();
 
 		auto ptr_reg = GetNewTempRegister(INT64);
+		// bug: (.text+0x20c): dangerous relocation: %pcrel_lo missing matching %pcrel_hi
+		// auto auipc_inst = rvconstructor->ConstructUImm_pcrel_hi(RISCV_AUIPC, ptr_reg, RiscVLabel(global_op->GetName(), true));
+		// auto sw_inst = rvconstructor->ConstructSImm(op_code, value_reg, ptr_reg, 0);
+
+		// cur_block->push_back(auipc_inst);
+		// cur_block->push_back(sw_inst);
+
 		auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, ptr_reg, RiscVLabel(global_op->GetName(), true));
 		auto sw_inst = rvconstructor->ConstructSImm(op_code, value_reg, ptr_reg, 0);
 

@@ -5,6 +5,12 @@
 #include"inst_help.h"
 #include"../../include/Instruction.h"
 
+enum RelocType {
+    NONE, 
+    PCREL_HI, 
+    PCREL_LO
+};
+
 class MachineBaseInstruction {
 public:
     //enum { ARM = 0, RiscV, PHI};
@@ -40,6 +46,7 @@ private:
     bool use_label;
     int imm;
     RiscVLabel label;
+    RelocType reloc_type;
 
     // 下面两个变量的具体作用见ConstructCall函数
     int callireg_num;
@@ -108,7 +115,7 @@ private:
 
     friend class RiscV64InstructionConstructor;
 
-    RiscV64Instruction() : MachineBaseInstruction(MachineBaseInstruction::RiscV), imm(0), use_label(false) {}
+    RiscV64Instruction() : MachineBaseInstruction(MachineBaseInstruction::RiscV), imm(0), use_label(false), reloc_type(NONE) {}
 
 public:
     void setOpcode(int op, bool use_label) {
@@ -124,6 +131,7 @@ public:
     void setCalliregNum(int n) { callireg_num = n; }
     void setCallfregNum(int n) { callfreg_num = n; }
     void setRetType(int use) { ret_type = use; }
+    void setRelocType(RelocType type) { reloc_type = type; }
     Register getRd() { return rd; }
     Register getRs1() { return rs1; }
     Register getRs2() { return rs2; }
@@ -132,6 +140,7 @@ public:
     bool getUseLabel() { return use_label; }
     int getImm() { return imm; }
     RiscVLabel getLabel() { return label; }
+    RelocType getRelocType() { return reloc_type; }
     int getOpcode() { return op; }
     std::vector<Register *> GetReadReg() {
         switch (OpTable.at(op).ins_formattype) {
@@ -246,6 +255,18 @@ public:
         ret->setLabel(label);
         return ret;
     }
+
+    RiscV64Instruction *ConstructIImm_pcrel_lo(int op, Register Rd, Register Rs1, RiscVLabel label) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, true);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::I_type);
+        ret->setRd(Rd);
+        ret->setRs1(Rs1);
+        ret->setLabel(label);
+        ret->setRelocType(PCREL_LO);
+        return ret;
+    }
+
     // example: sw value imm(ptr)
     RiscV64Instruction *ConstructSImm(int op, Register value, Register ptr, int imm) {
         RiscV64Instruction *ret = new RiscV64Instruction();
@@ -295,6 +316,17 @@ public:
         ret->setLabel(label);
         return ret;
     }
+
+    RiscV64Instruction *ConstructUImm_pcrel_hi(int op, Register Rd, RiscVLabel label) {
+        RiscV64Instruction *ret = new RiscV64Instruction();
+        ret->setOpcode(op, true);
+        Assert(OpTable[op].ins_formattype == RvOpInfo::U_type);
+        ret->setRd(Rd);
+        ret->setLabel(label);
+        ret->setRelocType(PCREL_HI);
+        return ret;
+    }
+
     // example: jal rd, label  =>  jal a0, .L4
     RiscV64Instruction *ConstructJLabel(int op, Register rd, RiscVLabel label) {
         RiscV64Instruction *ret = new RiscV64Instruction();
