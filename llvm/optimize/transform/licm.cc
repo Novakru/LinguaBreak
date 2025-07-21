@@ -1,6 +1,6 @@
 #include "licm.h"
 // #define running_info
-#define result_info
+// #define result_info
 
 void LoopInvariantCodeMotionPass::Execute() {
 	// store cfg info by function name.

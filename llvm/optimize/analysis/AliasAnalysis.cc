@@ -77,7 +77,7 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
     }
 
     //情况2.2
-    Instruction inst1,inst2;
+    Instruction inst1 = nullptr, inst2 = nullptr;
     for(auto &op:info1.AliasOps){
         if(op->GetOperandType() != BasicOperand::REG) continue;
         int regno=((RegOperand*)op)->GetRegNo();
@@ -112,8 +112,9 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
         inst2 = new GetElementptrInstruction(typ, op2, op2, dim, idxs, idx_typ);
     }
     // Assert(inst1!=nullptr&&inst2!=nullptr);  // 即 info1.source!=Undef &&  info1.source!=Undef
-	
-    if(IsSameArraySameConstIndex((GetElementptrInstruction*)inst1,(GetElementptrInstruction*)inst2)){
+	auto gep1 = dynamic_cast<GetElementptrInstruction*>(inst1);
+	auto gep2 = dynamic_cast<GetElementptrInstruction*>(inst2);
+    if(IsSameArraySameConstIndex(gep1, gep2)){
         return MustAlias;
     }
     //其它

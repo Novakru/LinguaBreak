@@ -235,8 +235,6 @@ int main(int argc, char** argv) {
 		AliasAnalysisPass aa(&llvmIR); 
 		aa.Execute();
 		LoopInvariantCodeMotionPass(&llvmIR, &aa).Execute();
-		// FunctionInlinePass(&llvmIR).Execute();
-        // SimplifyCFGPass(&llvmIR).RebuildCFG();
         SimplifyCFGPass(&llvmIR).TOPPhi();
 		SimplifyCFGPass(&llvmIR).EOBB();  
 

@@ -278,7 +278,7 @@ void DomTreeCSEOptimizer::dfs(int bbid) {
         }
     }
     
-    for (auto v : domtrees->GetDomTree(C)->dom_tree[bbid]) {
+    for (auto v : C->getDomTree()->dom_tree[bbid]) {
         dfs(v->block_id);
     }
 

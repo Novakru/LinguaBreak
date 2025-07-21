@@ -82,33 +82,45 @@ void Loop::dispLoop(int depth, bool is_last) const {
 bool Loop::verifySimplifyForm(CFG* cfg) const {
     bool flag = true;
     if (preheader == nullptr) {
+		#ifdef debug
         std::cerr << "[LoopVerify] preheader is nullptr, header block: " << header->block_id << std::endl;
-        flag = false;
+        #endif
+		flag = false;
     }
     if (!flag) return false;
 
     int phid = preheader->block_id;
     if (phid == 0) {
+		#ifdef debug
         std::cerr << "[LoopVerify] preheader block id is 0, header block: " << header->block_id << std::endl;
+		#endif
         flag = false;
     }
     if (cfg->GetSuccessor(phid).size() != 1) {
+		#ifdef debug
         std::cerr << "[LoopVerify] preheader block " << phid << " does not have exactly one successor." << std::endl;
+		#endif
         flag = false;
     }
     if (latches.size() != 1) {
+		#ifdef debug
         std::cerr << "[LoopVerify] loop header " << header->block_id << " does not have exactly one latch. Current: " << latches.size() << std::endl;
+		#endif
         flag = false;
     }
     if (exits.size() < 1) {
+		#ifdef debug
         std::cerr << "[LoopVerify] loop header " << header->block_id << " does not have any exits." << std::endl;
-        flag = false;
+		#endif
+		flag = false;
     }
     for (auto exit : exits) {
         for (auto pred : cfg->GetPredecessor(exit)) {
             if (!contains(pred)) {
+				#ifdef debug
                 std::cerr << "[LoopVerify] exit block " << exit->block_id << " has predecessor " << pred->block_id << " not in loop." << std::endl;
-                flag = false;
+                #endif
+				flag = false;
             }
         }
     }
