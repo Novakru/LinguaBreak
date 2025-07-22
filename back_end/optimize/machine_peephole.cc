@@ -15,7 +15,7 @@ void MachinePeephole::EliminateRedundantInstructions() {
         for (auto &block : func->blocks) {
             for (auto it = block->instructions.begin(); it != block->instructions.end();) {
                 auto inst = (RiscV64Instruction*)(*it);
-                //(0) fmv x, x  ---> 直接删除此指令
+                //(1) fmv x, x  ---> 直接删除此指令
                 if (inst->getOpcode() == RISCV_FMV_S || inst->getOpcode() == RISCV_FMV_D ) {
                     if(inst->getRd().reg_no == inst->getRs1().reg_no) {
                         it = block->instructions.erase(it);
@@ -23,7 +23,7 @@ void MachinePeephole::EliminateRedundantInstructions() {
                     }
                 }
 
-                //(1) add x, x, 0  ---> 直接删除此指令
+                //(2) add x, x, 0  ---> 直接删除此指令
                 if(inst ->getOpcode() == RISCV_ADDI || inst ->getOpcode() == RISCV_ADDIW) {
                     if (inst->getRd().reg_no == inst->getRs1().reg_no && inst->getImm() == 0) {
                         it = block->instructions.erase(it); 
@@ -41,7 +41,7 @@ void MachinePeephole::EliminateRedundantInstructions() {
                         }
                     }
                 }
-                //（2）add t0, x0, 1
+                //（3）add t0, x0, 1
                 //    mul xxx, xxx,t0     ---> 自身乘1，直接删除两条指令
 
                 //    add t0, x0, 1
@@ -81,21 +81,29 @@ void MachinePeephole::EliminateRedundantInstructions() {
                             }
                         }
                     } 
-                // (3) add t0, x0, k
-                //     add xxx, xx, t0  --->直接使用立即数k
-                    else if(!rs1.is_virtual && rs1.reg_no == 0 ){// add t0, x0, k型，t0被使用，可直接用k替换
+                // (4) addi(w) t0, x0, k
+                //     add(w)sub xxx, xx, t0  --->直接使用立即数k
+                    if(!rs1.is_virtual && rs1.reg_no == 0 ){// add t0, x0, k型，t0被使用，可直接用k替换
                         auto next_it = std::next(it);
                         if (next_it != block->instructions.end()) {
                             auto next_inst = (RiscV64Instruction*)(*next_it);
-                            if((next_inst->getOpcode() == RISCV_ADD || next_inst->getOpcode() == RISCV_ADDW)){
+                            if(next_inst->getOpcode() == RISCV_ADD || next_inst->getOpcode() == RISCV_ADDW||
+                               next_inst->getOpcode() == RISCV_SUB || next_inst->getOpcode() == RISCV_SUBW) {
                                 if(next_inst->getRs2().reg_no== inst->getRd().reg_no) {
                                     if(next_inst->getOpcode() == RISCV_ADD) {
                                         next_inst->setOpcode(RISCV_ADDI,false);
+                                        next_inst->setImm(inst->getImm());
                                     } else if(next_inst->getOpcode() == RISCV_ADDW) {
                                         next_inst->setOpcode(RISCV_ADDIW,false);
+                                        next_inst->setImm(inst->getImm());
+                                    } else if(next_inst->getOpcode() == RISCV_SUB) {
+                                        next_inst->setOpcode(RISCV_ADDI,false);
+                                        next_inst->setImm(-(inst->getImm()));
+                                    } else if(next_inst->getOpcode() == RISCV_SUBW) {
+                                        next_inst->setOpcode(RISCV_ADDIW,false);
+                                        next_inst->setImm(-(inst->getImm()));
                                     }
-                                    next_inst->setImm(inst->getImm());
-
+                                    
                                     it = block->instructions.erase(it);
                                     ++it;
                                     continue;
@@ -115,7 +123,10 @@ void MachinePeephole::EliminateRedundantInstructions() {
 /*
 TODO：
 - 上述这些,float的补全
-- 重新整理注释
 - 其它类型的冗余指令删除
+*/
+/*
+1. addi t0, x0, 0
+   use t0   ---> 直接用x0替换t0  （其他位置用t0的话...） 【必须要用数据流信息】
 
 */

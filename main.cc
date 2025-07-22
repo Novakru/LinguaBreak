@@ -261,7 +261,7 @@ int main(int argc, char** argv) {
         }
 
         //optimizer
-        //MachinePeephole(m_unit).Execute();
+        MachinePeephole(m_unit).Execute();
         
         RiscV64Printer(out, m_unit).emit();
         fclose(input);
