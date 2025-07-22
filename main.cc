@@ -254,15 +254,16 @@ int main(int argc, char** argv) {
     if (option == 4 || option == 5) {
         MachineUnit* m_unit = new RiscV64Unit(&llvmIR);
         m_unit->SelectInstructionAndBuildCFG();
-        
+
         if (option == 5) {
             RiscV64RegisterAllocTools regs;
             FastLinearScan(m_unit, &regs).Execute();
             m_unit->LowerStack();
         }
-        //optimizer
-        MachinePeephole(m_unit).Execute();
 
+        //optimizer
+        //MachinePeephole(m_unit).Execute();
+        
         RiscV64Printer(out, m_unit).emit();
         fclose(input);
         if (output_file) delete &out;
