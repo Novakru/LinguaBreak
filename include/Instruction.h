@@ -423,10 +423,12 @@ public:
     Operand GetOperand1() { return op1; }
     Operand GetOperand2() { return op2; }
     Operand GetResult() override { return result; }
+    void SetType(enum LLVMType newtype) { type = newtype; }
     void SetOperand1(Operand op) { op1 = op; }
     void SetOperand2(Operand op) { op2 = op; }
     void SetResultReg(Operand op) { result = op; }
-    void Setopcode(LLVMIROpcode id) { opcode = id; }
+    void SetOpcode(LLVMIROpcode id) { opcode = id; }
+    ArithmeticInstruction(){}
     ArithmeticInstruction(LLVMIROpcode opcode, enum LLVMType type, Operand op1, Operand op2, Operand result) {
         this->opcode = opcode;
         this->op1 = op1;
@@ -774,17 +776,22 @@ public:
     std::string name;
     Operand init_val;
     VarAttribute arrayval;
-    GlobalVarDefineInstruction(std::string nam, enum LLVMType typ, Operand i_val)
-        : name(nam), type(typ), init_val(i_val) {
+    bool is_const; //源代码中是否声明为常量
+    GlobalVarDefineInstruction(std::string nam, enum LLVMType typ, Operand i_val, bool is_const)
+        : name(nam), type(typ), init_val(i_val),is_const(is_const) {
         this->opcode = LLVMIROpcode::GLOBAL_VAR;
     }
-    GlobalVarDefineInstruction(std::string nam, enum LLVMType typ, VarAttribute v)
-        : name(nam), type(typ), arrayval(v), init_val{nullptr} {
+    GlobalVarDefineInstruction(std::string nam, enum LLVMType typ, VarAttribute v, bool is_const)
+        : name(nam), type(typ), arrayval(v), init_val{nullptr} ,is_const(is_const) {
         this->opcode = LLVMIROpcode::GLOBAL_VAR;
     }
     virtual void PrintIR(std::ostream &s) override;
     Operand GetResult() override { return nullptr; };
-
+    std::string GetName() const { return name; }
+    LLVMType GetDataType() const { return type; }
+    Operand GetInitVal() const { return init_val; }
+    bool IsConst() const { return is_const; }
+    bool IsArray() const { return !arrayval.dims.empty(); }
     
     int GetDefRegno() override;
     std::set<int> GetUseRegno() override;

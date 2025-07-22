@@ -2,6 +2,7 @@
 
 void MachinePeephole::Execute() {
     EliminateRedundantInstructions();
+    //FloatCompFusion();
 }
 
 void MachinePeephole::EliminateRedundantInstructions() {
@@ -10,7 +11,8 @@ void MachinePeephole::EliminateRedundantInstructions() {
     // add x, x, 0  √
     // mul x, x, 1  √
     // sub x, x, 0  √
-    // div x, x, 1
+    // div x, x, 1  √
+    // fmul+fadd / fmul+fsub --> fma/fnma
     for (auto &func : unit->functions) {
         for (auto &block : func->blocks) {
             for (auto it = block->instructions.begin(); it != block->instructions.end();) {
@@ -41,6 +43,7 @@ void MachinePeephole::EliminateRedundantInstructions() {
                         }
                     }
                 }
+
                 //（3）add t0, x0, 1
                 //    mul xxx, xxx,t0     ---> 自身乘1，直接删除两条指令
 
@@ -120,13 +123,56 @@ void MachinePeephole::EliminateRedundantInstructions() {
     }
 }
 
-/*
-TODO：
-- 上述这些,float的补全
-- 其它类型的冗余指令删除
-*/
-/*
-1. addi t0, x0, 0
-   use t0   ---> 直接用x0替换t0  （其他位置用t0的话...） 【必须要用数据流信息】
+void MachinePeephole::FloatCompFusion(){
+    for (auto &func : unit->functions) {
+        for (auto &block : func->blocks) {
+            for (auto it = block->instructions.begin(); it != block->instructions.end();) {
+                auto inst = (RiscV64Instruction*)(*it);
 
-*/
+                //（5）fma /fnma
+                if(inst ->getOpcode() == RISCV_FMUL_S){
+                    auto next_it = std::next(it);
+                    if (next_it != block->instructions.end()) {
+                        auto next_inst = (RiscV64Instruction*)(*next_it);
+                        if(next_inst->getOpcode() == RISCV_FADD_S || next_inst->getOpcode() == RISCV_FSUB_S) {
+                            if(next_inst->getRs2().reg_no == inst->getRd().reg_no) {
+                                RiscV64Instruction *fma_inst = new RiscV64Instruction();
+                                if(next_inst->getOpcode() == RISCV_FADD_S) {
+                                    fma_inst->setOpcode(RISCV_FMADD_S,false);
+                                } else {
+                                    fma_inst->setOpcode(RISCV_FNMADD_S,false);
+                                }
+                                fma_inst->setRd(next_inst->getRd());
+                                fma_inst->setRs1(inst->getRs1());
+                                fma_inst->setRs2(inst->getRs2());
+                                fma_inst->setRs3(next_inst->getRs1());
+
+                                it = block->instructions.erase(it);
+                                *it = fma_inst;
+                                ++it;
+                                continue;
+                            }else if(next_inst->getRs1().reg_no == inst->getRd().reg_no){
+                                RiscV64Instruction *fma_inst = new RiscV64Instruction();
+                                if(next_inst->getOpcode() == RISCV_FADD_S) {
+                                    fma_inst->setOpcode(RISCV_FMADD_S,false);
+                                } else {
+                                    fma_inst->setOpcode(RISCV_FMSUB_S,false);
+                                }
+                                fma_inst->setRd(next_inst->getRd());
+                                fma_inst->setRs1(inst->getRs1());
+                                fma_inst->setRs2(inst->getRs2());
+                                fma_inst->setRs3(next_inst->getRs1());
+
+                                it = block->instructions.erase(it);
+                                *it = fma_inst;
+                                ++it;
+                                continue;
+                            }
+                        }
+                    }
+                }
+                ++it;
+            }
+        }
+    }
+}
