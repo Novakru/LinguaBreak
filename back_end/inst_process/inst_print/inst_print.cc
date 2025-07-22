@@ -63,6 +63,13 @@ template <> void RiscV64Printer::printRVfield<MachineBaseOperand *>(MachineBaseO
 
 template <> void RiscV64Printer::printAsm<MachineBaseInstruction *>(MachineBaseInstruction *ins);
 template <> void RiscV64Printer::printAsm<RiscV64Instruction *>(RiscV64Instruction *ins) {
+    // First, handle pseudo-instructions that don't have an OpTable entry.
+    if (ins->arch == MachineBaseInstruction::LOCAL_LABEL) {
+        s << ins->getLocalLabelId() << ":";
+        return; // This is just a label, print and exit.
+    }
+
+    // Now we know it's a real RiscV instruction, so it's safe to access OpTable.
     s << OpTable.at(ins->getOpcode()).name << "\t\t";
     if (strlen(OpTable.at(ins->getOpcode()).name) <= 3) {
         s << "\t";
@@ -99,13 +106,21 @@ template <> void RiscV64Printer::printAsm<RiscV64Instruction *>(RiscV64Instructi
             printRVfield(ins->getRs1());
             s << ",";
             if (ins->getUseLabel()) {
-                printRVfield(ins->getLabel());
+                if (ins->getRelocType() == PCREL_LO) {
+                    s << "%pcrel_lo(" << ins->getLocalLabelId() << "b)";
+                } else {
+                    printRVfield(ins->getLabel());
+                }
             } else {
                 s << ins->getImm();
             }
         } else {
             if (ins->getUseLabel()) {
-                printRVfield(ins->getLabel());
+                if (ins->getRelocType() == PCREL_LO) {
+                    s << "%pcrel_lo(" << ins->getLocalLabelId() << "b)";
+                } else {
+                    printRVfield(ins->getLabel());
+                }
             } else {
                 s << ins->getImm();
             }
@@ -118,7 +133,11 @@ template <> void RiscV64Printer::printAsm<RiscV64Instruction *>(RiscV64Instructi
         printRVfield(ins->getRs1());
         s << ",";
         if (ins->getUseLabel()) {
-            printRVfield(ins->getLabel());
+            if (ins->getRelocType() == PCREL_LO) {
+                s << "%pcrel_lo(" << ins->getLocalLabelId() << "b)";
+            } else {
+                printRVfield(ins->getLabel());
+            }
         } else {
             s << ins->getImm();
         }
@@ -143,6 +162,9 @@ template <> void RiscV64Printer::printAsm<RiscV64Instruction *>(RiscV64Instructi
         if (ins->getUseLabel()) {
 			if(ins->getOpcode() == RISCV_LA) 
 				s << ins->getLabel().get_data_name();
+			else if (ins->getRelocType() == PCREL_HI) {
+                s << "%pcrel_hi(" << ins->getLabel().get_data_name() << ")";
+            }
 			else 
 				printRVfield(ins->getLabel());
         } else {
@@ -191,6 +213,11 @@ template <> void RiscV64Printer::printAsm<MachineBaseInstruction *>(MachineBaseI
     } else if (ins->arch == MachineBaseInstruction::PHI) {
         printAsm<MachinePhiInstruction *>((MachinePhiInstruction *)ins);
         return;
+    } else if (ins->arch == MachineBaseInstruction::LOCAL_LABEL) {
+        // This case is handled inside printAsm<RiscV64Instruction*>, 
+        // but we need to call it to print the label.
+        printAsm<RiscV64Instruction *>((RiscV64Instruction *)ins);
+        return;
     } else {
         //ERROR("Unknown Instruction");
         return;
@@ -222,6 +249,10 @@ void RiscV64Printer::emit() {
                 } else if (ins->arch == MachineBaseInstruction::PHI) {
                     s << "\t";
                     printAsm((MachinePhiInstruction *)ins);
+                    s << "\n";
+                } else if (ins->arch == MachineBaseInstruction::LOCAL_LABEL) {
+                    // Local labels don't need indentation
+                    printAsm((RiscV64Instruction *)ins);
                     s << "\n";
                 } else {
                     //ERROR("Unexpected arch");

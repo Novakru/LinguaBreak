@@ -237,7 +237,6 @@ int main(int argc, char** argv) {
 		LoopInvariantCodeMotionPass(&llvmIR, &aa).Execute();
         SimplifyCFGPass(&llvmIR).TOPPhi();
 		SimplifyCFGPass(&llvmIR).EOBB();  
-
         SimplifyCFGPass(&llvmIR).MergeBlocks();
     
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
