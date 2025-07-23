@@ -116,9 +116,9 @@ private:
 
     friend class RiscV64InstructionConstructor;
 
+public:
     RiscV64Instruction() : MachineBaseInstruction(MachineBaseInstruction::RiscV), imm(0), use_label(false), reloc_type(NONE), local_label_id(-1) {}
 
-public:
     RiscV64Instruction(int id) : MachineBaseInstruction(MachineBaseInstruction::LOCAL_LABEL), local_label_id(id) {} // For LOCAL_LABEL
     void setOpcode(int op, bool use_label) {
         this->op = op;

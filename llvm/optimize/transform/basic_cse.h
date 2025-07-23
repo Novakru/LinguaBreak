@@ -13,7 +13,7 @@
 struct InstCSEInfo {
     int opcode;                        // 指令操作码
     std::vector<std::string> operand_list; // 操作数字符串列表
-    
+    int cond = -1;                   // 比较条件（默认-1表示无效）
     // 比较CSE是否相同
     bool operator<(const InstCSEInfo &other) const;
 };
@@ -59,26 +59,34 @@ class DomTreeCSEOptimizer {
 private:
     CFG* C;
     bool changed;
+    bool branch_changed;
     std::set<Instruction> eraseSet;
     std::map<InstCSEInfo, int> instCSEMap;
     //std::map<InstCSEInfo, std::vector<Instruction>> loadCSEMap;
     std::map<int, int> regReplaceMap;
-    DomAnalysis *domtrees;
+    //DomAnalysis *domtrees;
+    std::map<InstCSEInfo, std::vector<Instruction>> CmpMap; // cmp信息映射
 
 public:
-    DomTreeCSEOptimizer(CFG* cfg) : C(cfg), changed(true) {}
+    DomTreeCSEOptimizer(CFG* cfg) : C(cfg), changed(true),branch_changed(true) {}
     void optimize();
-
+    void branch_optimize();
+    void branch_end();
 private:
     void dfs(int bbid);
+    void branch_dfs(int bbid);
     void processLoadInstruction(LoadInstruction* loadI, std::map<InstCSEInfo, int>& tmpLoadNumMap);
     void processStoreInstruction(StoreInstruction* storeI, std::map<InstCSEInfo, int>& tmpLoadNumMap);
     void processCallInstruction(CallInstruction* callI);
+    void processIcmpInstruction(IcmpInstruction* I,std::set<InstCSEInfo>& cmpCseSet);
+    void processFcmpInstruction(FcmpInstruction* I,std::set<InstCSEInfo>& cmpCseSet);
     void processRegularInstruction(BasicInstruction* I, std::set<InstCSEInfo>& tmpCSESet);
     //void cleanupTemporaryEntries(const std::set<InstCSEInfo>& tmpCSESet,const std::map<InstCSEInfo, int>& tmpLoadNumMap);
-    void cleanupTemporaryEntries(const std::set<InstCSEInfo>& tmpCSESet);
+    //void cleanupTemporaryEntries(const std::set<InstCSEInfo>& regularCSESet,const std::set<InstCSEInfo>& CmpCseSet);
+    void cleanupTemporaryEntries(const std::set<InstCSEInfo>& regularCSESet);
     void removeDeadInstructions();
     void applyRegisterReplacements();
+    bool EmptyBlockJumping(CFG *C);
 };
 
 class SimpleCSEPass : public IRPass { 
@@ -94,5 +102,19 @@ public:
     void SimpleBlockCSE(CFG* cfg);
     void SimpleDomTreeWalkCSE(CFG* C);
 };
+// class BranchCSEPass : public IRPass { 
+// private:
+//     DomAnalysis *domtrees;
+//     void branch_dfs(CFG *C,int bbid);
+//     std::map<InstCSEInfo, std::vector<Instruction>> CmpMap;
+//     bool changed ;  // 循环优化标志
+//     void cleanupTemporaryEntries(const std::set<InstCSEInfo>& cmpCSESet);
+//     void branch_end(CFG* C);
+//     void cse_init(CFG *C);
+// public:
+//     BranchCSEPass(LLVMIR *IR, DomAnalysis *dom) : IRPass(IR),changed(true) { domtrees = dom; }
+//     void Execute();
+//     void BranchCSE(CFG *C);
+// };
 
 #endif

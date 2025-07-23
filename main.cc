@@ -27,6 +27,7 @@
 #include "llvm/optimize/transform/loopSimplify.h"
 #include "llvm/optimize/transform/loopRotate.h"
 #include "llvm/optimize/transform/basic_cse.h"
+#include "llvm/optimize/transform/strengthreduce.h"
 
 
 //-target
@@ -224,8 +225,10 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         SimplifyCFGPass(&llvmIR).EOBB();   
         //---
-        SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree cse
-		
+        SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree+branch cse
+        SimplifyCFGPass(&llvmIR).EOBB();
+        SimplifyCFGPass(&llvmIR).RebuildCFG();//重建cfg
+        //从这之后注释
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
@@ -239,8 +242,8 @@ int main(int argc, char** argv) {
 		LoopInvariantCodeMotionPass(&llvmIR, &aa).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
-		// SimplifyCFGPass(&llvmIR).EOBB();  
-        // SimplifyCFGPass(&llvmIR).MergeBlocks();
+		SimplifyCFGPass(&llvmIR).EOBB();  
+        SimplifyCFGPass(&llvmIR).MergeBlocks();
     
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }
@@ -256,15 +259,16 @@ int main(int argc, char** argv) {
     if (option == 4 || option == 5) {
         MachineUnit* m_unit = new RiscV64Unit(&llvmIR);
         m_unit->SelectInstructionAndBuildCFG();
-        
+
         if (option == 5) {
             RiscV64RegisterAllocTools regs;
             FastLinearScan(m_unit, &regs).Execute();
             m_unit->LowerStack();
         }
+
         //optimizer
         MachinePeephole(m_unit).Execute();
-
+        
         RiscV64Printer(out, m_unit).emit();
         fclose(input);
         if (output_file) delete &out;

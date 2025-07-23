@@ -49,6 +49,8 @@ private:
     void visit_phi(CFG* cfg, PhiInstruction* phi , int block_id);
     void visit_other_operations(CFG* cfg,Instruction inst , int block_id);
 
+    void ConstGlobalReplace();
+
 public:
     SCCPPass(LLVMIR *IR) : IRPass(IR) {}
     void Execute();

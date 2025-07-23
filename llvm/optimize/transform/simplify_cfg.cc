@@ -1,7 +1,7 @@
 #include "simplify_cfg.h"
 #include "mem2reg.h"
 #include "assert.h"
-
+#include <stack>
 void SimplifyCFGPass::Execute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         EliminateUnreachedBlocksInsts(cfg);
@@ -9,6 +9,7 @@ void SimplifyCFGPass::Execute() {
 }
 void SimplifyCFGPass::EOBB() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+        EliminateUnreachedBlocksInsts(cfg);
         EliminateOneBrUncondBlocks(cfg);//含重建CFG
         //重建支配树 （正向）
         delete DomInfo[cfg];

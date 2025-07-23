@@ -322,7 +322,6 @@ void RiscV64Unit::LowerStack()
                         }
                     }
                 }
-
                 for (auto reg : ins->GetReadReg())
                 {
                     if (!reg->is_virtual && RegNeedSaved[reg->reg_no] && !RegVisited[reg->reg_no])
@@ -357,7 +356,6 @@ void RiscV64Unit::LowerStack()
         }
         //3.增加大小（到这里）
         func->AddStackSize(saveregnum*8);
-
         //2.恢复栈空间
         auto mcfg = func->getMachineCFG(); // 获取函数的机器控制流图
         bool restore_at_beginning = (-8 + func->GetStackSize()) >= 2048; // 如果函数栈空间太大，需要在开始时恢复寄存器
@@ -370,6 +368,8 @@ void RiscV64Unit::LowerStack()
         // }
 
          for (auto &b : func->blocks) {
+            //if(b->getLabelId()==26){continue;}
+            //std::cout<<"func->blocks:"<<b->getLabelId()<<"\n";
             cur_block = b;
             if (b->getLabelId() == 0) {
                 if (func->GetStackSize() <= 2032) {
