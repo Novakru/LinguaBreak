@@ -89,6 +89,7 @@ enum RISCV_INST {
     RISCV_FDIV_D,
     RISCV_FSQRT_S,
     RISCV_FSQRT_D,
+
     RISCV_FMADD_S,
     RISCV_FMADD_D,
     RISCV_FMSUB_S,
@@ -97,6 +98,7 @@ enum RISCV_INST {
     RISCV_FNMSUB_D,
     RISCV_FNMADD_S,
     RISCV_FNMADD_D,
+    
     RISCV_FSGNJ_S,
     RISCV_FSGNJ_D,
     RISCV_FSGNJN_S,
@@ -175,7 +177,7 @@ struct RvOpInfo {
     int latency;    // sifive-u74上的硬件指令延迟, 可以用于指令调度优化, 如果你不打算实现该优化可以忽略
 };
 
-enum {
+enum PhysicalRegister {
     RISCV_x0,
     RISCV_x1,
     RISCV_x2,
@@ -243,7 +245,7 @@ enum {
     RISCV_INVALID,
     RISCV_spilled_in_memory,
 };
-enum {
+enum VirtualRegister {
     RISCV_ra = RISCV_x1,
     RISCV_sp = RISCV_x2,
     RISCV_gp = RISCV_x3,

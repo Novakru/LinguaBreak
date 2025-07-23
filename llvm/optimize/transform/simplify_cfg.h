@@ -19,6 +19,7 @@ public:
 
     void Execute();//消除不可达块
     void EOBB(); //消除只有一条无条件跳转指令的基本块【自带重建CFG】
+    void MergeBlocks();//合并通过br_uncond相连的多个连续基本块
     void EOPPhi();//删除无用phi指令（得到了单前驱phi，这些phi得到的result都没用了，连带后续均删除）【专用于SCCP等】
     void TOPPhi();//将有用的单前驱phi指令删除，将前驱值通过use_map赋值给后续用到的指令；如果你得到了单前驱Phi,但此赋值关系有必要保留，使用这个
 

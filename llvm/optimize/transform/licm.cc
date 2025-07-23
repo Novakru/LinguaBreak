@@ -209,7 +209,7 @@ bool LoopInvariantCodeMotionPass::isInvariant(Instruction inst, Loop* loop, CFG*
         case BasicInstruction::LLVMIROpcode::RET:
         case BasicInstruction::LLVMIROpcode::PHI:
             return false;
-		case BasicInstruction::LLVMIROpcode::STORE:
+		// case BasicInstruction::LLVMIROpcode::STORE:
 		// case BasicInstruction::LLVMIROpcode::LOAD:
 		// case BasicInstruction::LLVMIROpcode::CALL:
 			return false;
@@ -242,7 +242,8 @@ bool LoopInvariantCodeMotionPass::dominatesAllExits(LLVMBlock bb, Loop* loop, Do
     return true;
 }
 
-/* 1. 对于 store 指令， 暂时不进行优化 ( 需要结合 hoist、 sink )
+/* 前文确保了 store 的值是循环不变的
+   1. 对于 store 指令， 需要保证读取的 ptr 和循环内所有写指令的 mod ptr 不产生别名
    2. 对于 load 指令， 需要保证读取的 ptr 和循环内所有写指令的 mod ptr 不产生别名
    3. 对于 call 指令，需要保证以下三点：
       3.1 非外部函数调用 (动态链接库)
@@ -250,9 +251,52 @@ bool LoopInvariantCodeMotionPass::dominatesAllExits(LLVMBlock bb, Loop* loop, Do
 	  3.3 loop call func, func 需要保证读入的 ptr 和 loop 内的所有写指令的 mod ptr 不产生别名
 */
 bool LoopInvariantCodeMotionPass::canHoistWithAlias(Instruction inst, Loop* loop, CFG* cfg) {
-    // 1. store指令不做提升
-    if (dynamic_cast<StoreInstruction*>(inst)) {
-        return false;
+    /*
+    store外提判定：
+    1. 存入的地址（指针）必须是循环外或循环不变量（即其定义已外提）。
+    2. 存入的值必须是常量或循环不变量。
+    3. 循环内所有写指令（store/call）都不能与本store的地址must-alias。
+    */
+    if (auto store = dynamic_cast<StoreInstruction*>(inst)) {
+        Operand storePtr = store->GetPointer();
+        Operand storeVal = store->GetValue();
+
+        // (1) 存入的地址必须是循环外或循环不变量
+        if (inloop_defs.count(storePtr) && !eraseInsts.count(inloop_defs[storePtr])) return false;
+
+        // (2) 存入的值必须是常量或循环不变量
+        if (storeVal->GetOperandType() == BasicOperand::REG) {
+            if (inloop_defs.count(storeVal) && !eraseInsts.count(inloop_defs[storeVal])) return false;
+        }
+
+        // (3) 检查循环内所有写指令，不能有must-alias
+        for (auto writeInst : writeInsts) {
+            if (writeInst == inst) continue;
+            Operand writePtr = nullptr;
+            if (auto store2 = dynamic_cast<StoreInstruction*>(writeInst)) {
+                writePtr = store2->GetPointer();
+            } else if (auto call = dynamic_cast<CallInstruction*>(writeInst)) {
+                // call指令的写指针集合
+                auto callFuncName = call->GetFunctionName();
+                if (cfgTable.find(callFuncName) != cfgTable.end()) {
+                    auto callCfg = cfgTable[callFuncName];
+                    auto& rwmap = aa->GetRWMap();
+                    auto it = rwmap.find(callCfg);
+                    if (it != rwmap.end()) {
+                        for (const auto& modPtr : it->second.WriteRoots) {
+                            if (aa->QueryAlias(storePtr, modPtr, cfg) == MustAlias) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                continue;
+            }
+            if (writePtr && aa->QueryAlias(storePtr, writePtr, cfg) == MustAlias) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // 2. load指令

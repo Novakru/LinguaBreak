@@ -21,16 +21,11 @@ class MachineCFG;
 class MachineBlock {
 private:
     int label_id;
-
-protected:
-    std::list<MachineBaseInstruction *> instructions;
-    
-
 private:
     MachineFunction *parent;
 
 public:
-
+    std::list<MachineBaseInstruction *> instructions;
     int loop_depth = 0;
     virtual std::list<MachineBaseInstruction *>::iterator getInsertBeforeBrIt() = 0;
     decltype(instructions) &GetInsList() { return instructions; }
@@ -159,8 +154,6 @@ public:
     
     std::vector<std::vector<MachineCFGNode *>> G{}, invG{};
     int max_label;
-
-   
 
      // 用于 DFS 的状态变量
      std::map<int, int> dfs_visited;

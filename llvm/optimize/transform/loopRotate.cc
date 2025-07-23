@@ -1,16 +1,42 @@
 #include "loopRotate.h"
 using LLVMIROpcode = BasicInstruction::LLVMIROpcode;
 
+// #define ZeroInvarientVarLoopNotRotate
+
 void LoopRotate::Execute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
 		LoopInfo* loopInfo = cfg->getLoopInfo();
 		DominatorTree* dt = cfg->getDomTree();
 		if(((FunctionDefineInstruction*)defI)->GetFunctionName() == "spmv") // bug: 暂时没调出04_spmv.sy
 			continue;
+
+		#ifdef ZeroInvarientVarLoopNotRotate
+		for (auto loop : loopInfo->getTopLevelLoops()) {
+			calcInvarientVarNumber(loop, cfg);
+		}
+		#endif
+
 		for (auto loop : loopInfo->getTopLevelLoops()) {
 			rotateLoop(loop, dt, cfg);
 		}
     }
+}
+
+void LoopRotate::calcInvarientVarNumber(Loop* loop, CFG* cfg) {
+    for (auto sub : loop->getSubLoops()) {
+        calcInvarientVarNumber(sub, cfg);
+    }
+	licm_pass.getInloopDefUses(loop);
+	licm_pass.getInloopWriteInsts(loop);
+	int count = 0;
+	for (auto bb : loop->getBlocks()) {
+		for (auto inst : bb->Instruction_list) {
+			if (licm_pass.isInvariant(inst, loop, cfg)) {
+				count++;
+			}
+		}
+	}
+	loop2invariantCount[loop] = count;
 }
 
 void LoopRotate::rotateLoop(Loop* loop, DominatorTree* dt, CFG* cfg) {
@@ -49,6 +75,13 @@ bool LoopRotate::canRotate(Loop* loop, CFG* cfg) {
 	if (cfg->GetPredecessor(latch).size() > 1) {
 		return false;
 	}
+
+	// 检查循环不变量数量, 无循环不变量时不做 loopRotate
+	#ifdef ZeroInvarientVarLoopNotRotate
+    if (loop2invariantCount[loop] == 0) {
+        return false;
+    }
+	#endif
 
 	return true;
 }

@@ -659,7 +659,53 @@ void SCCPPass::visit_other_operations(CFG* cfg,Instruction inst, int block_id){
     return ;
 }
 
+void SCCPPass::ConstGlobalReplace() {
+    // 若有Const的全局变量，直接用立即数替换代码
+    std::unordered_map<std::string,Operand> global_const_map;
+    for (auto &defI : llvmIR->global_def) {
+        if(defI->GetOpcode() == BasicInstruction::LLVMIROpcode::GLOBAL_VAR){
+            GlobalVarDefineInstruction* global_var = (GlobalVarDefineInstruction*)defI;
+            if(global_var->IsConst()&&!global_var->IsArray()){
+                std::string var_name = global_var->GetName();
+                global_const_map[var_name] = global_var->GetInitVal();
+            }
+        }
+    }
+
+    for(auto &[defI,cfg]:llvmIR->llvm_cfg){
+        for(auto &block:*(cfg->block_map)){
+            for(auto &inst:block.second->Instruction_list){
+                if(inst->GetOpcode() == BasicInstruction::LLVMIROpcode::LOAD){
+                    LoadInstruction* load_inst = (LoadInstruction*)inst;
+                    if(load_inst->GetPointer()->GetOperandType() == BasicOperand::GLOBAL){
+                        std::string var_name = ((GlobalOperand*)load_inst->GetPointer())->GetName();
+                        if(global_const_map.count(var_name)){
+                            //如果是加载一个全局常量，则直接替换为立即数
+                            Operand const_value = global_const_map[var_name];
+
+                            auto new_inst = new ArithmeticInstruction();
+                            if(const_value->GetOperandType() == BasicOperand::IMMI32){
+                                new_inst->SetOpcode(BasicInstruction::LLVMIROpcode::ADD);
+                                new_inst->SetType(BasicInstruction::I32);
+                                new_inst->SetOperand1(new ImmI32Operand(((ImmI32Operand*)const_value)->GetIntImmVal()));
+                                new_inst->SetOperand2(new ImmI32Operand(0));
+                            }else if(const_value->GetOperandType() == BasicOperand::IMMF32){    
+                                new_inst->SetOpcode(BasicInstruction::LLVMIROpcode::FADD);
+                                new_inst->SetType(BasicInstruction::FLOAT32);
+                                new_inst->SetOperand1(new ImmF32Operand(((ImmF32Operand*)const_value)->GetFloatVal()));
+                                new_inst->SetOperand2(new ImmF32Operand(0));
+                            }
+                            new_inst->SetResult(GetNewRegOperand(load_inst->GetDefRegno()));
+                            inst = new_inst; // 替换原来的load指令
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 void SCCPPass::Execute() {
+    ConstGlobalReplace();
     SCCP();
 }

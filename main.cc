@@ -26,6 +26,7 @@
 #include "llvm/optimize/transform/loopSimplify.h"
 #include "llvm/optimize/transform/loopRotate.h"
 #include "llvm/optimize/transform/basic_cse.h"
+#include "llvm/optimize/transform/strengthreduce.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -222,21 +223,25 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         SimplifyCFGPass(&llvmIR).EOBB();   
         //---
-        SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree cse
+        SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree+branch cse
         SimplifyCFGPass(&llvmIR).EOBB();
         SimplifyCFGPass(&llvmIR).RebuildCFG();//重建cfg
-		// LoopAnalysisPass(&llvmIR).Execute();
-		// LoopSimplifyPass(&llvmIR).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
-		// LoopRotate(&llvmIR).Execute();
-		// LoopAnalysisPass(&llvmIR).Execute();
-		// LoopSimplifyPass(&llvmIR).Execute();
-		// AliasAnalysisPass aa(&llvmIR); 
-		// aa.Execute();
-		// LoopInvariantCodeMotionPass(&llvmIR, &aa).Execute();
-        // SimplifyCFGPass(&llvmIR).TOPPhi();
-		// SimplifyCFGPass(&llvmIR).EOBB();  
-        
+        //从这之后注释
+		LoopAnalysisPass(&llvmIR).Execute();
+		LoopSimplifyPass(&llvmIR).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
+		AliasAnalysisPass AA(&llvmIR); 
+		AA.Execute();
+		LoopRotate(&llvmIR, &AA).Execute();
+		LoopAnalysisPass(&llvmIR).Execute();
+		LoopSimplifyPass(&llvmIR).Execute();
+		AliasAnalysisPass aa(&llvmIR); 
+		aa.Execute();
+		LoopInvariantCodeMotionPass(&llvmIR, &aa).Execute();
+        SimplifyCFGPass(&llvmIR).TOPPhi();
+		SimplifyCFGPass(&llvmIR).EOBB();  
+        SimplifyCFGPass(&llvmIR).MergeBlocks();
+        StrengthReducePass(&llvmIR).Execute();
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }
 
@@ -251,15 +256,16 @@ int main(int argc, char** argv) {
     if (option == 4 || option == 5) {
         MachineUnit* m_unit = new RiscV64Unit(&llvmIR);
         m_unit->SelectInstructionAndBuildCFG();
-        
+
         if (option == 5) {
             RiscV64RegisterAllocTools regs;
             FastLinearScan(m_unit, &regs).Execute();
             m_unit->LowerStack();
         }
+
         //optimizer
         MachinePeephole(m_unit).Execute();
-
+        
         RiscV64Printer(out, m_unit).emit();
         fclose(input);
         if (output_file) delete &out;
