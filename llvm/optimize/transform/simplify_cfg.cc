@@ -561,15 +561,4 @@ void SimplifyCFGPass::MergeBlocks() {
             }
         }
     }
-
-	// 重建CFG（遍历cfg，重建G与invG)
-	DomInfo.clear();
-	llvmIR->CFGInit();
-	for (auto &[defI,cfg] : llvmIR->llvm_cfg) {
-		//重建支配树 （正向）
-		delete DomInfo[cfg];
-		DomInfo[cfg] = new DominatorTree(cfg);
-		DomInfo[cfg]->BuildDominatorTree(false);
-		cfg->DomTree = DomInfo[cfg]; 
-	}
 }
