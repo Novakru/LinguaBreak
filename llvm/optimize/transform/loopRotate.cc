@@ -170,10 +170,38 @@ void LoopRotate::fixPhi(Loop* loop, CFG* cfg, LLVMBlock exit_bb) {
 	}
 	
 	// 将 header 的 phi 指令复制到 exit，保持原始结果寄存器
+	// 注意：如果 header 的 phi 指令之间有引用关系（如 %r99 的输入是 %r97），
+	// 在 exit block 新建 phi 时，必须将输入替换为 header 新建的 phi（如 %r111、%r112），
+	// 否则会导致 SSA 违规（Instruction does not dominate all uses!）。
+	// 例如：
+	// header:
+	//   %r99 = phi i32 [%r97, %L9], [%r116, %L12]
+	//   %r97 = phi i32 [%r97, %L9], [%r117, %L12]
+	// header 新建：
+	//   %r111 = phi i32 [%r112, %L9], [%r116, %L12]
+	//   %r112 = phi i32 [%r112, %L9], [%r117, %L12]
+	// exit block 正确写法：
+	//   %r99 = phi i32 [%r111, %L9], [%r116, %L12]
+	//   %r97 = phi i32 [%r112, %L9], [%r117, %L12]
+	// 错误写法（直接用原 header phi）：
+	//   %r99 = phi i32 [%r97, %L9], [%r116, %L12]
+	//   %r97 = phi i32 [%r97, %L9], [%r117, %L12]
+	// 这样会导致 %r99 在某些路径上引用未定义的 %r97，SSA 违规。
 	for (auto phi_inst : header_phi_instructions) {
 		auto original_phi = (PhiInstruction*)phi_inst;
 		auto phi_list = original_phi->GetPhiList();
-		
+
+		// 修正 phi_list 中的 value，如果引用 header phi，需替换为新建的 phi
+		for (auto& [pred, value] : phi_list) {
+			// 检查 value 是否为 header phi 的结果，如果是，替换为新 phi
+			for (auto& [old_reg, new_reg] : phi_replacements) {
+				if (value == old_reg) {
+					value = new_reg;
+					break;
+				}
+			}
+		}
+
 		// 获取原始结果寄存器（在重命名之前的）
 		Operand original_result = nullptr;
 		for (auto& [old_reg, new_reg] : phi_replacements) {
@@ -182,8 +210,8 @@ void LoopRotate::fixPhi(Loop* loop, CFG* cfg, LLVMBlock exit_bb) {
 				break;
 			}
 		}
-		
-		// 创建新的 phi 指令，使用原始的 phi_list 和原始结果寄存器
+
+		// 创建新的 phi 指令，使用修正后的 phi_list 和原始结果寄存器
 		auto new_phi_inst = new PhiInstruction(original_phi->GetResultType(), original_result, phi_list);
 		exit_phi_instructions.push_back(new_phi_inst);
 	}

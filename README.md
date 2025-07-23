@@ -53,6 +53,7 @@ sudo ./generate_cfg.sh
 
 ### OutPut Error 段错误相关
 OutPut Error 段错误相关, 可以借助如下命令行指令获取具体的错误位置
+对于流图无法绘制的情况，下列指令也可以很好的查到
 ``` bash
 llvm-as-18 test_output/example/temp.out.ll
 ```
