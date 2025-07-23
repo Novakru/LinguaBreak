@@ -15,9 +15,9 @@
 #include <vector>
 #include <unordered_map>
 
-
 class DominatorTree;
 class LoopInfo;
+class ScalarEvolution;
 
 class CFG {
 public:
@@ -43,6 +43,7 @@ public:
     void* PostDomTree;
 
 	void* loopInfo;
+	void* SCEVInfo;
 
     void SearchB(LLVMBlock B); // 辅助函数
     void BuildCFG();
@@ -56,6 +57,7 @@ public:
 
 	LoopInfo* getLoopInfo() { return (LoopInfo*)loopInfo; }
 	DominatorTree* getDomTree() { return (DominatorTree*)DomTree; }
+	ScalarEvolution* getSCEVInfo() { return (ScalarEvolution*)SCEVInfo; }
 
 	LLVMBlock GetNewBlock();
 	LLVMBlock GetBlockWithId(int id);
@@ -63,6 +65,8 @@ public:
 	void replaceSuccessor(LLVMBlock from, LLVMBlock to, LLVMBlock mid);
 	void addEdge(LLVMBlock from, LLVMBlock to);
 	void delEdge(LLVMBlock from, LLVMBlock to);
+
+	void reSetBlockID();
 
 	void display(bool reverse = false);
 };

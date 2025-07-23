@@ -351,3 +351,11 @@ void CFG::display(bool reverse) {
     }
     std::cout << "=== End of Control Flow Graph ===\n" << std::endl;
 }
+
+void CFG::reSetBlockID() {
+    for (auto& [block_id, block] : *block_map) {
+        for (Instruction inst : block->Instruction_list) {
+            inst->SetBlockID(block_id);
+        }
+    }
+}

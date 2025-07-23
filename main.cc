@@ -13,6 +13,7 @@
 #include "llvm/optimize/analysis/loopAnalysis.h"
 #include "llvm/optimize/analysis/dominator_tree.h"
 #include "llvm/optimize/analysis/AliasAnalysis.h"
+#include "llvm/optimize/analysis/ScalarEvolution.h"
 
 #include "llvm/optimize/transform/simplify_cfg.h"
 #include "llvm/optimize/transform/mem2reg.h"
@@ -26,6 +27,7 @@
 #include "llvm/optimize/transform/loopSimplify.h"
 #include "llvm/optimize/transform/loopRotate.h"
 #include "llvm/optimize/transform/basic_cse.h"
+
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -235,9 +237,10 @@ int main(int argc, char** argv) {
 		AliasAnalysisPass aa(&llvmIR); 
 		aa.Execute();
 		LoopInvariantCodeMotionPass(&llvmIR, &aa).Execute();
-        SimplifyCFGPass(&llvmIR).TOPPhi();
-		SimplifyCFGPass(&llvmIR).EOBB();  
-        SimplifyCFGPass(&llvmIR).MergeBlocks();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
+		SCEVPass(&llvmIR).Execute();
+		// SimplifyCFGPass(&llvmIR).EOBB();  
+        // SimplifyCFGPass(&llvmIR).MergeBlocks();
     
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }
