@@ -509,6 +509,7 @@ public:
     int CompConst(int value1, int value2);
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { result = op; }
+    IcmpCond GetCompareCondition() { return cond; }
 };
 
 //<result>=fcmp <cond> <ty> <op1>,<op2>
@@ -556,6 +557,7 @@ public:
     float CompConst(float value1,float value2);
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { result = op; }
+    FcmpCond GetCompareCondition() { return cond; }
 };
 
 // phi syntax:

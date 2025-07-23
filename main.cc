@@ -223,18 +223,19 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).EOBB();   
         //---
         SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree cse
-		
-		LoopAnalysisPass(&llvmIR).Execute();
-		LoopSimplifyPass(&llvmIR).Execute();
-		SimplifyCFGPass(&llvmIR).TOPPhi();
-		LoopRotate(&llvmIR).Execute();
-		LoopAnalysisPass(&llvmIR).Execute();
-		LoopSimplifyPass(&llvmIR).Execute();
-		AliasAnalysisPass aa(&llvmIR); 
-		aa.Execute();
-		LoopInvariantCodeMotionPass(&llvmIR, &aa).Execute();
-        SimplifyCFGPass(&llvmIR).TOPPhi();
-		SimplifyCFGPass(&llvmIR).EOBB();  
+        SimplifyCFGPass(&llvmIR).EOBB();
+        SimplifyCFGPass(&llvmIR).RebuildCFG();//重建cfg
+		// LoopAnalysisPass(&llvmIR).Execute();
+		// LoopSimplifyPass(&llvmIR).Execute();
+		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		// LoopRotate(&llvmIR).Execute();
+		// LoopAnalysisPass(&llvmIR).Execute();
+		// LoopSimplifyPass(&llvmIR).Execute();
+		// AliasAnalysisPass aa(&llvmIR); 
+		// aa.Execute();
+		// LoopInvariantCodeMotionPass(&llvmIR, &aa).Execute();
+        // SimplifyCFGPass(&llvmIR).TOPPhi();
+		// SimplifyCFGPass(&llvmIR).EOBB();  
         
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }
