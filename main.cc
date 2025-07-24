@@ -26,7 +26,7 @@
 #include "llvm/optimize/transform/loopSimplify.h"
 #include "llvm/optimize/transform/loopRotate.h"
 #include "llvm/optimize/transform/basic_cse.h"
-#include "llvm/optimize/transform/loopstrengthreduce.h"
+#include "llvm/optimize/transform/strengthreduce.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"

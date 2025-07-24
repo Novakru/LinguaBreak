@@ -6,7 +6,7 @@
 class StrengthReducePass : public IRPass { 
 private:
     void ScalarReduce();
-
+    void LoopStrengthReduce();
 public:
     StrengthReducePass(LLVMIR *IR) : IRPass(IR) {}
     void Execute();
