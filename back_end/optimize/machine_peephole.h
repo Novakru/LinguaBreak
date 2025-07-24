@@ -6,6 +6,8 @@ class MachinePeephole : MachinePass {
     void EliminateRedundantInstructions() ;
     // 浮点指令合并 - fmul+fadd / fmul+fsub --> fma/fnma
     void FloatCompFusion();
+    // 标量强度削弱
+    void ScalarStrengthReduction() ;
 public:
     MachinePeephole(MachineUnit *unit) : MachinePass(unit) {}
     void Execute();

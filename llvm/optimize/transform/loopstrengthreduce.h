@@ -1,5 +1,5 @@
-#ifndef STRENGTHREDUCE_H
-#define STRENGTHREDUCE_H
+#ifndef LOOPSTRENGTHREDUCE_H
+#define LOOPSTRENGTHREDUCE_H
 #include "../../include/ir.h"
 #include "../pass.h"
 

@@ -1,4 +1,4 @@
-#include "strengthreduce.h"
+#include "loopstrengthreduce.h"
 
 void StrengthReducePass::Execute() {
     ScalarReduce();
