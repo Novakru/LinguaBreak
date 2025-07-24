@@ -13,6 +13,7 @@
 #include "llvm/optimize/analysis/loopAnalysis.h"
 #include "llvm/optimize/analysis/dominator_tree.h"
 #include "llvm/optimize/analysis/AliasAnalysis.h"
+#include "llvm/optimize/analysis/ScalarEvolution.h"
 
 #include "llvm/optimize/transform/simplify_cfg.h"
 #include "llvm/optimize/transform/mem2reg.h"
@@ -27,6 +28,7 @@
 #include "llvm/optimize/transform/loopRotate.h"
 #include "llvm/optimize/transform/basic_cse.h"
 #include "llvm/optimize/transform/strengthreduce.h"
+
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -223,8 +225,10 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         SimplifyCFGPass(&llvmIR).EOBB();   
         //---
-        SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree cse
-		
+        SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree+branch cse
+        SimplifyCFGPass(&llvmIR).EOBB();
+        SimplifyCFGPass(&llvmIR).RebuildCFG();//重建cfg
+        //从这之后注释
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
@@ -236,7 +240,8 @@ int main(int argc, char** argv) {
 		AliasAnalysisPass aa(&llvmIR); 
 		aa.Execute();
 		LoopInvariantCodeMotionPass(&llvmIR, &aa).Execute();
-        SimplifyCFGPass(&llvmIR).TOPPhi();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
+		SCEVPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();
     

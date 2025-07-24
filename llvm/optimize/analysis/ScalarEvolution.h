@@ -1,0 +1,146 @@
+#ifndef SCALAR_EVOLUTION_H
+#define SCALAR_EVOLUTION_H
+
+#include "../../include/Instruction.h"
+#include "../../include/cfg.h"
+#include "loop.h"
+#include "../pass.h"
+#include "dominator_tree.h"
+#include <map>
+#include <vector>
+#include <iostream>
+
+enum SCEVType {
+    scConstant,
+    scUnknown,
+    scAddExpr,
+    scMulExpr,
+    scAddRecExpr,
+};
+
+class SCEV {
+    SCEVType Type;
+
+protected:
+    SCEV(SCEVType T) : Type(T) {}
+
+public:
+    SCEVType getType() const { return Type; }
+	virtual void printType(std::ostream &OS) const;
+    virtual void print(std::ostream &OS) const = 0;
+    virtual SCEV* clone() const = 0;
+};
+
+class SCEVConstant : public SCEV {
+    ImmI32Operand *V;
+
+public:
+    SCEVConstant(ImmI32Operand *v) : SCEV(scConstant), V(v) {}
+    ImmI32Operand *getValue() const { return V; }
+    void print(std::ostream &OS) const override;
+
+    static bool classof(const SCEV *S) { return S->getType() == scConstant; }
+    SCEV* clone() const override;
+};
+
+class SCEVUnknown : public SCEV {
+    Operand V;
+
+public:
+    bool isLoopInvariant;
+
+    SCEVUnknown(Operand v) : SCEV(scUnknown), V(v), isLoopInvariant(false) {}
+	SCEVUnknown(Operand v, bool isLoopInvariant) : SCEV(scUnknown), V(v), isLoopInvariant(isLoopInvariant) {}
+    Operand getValue() const { return V; }
+    void print(std::ostream &OS) const override;
+
+    static bool classof(const SCEV *S) { return S->getType() == scUnknown; }
+    SCEV* clone() const override;
+};
+
+class SCEVCommutativeExpr : public SCEV {
+protected:
+    std::vector<SCEV *> Operands;
+    SCEVCommutativeExpr(SCEVType T, const std::vector<SCEV *> &Ops) : SCEV(T), Operands(Ops) {}
+
+public:
+    const std::vector<SCEV *> &getOperands() const { return Operands; }
+    void print(std::ostream &OS) const override;
+    SCEV* clone() const override = 0;
+};
+
+class SCEVAddExpr : public SCEVCommutativeExpr {
+public:
+    SCEVAddExpr(const std::vector<SCEV *> &Ops) : SCEVCommutativeExpr(scAddExpr, Ops) {}
+    static bool classof(const SCEV *S) { return S->getType() == scAddExpr; }
+    SCEV* clone() const override;
+};
+
+class SCEVMulExpr : public SCEVCommutativeExpr {
+public:
+    SCEVMulExpr(const std::vector<SCEV *> &Ops) : SCEVCommutativeExpr(scMulExpr, Ops) {}
+    static bool classof(const SCEV *S) { return S->getType() == scMulExpr; }
+    SCEV* clone() const override;
+};
+
+class SCEVAddRecExpr : public SCEV {
+    SCEV *Start;
+    SCEV *Step;
+    Loop *L;
+
+public:
+    SCEVAddRecExpr(SCEV *start, SCEV *step, Loop *l) : SCEV(scAddRecExpr), Start(start), Step(step), L(l) {}
+    SCEV *getStart() const { return Start; }
+    SCEV *getStep() const { return Step; }
+    const Loop *getLoop() const { return L; }
+    void print(std::ostream &OS) const override;
+
+    static bool classof(const SCEV *S) { return S->getType() == scAddRecExpr; }
+    SCEV* clone() const override;
+};
+
+class ScalarEvolution {
+    CFG* C;
+    LoopInfo *LI;
+    DominatorTree *DT;
+
+    std::map<Loop *, std::map<Operand, SCEV *>> LoopToSCEVMap;
+    mutable std::vector<SCEV *> Allocations;
+    mutable std::map<SCEV *, SCEV *> SimplifiedSCEVCache;  // orgin -> simplified
+
+    mutable std::map<std::pair<Operand, Loop *>, bool> invariantCache;
+
+    void analyzeLoop(Loop *L);
+    SCEV *createSCEV(Operand V, Loop *L);
+    SCEV *createAddRecFromPHI(PhiInstruction *PN, Loop *L);
+    SCEV *createSCEVForArithmetic(ArithmeticInstruction *I, Loop *L);
+
+    SCEV *getSCEVUnknown(Operand V, Loop *L) const;
+    SCEV *getSCEVConstant(ImmI32Operand *C) const;
+    SCEV *getAddExpr(const std::vector<SCEV *> &Ops) const;
+    SCEV *getMulExpr(const std::vector<SCEV *> &Ops) const;
+    SCEV *getAddRecExpr(SCEV *Start, SCEV *Step, Loop *L) const;
+    
+    Instruction getDef(Operand V) const;
+
+public:
+    ScalarEvolution(CFG* C, LoopInfo *LI, DominatorTree *DT);
+
+    SCEV *getSCEV(Operand V, Loop *L);
+    SCEV *simplify(SCEV *S) const;
+    SCEV *simplifyOnce(SCEV *S) const;
+    static bool SCEVStructurallyEqual(const SCEV* A, const SCEV* B);
+    bool isLoopInvariant(Operand V, Loop *L) const;
+    void print(std::ostream &OS) const;
+
+    friend class SCEVPass;
+};
+
+class SCEVPass: public IRPass {
+public:
+    SCEVPass(LLVMIR* IR) : IRPass(IR) {}
+    void Execute() override;
+	void simplifyAllSCEVExpr();
+};
+
+#endif // SCALAR_EVOLUTION_H 
