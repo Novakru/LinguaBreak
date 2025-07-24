@@ -7,19 +7,16 @@ main:
 	addi		sp,sp,-416
 	jal			x0,.main_1
 .main_1:
-	li			t0,336
-	add			a0,sp,t0
+	addi		a0,sp,336
 	addiw		a1,x0,0
 	addiw		a2,x0,60
 	call		memset
-	li			t0,276
-	add			a0,sp,t0
+	addi		a0,sp,276
 	addiw		a1,x0,0
 	addiw		a2,x0,60
 	call		memset
 	slli		t0,x0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,1
 	sw			t1,0(t0)
@@ -27,8 +24,7 @@ main:
 	addiw		t1,x0,1
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,2
 	sw			t1,0(t0)
@@ -36,8 +32,7 @@ main:
 	addiw		t1,x0,2
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,3
 	sw			t1,0(t0)
@@ -45,8 +40,7 @@ main:
 	addiw		t1,x0,1
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,4
 	sw			t1,0(t0)
@@ -58,8 +52,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,5
 	sw			t1,0(t0)
@@ -71,8 +64,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,6
 	sw			t1,0(t0)
@@ -80,8 +72,7 @@ main:
 	addiw		t1,x0,2
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,7
 	sw			t1,0(t0)
@@ -93,8 +84,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,8
 	sw			t1,0(t0)
@@ -106,8 +96,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,9
 	sw			t1,0(t0)
@@ -115,8 +104,7 @@ main:
 	addiw		t1,x0,3
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,10
 	sw			t1,0(t0)
@@ -128,8 +116,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,11
 	sw			t1,0(t0)
@@ -141,8 +128,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,12
 	sw			t1,0(t0)
@@ -150,8 +136,7 @@ main:
 	addiw		t1,x0,4
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,13
 	sw			t1,0(t0)
@@ -163,8 +148,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,14
 	sw			t1,0(t0)
@@ -176,19 +160,16 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,276
-	add			t1,sp,t1
+	addi		t1,sp,276
 	add			t0,t1,t0
 	addiw		t1,x0,15
 	sw			t1,0(t0)
-	li			t0,216
-	add			a0,sp,t0
+	addi		a0,sp,216
 	addiw		a1,x0,0
 	addiw		a2,x0,60
 	call		memset
 	slli		t0,x0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,1
 	sw			t1,0(t0)
@@ -196,8 +177,7 @@ main:
 	addiw		t1,x0,1
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,2
 	sw			t1,0(t0)
@@ -205,8 +185,7 @@ main:
 	addiw		t1,x0,2
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,3
 	sw			t1,0(t0)
@@ -214,8 +193,7 @@ main:
 	addiw		t1,x0,1
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,4
 	sw			t1,0(t0)
@@ -227,8 +205,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,5
 	sw			t1,0(t0)
@@ -240,8 +217,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,6
 	sw			t1,0(t0)
@@ -249,8 +225,7 @@ main:
 	addiw		t1,x0,2
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,7
 	sw			t1,0(t0)
@@ -262,8 +237,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,8
 	sw			t1,0(t0)
@@ -275,8 +249,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,9
 	sw			t1,0(t0)
@@ -284,8 +257,7 @@ main:
 	addiw		t1,x0,3
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,10
 	sw			t1,0(t0)
@@ -297,8 +269,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,11
 	sw			t1,0(t0)
@@ -310,8 +281,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,12
 	sw			t1,0(t0)
@@ -319,8 +289,7 @@ main:
 	addiw		t1,x0,4
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,13
 	sw			t1,0(t0)
@@ -332,8 +301,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,14
 	sw			t1,0(t0)
@@ -345,19 +313,16 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,216
-	add			t1,sp,t1
+	addi		t1,sp,216
 	add			t0,t1,t0
 	addiw		t1,x0,15
 	sw			t1,0(t0)
-	li			t0,156
-	add			a0,sp,t0
+	addi		a0,sp,156
 	addiw		a1,x0,0
 	addiw		a2,x0,60
 	call		memset
 	slli		t0,x0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,1
 	sw			t1,0(t0)
@@ -365,8 +330,7 @@ main:
 	addiw		t1,x0,1
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,2
 	sw			t1,0(t0)
@@ -374,8 +338,7 @@ main:
 	addiw		t1,x0,2
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,3
 	sw			t1,0(t0)
@@ -383,8 +346,7 @@ main:
 	addiw		t1,x0,1
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,4
 	sw			t1,0(t0)
@@ -396,8 +358,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,5
 	sw			t1,0(t0)
@@ -409,8 +370,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,6
 	sw			t1,0(t0)
@@ -418,8 +378,7 @@ main:
 	addiw		t1,x0,2
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,7
 	sw			t1,0(t0)
@@ -431,8 +390,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,8
 	sw			t1,0(t0)
@@ -444,8 +402,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,9
 	sw			t1,0(t0)
@@ -453,8 +410,7 @@ main:
 	addiw		t1,x0,3
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,10
 	sw			t1,0(t0)
@@ -466,8 +422,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,11
 	sw			t1,0(t0)
@@ -479,8 +434,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,12
 	sw			t1,0(t0)
@@ -488,8 +442,7 @@ main:
 	addiw		t1,x0,4
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,13
 	sw			t1,0(t0)
@@ -501,8 +454,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,14
 	sw			t1,0(t0)
@@ -514,19 +466,16 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,156
-	add			t1,sp,t1
+	addi		t1,sp,156
 	add			t0,t1,t0
 	addiw		t1,x0,15
 	sw			t1,0(t0)
-	li			t0,96
-	add			a0,sp,t0
+	addi		a0,sp,96
 	addiw		a1,x0,0
 	addiw		a2,x0,60
 	call		memset
 	slli		t0,x0,2
-	li			t1,96
-	add			t1,sp,t1
+	addi		t1,sp,96
 	add			t0,t1,t0
 	addiw		t1,x0,1
 	sw			t1,0(t0)
@@ -534,8 +483,7 @@ main:
 	addiw		t1,x0,1
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,96
-	add			t1,sp,t1
+	addi		t1,sp,96
 	add			t0,t1,t0
 	addiw		t1,x0,2
 	sw			t1,0(t0)
@@ -543,8 +491,7 @@ main:
 	addiw		t1,x0,2
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,96
-	add			t1,sp,t1
+	addi		t1,sp,96
 	add			t0,t1,t0
 	addiw		t1,x0,3
 	sw			t1,0(t0)
@@ -552,8 +499,7 @@ main:
 	addiw		t1,x0,1
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,96
-	add			t1,sp,t1
+	addi		t1,sp,96
 	add			t0,t1,t0
 	addiw		t1,x0,4
 	sw			t1,0(t0)
@@ -561,8 +507,7 @@ main:
 	addiw		t1,x0,2
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,96
-	add			t1,sp,t1
+	addi		t1,sp,96
 	add			t0,t1,t0
 	addiw		t1,x0,7
 	sw			t1,0(t0)
@@ -570,8 +515,7 @@ main:
 	addiw		t1,x0,3
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,96
-	add			t1,sp,t1
+	addi		t1,sp,96
 	add			t0,t1,t0
 	addiw		t1,x0,10
 	sw			t1,0(t0)
@@ -583,8 +527,7 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,96
-	add			t1,sp,t1
+	addi		t1,sp,96
 	add			t0,t1,t0
 	addiw		t1,x0,11
 	sw			t1,0(t0)
@@ -596,19 +539,16 @@ main:
 	mul			t1,t2,t1
 	add			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,96
-	add			t1,sp,t1
+	addi		t1,sp,96
 	add			t0,t1,t0
 	addiw		t1,x0,12
 	sw			t1,0(t0)
-	li			t0,0
-	add			a0,sp,t0
+	addi		a0,sp,0
 	addiw		a1,x0,0
 	addiw		a2,x0,96
 	call		memset
 	slli		t0,x0,2
-	li			t1,0
-	add			t1,sp,t1
+	addi		t1,sp,0
 	add			t0,t1,t0
 	addiw		t1,x0,1
 	sw			t1,0(t0)
@@ -616,8 +556,7 @@ main:
 	addiw		t1,x0,1
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,0
-	add			t1,sp,t1
+	addi		t1,sp,0
 	add			t0,t1,t0
 	addiw		t1,x0,2
 	sw			t1,0(t0)
@@ -625,8 +564,7 @@ main:
 	addiw		t1,x0,2
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,0
-	add			t1,sp,t1
+	addi		t1,sp,0
 	add			t0,t1,t0
 	addiw		t1,x0,3
 	sw			t1,0(t0)
@@ -634,8 +572,7 @@ main:
 	addiw		t1,x0,3
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,0
-	add			t1,sp,t1
+	addi		t1,sp,0
 	add			t0,t1,t0
 	addiw		t1,x0,4
 	sw			t1,0(t0)
@@ -643,8 +580,7 @@ main:
 	addiw		t1,x0,1
 	mul			t0,t1,t0
 	slli		t0,t0,2
-	li			t1,0
-	add			t1,sp,t1
+	addi		t1,sp,0
 	add			t0,t1,t0
 	addiw		t1,x0,5
 	sw			t1,0(t0)

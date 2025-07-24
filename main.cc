@@ -38,6 +38,7 @@
 #include"back_end/inst_process/inst_print/inst_print.h"
 
 #include"back_end/optimize/machine_peephole.h"
+#include"back_end/optimize/machine_strengthreduce.h"
 
 
 extern FILE *yyin;
@@ -268,7 +269,9 @@ int main(int argc, char** argv) {
         }
 
         //optimizer
-        MachinePeephole(m_unit).Execute();
+        MachinePeepholePass(m_unit).Execute();
+        MachineStrengthReducePass(m_unit).Execute();
+        
         
         RiscV64Printer(out, m_unit).emit();
         fclose(input);

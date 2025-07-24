@@ -177,7 +177,7 @@ struct RvOpInfo {
     int latency;    // sifive-u74上的硬件指令延迟, 可以用于指令调度优化, 如果你不打算实现该优化可以忽略
 };
 
-enum PhysicalRegister {
+enum {
     RISCV_x0,
     RISCV_x1,
     RISCV_x2,
@@ -245,7 +245,7 @@ enum PhysicalRegister {
     RISCV_INVALID,
     RISCV_spilled_in_memory,
 };
-enum VirtualRegister {
+enum {
     RISCV_ra = RISCV_x1,
     RISCV_sp = RISCV_x2,
     RISCV_gp = RISCV_x3,

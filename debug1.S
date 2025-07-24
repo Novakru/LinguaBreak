@@ -11,14 +11,12 @@ trsm:
 	jal			x0,.trsm_16
 .trsm_6:
 	slli		t2,t1,10
-	addi		t3,t0,0
-	add			t2,t3,t2
+	add			t2,t0,t2
 	slli		t2,t2,2
 	add			t2,a2,t2
 	flw			ft0,0(t2)
 	slli		t3,t1,10
-	addi		t4,t1,0
-	add			t3,t4,t3
+	add			t3,t1,t3
 	slli		t3,t3,2
 	add			t3,a1,t3
 	flw			ft1,0(t3)
@@ -33,14 +31,12 @@ trsm:
 	jal			x0,.trsm_13
 .trsm_13:
 	slli		t5,t4,10
-	addi		t6,t0,0
-	add			t5,t6,t5
+	add			t5,t0,t5
 	slli		t5,t5,2
 	add			t5,a2,t5
 	flw			ft0,0(t5)
 	slli		t6,t4,10
-	addi		a3,t1,0
-	add			t6,a3,t6
+	add			t6,t1,t6
 	slli		t6,t6,2
 	add			t6,a1,t6
 	flw			ft1,0(t6)
@@ -98,8 +94,7 @@ main:
 .main_9:
 	call		getfloat
 	slli		t0,s1,10
-	addi		t1,s2,0
-	add			t0,t1,t0
+	add			t0,s2,t0
 	slli		t0,t0,2
 	la			t1,A
 	add			t0,t0,t1
@@ -123,8 +118,7 @@ main:
 .main_19:
 	call		getfloat
 	slli		t0,s1,10
-	addi		t1,s2,0
-	add			t0,t1,t0
+	add			t0,s2,t0
 	slli		t0,t0,2
 	la			t1,C
 	add			t0,t0,t1
@@ -156,15 +150,13 @@ main:
 	jal			x0,.main_33
 .main_33:
 	slli		t2,t1,10
-	addi		t3,t0,0
-	add			t2,t3,t2
+	add			t2,t0,t2
 	slli		t2,t2,2
 	la			t3,C
 	add			t2,t2,t3
 	flw			ft0,0(t2)
 	slli		t2,t1,10
-	addi		t3,t0,0
-	add			t2,t3,t2
+	add			t2,t0,t2
 	slli		t2,t2,2
 	la			t3,B
 	add			t2,t2,t3
@@ -207,8 +199,7 @@ main:
 	jal			x0,.main_44
 .main_44:
 	slli		t2,t1,10
-	addi		t3,t0,0
-	add			t2,t3,t2
+	add			t2,t0,t2
 	slli		t2,t2,2
 	la			t3,B
 	add			t2,t2,t3
