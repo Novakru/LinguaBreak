@@ -1,7 +1,6 @@
 #include "peephole.h"
 #include <functional>
 
-void SrcEqResultInstEliminate(CFG *C);
 void ImmResultReplace(CFG *C);
 
 void PeepholePass::Execute() {
@@ -246,9 +245,160 @@ void ImmResultReplace(CFG *C){
 
 I->ReplaceRegByMap(), I->GetNonResultOperands(), I->SetNonResultOperands() is Useful
 */
-void SrcEqResultInstEliminate(CFG *C) {
-	TODO("SrcEqResultInstEliminate");
+void PeepholePass::SrcEqResultInstEliminate(CFG* C) {
+	std::unordered_map<int,int> regno_map; // rx_regno -> ry_regno
+    //冗余指令删除与信息记录
+    for(auto &[id,block]:*(C->block_map)){
+        for(auto it=block->Instruction_list.begin(); it!=block->Instruction_list.end();){
+            auto inst=*it;
+            if(inst->GetOpcode() == BasicInstruction::ADD){
+                auto arith_inst = (ArithmeticInstruction*)inst;
+                auto result_op = arith_inst->GetResult();
+                auto op1 = arith_inst->GetOperand1();
+                auto op2 = arith_inst->GetOperand2();
+                if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)op2)->GetIntImmVal() == 0){
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }else if(op1->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)op1)->GetIntImmVal() == 0 && op2->GetOperandType() == BasicOperand::REG){
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op2)->GetRegNo();
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }
+                else{
+                    ++it;
+                    continue;
+                }
+            }else if(inst->GetOpcode() == BasicInstruction::FADD){
+                auto farith_inst = (ArithmeticInstruction*)inst;
+                auto result_op = farith_inst->GetResult();
+                auto op1 = farith_inst->GetOperand1();
+                auto op2 = farith_inst->GetOperand2();
+                if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMF32 && ((ImmF32Operand*)op2)->GetFloatVal() == 0.0f){
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }else if(op1->GetOperandType() == BasicOperand::IMMF32 && ((ImmF32Operand*)op1)->GetFloatVal() == 0.0f && op2->GetOperandType() == BasicOperand::REG){
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op2)->GetRegNo();
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }
+                else{
+                    ++it;
+                    continue;
+                }
+            }else if(inst->GetOpcode() == BasicInstruction::SUB){
+                auto arith_inst = (ArithmeticInstruction*)inst;
+                auto result_op = arith_inst->GetResult();
+                auto op1 = arith_inst->GetOperand1();
+                auto op2 = arith_inst->GetOperand2();
+                if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)op2)->GetIntImmVal() == 0){
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }else{
+                    ++it;
+                    continue;
+                }
+            }else if(inst->GetOpcode() == BasicInstruction::FSUB){
+                auto farith_inst = (ArithmeticInstruction*)inst;
+                auto result_op = farith_inst->GetResult();
+                auto op1 = farith_inst->GetOperand1();
+                auto op2 = farith_inst->GetOperand2();
+                if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMF32 && ((ImmF32Operand*)op2)->GetFloatVal() == 0.0f){
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }else{
+                    ++it;
+                    continue;
+                }
+            }else if(inst->GetOpcode() == BasicInstruction::MUL){
+                auto arith_inst = (ArithmeticInstruction*)inst;
+                auto result_op = arith_inst->GetResult();   
+                auto op1 = arith_inst->GetOperand1();
+                auto op2 = arith_inst->GetOperand2();
+                if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)op2)->GetIntImmVal() == 1){
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }else if(op1->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)op1)->GetIntImmVal() == 1 && op2->GetOperandType() == BasicOperand::REG){
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op2)->GetRegNo();
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }else{  
+                    ++it;
+                    continue;
+                }
+            }else if(inst->GetOpcode() == BasicInstruction::FMUL){
+                auto farith_inst = (ArithmeticInstruction*)inst;
+                auto result_op = farith_inst->GetResult();   
+                auto op1 = farith_inst->GetOperand1();
+                auto op2 = farith_inst->GetOperand2();
+                if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMF32 && ((ImmF32Operand*)op2)->GetFloatVal() == 1.0f){
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }else if(op1->GetOperandType() == BasicOperand::IMMF32 && ((ImmF32Operand*)op1)->GetFloatVal() == 1.0f && op2->GetOperandType() == BasicOperand::REG){
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op2)->GetRegNo();
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }else{  
+                    ++it;
+                    continue;
+                }
+            }else if(inst->GetOpcode() == BasicInstruction::DIV){
+                auto arith_inst = (ArithmeticInstruction*)inst;
+                auto result_op = arith_inst->GetResult();
+                auto op1 = arith_inst->GetOperand1();
+                auto op2 = arith_inst->GetOperand2();
+                if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)op2)->GetIntImmVal() == 1){
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }else{  
+                    ++it;
+                    continue;
+                }
+            }else if(inst->GetOpcode() == BasicInstruction::FDIV){
+                auto farith_inst = (ArithmeticInstruction*)inst;
+                auto result_op = farith_inst->GetResult();
+                auto op1 = farith_inst->GetOperand1();
+                auto op2 = farith_inst->GetOperand2();
+                if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMF32 && ((ImmF32Operand*)op2)->GetFloatVal() == 1.0f){
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }else{
+                    ++it;
+                    continue;
+                }
+            }
+            ++it;
+        }   
+    }
+
+    //后续指令的reg替换
+    for(auto &[id, block]:*(C->block_map)){
+        for(auto &inst : block->Instruction_list){
+            auto operands = inst->GetNonResultOperands();
+            for(auto &op : operands){
+                if(op->GetOperandType() == BasicOperand::REG){
+                    int regno = ((RegOperand*)op)->GetRegNo();
+                    if(regno_map.count(regno)){
+                        int new_regno = regno_map[regno];
+                        while(regno_map.count(new_regno)) {
+                            new_regno = regno_map[new_regno];
+                        }
+                        op = GetNewRegOperand(new_regno);
+                    }
+                }
+            }
+            inst->SetNonResultOperands(operands);
+        }
+    }
 }
+
 
 
 void PeepholePass::DeadArgElim() {

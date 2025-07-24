@@ -27,7 +27,7 @@
 #include "llvm/optimize/transform/loopSimplify.h"
 #include "llvm/optimize/transform/loopRotate.h"
 #include "llvm/optimize/transform/basic_cse.h"
-#include "llvm/optimize/transform/strengthreduce.h"
+#include "llvm/optimize/transform/loopstrengthreduce.h"
 
 
 //-target
@@ -244,6 +244,7 @@ int main(int argc, char** argv) {
 		SCEVPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();
+        PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();
     
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }
