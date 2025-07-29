@@ -238,14 +238,20 @@ int main(int argc, char** argv) {
 		LoopRotate(&llvmIR, &AA).Execute();
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
-		AliasAnalysisPass aa(&llvmIR); 
-		aa.Execute();
-		LoopInvariantCodeMotionPass(&llvmIR, &aa).Execute();
+		AA.Execute();
+		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
+		LoopAnalysisPass(&llvmIR).Execute();
+		LoopSimplifyPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
-		SimplifyCFGPass(&llvmIR).EOBB();  
-        SimplifyCFGPass(&llvmIR).MergeBlocks();
-        PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();
+		LoopStrengthReducePass(&llvmIR).Execute();
+        // inv_dom.invExecute();
+        // (ADCEPass(&llvmIR, &inv_dom)).Execute();
+		// SimplifyCFGPass(&llvmIR).EOBB();  
+        // SimplifyCFGPass(&llvmIR).MergeBlocks();
+		// PeepholePass(&llvmIR).ImmResultReplaceExecute();
+        // PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();
     
         //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
     // }

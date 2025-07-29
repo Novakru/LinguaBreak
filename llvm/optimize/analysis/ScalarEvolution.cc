@@ -1,6 +1,14 @@
 #include "ScalarEvolution.h"
 #include <iostream>
 
+// #define scev_debug
+
+#ifdef scev_debug
+#define SCEV_DEBUG_PRINT(x) do { x; } while(0)
+#else
+#define SCEV_DEBUG_PRINT(x) do {} while(0)
+#endif
+
 void SCEVConstant::print(std::ostream &OS) const {
     OS << getValue()->GetIntImmVal();
 }
@@ -100,10 +108,10 @@ bool ScalarEvolution::isLoopInvariant(Operand V, Loop *L) const {
 	// if(Def->GetOpcode() == BasicInstruction::PHI && L->getHeader()->block_id == Def->GetBlockID()){
 	// 	return invariantCache[key] = false;
 	// }
-	if(Def->GetOpcode() == BasicInstruction::PHI){ // 嵌套循环，包含自循环头
+	LLVMBlock DefBlock = C->GetBlockWithId(Def->GetBlockID());
+	if(Def->GetOpcode() == BasicInstruction::PHI && L->contains(DefBlock)){ // 嵌套循环，包含自循环头
 		return invariantCache[key] = false;
 	}
-    LLVMBlock DefBlock = C->GetBlockWithId(Def->GetBlockID());
     if (!L->contains(DefBlock)) {
         return invariantCache[key] = true;
     }
@@ -116,7 +124,7 @@ bool ScalarEvolution::isLoopInvariant(Operand V, Loop *L) const {
 }
 
 SCEV *ScalarEvolution::getSCEV(Operand V, Loop *L) {
-    std::cout << "[getSCEV] 分析变量: " << V << " in LoopHeader: " << L->getHeader()->block_id << std::endl;
+    SCEV_DEBUG_PRINT(std::cout << "[getSCEV] 分析变量: " << V << " in LoopHeader: " << L->getHeader()->block_id << std::endl);
     if (LoopToSCEVMap.count(L) && LoopToSCEVMap.at(L).count(V)) {
         return LoopToSCEVMap.at(L).at(V);
     }
@@ -127,7 +135,7 @@ SCEV *ScalarEvolution::getSCEV(Operand V, Loop *L) {
 
 SCEV *ScalarEvolution::createSCEV(Operand V, Loop *L) {
     if (isLoopInvariant(V, L)) {
-        std::cout << "[createSCEV] " << V << " 是循环不变量" << std::endl;
+        SCEV_DEBUG_PRINT(std::cout << "[createSCEV] " << V << " 是循环不变量" << std::endl);
         if (V->GetOperandType() == BasicOperand::IMMI32) {
             return getSCEVConstant(static_cast<ImmI32Operand*>(V));
         }
@@ -136,21 +144,17 @@ SCEV *ScalarEvolution::createSCEV(Operand V, Loop *L) {
 
     Instruction I = getDef(V);
     if (!I) {
-        std::cout << "[createSCEV] " << V << " 没有定义指令，返回Unknown" << std::endl;
+        SCEV_DEBUG_PRINT(std::cout << "[createSCEV] " << V << " 没有定义指令，返回Unknown" << std::endl);
         return getSCEVUnknown(V, L);
     }
 
     if (auto *GEP = dynamic_cast<GetElementptrInstruction*>(I)) {
-        std::cout << "[createSCEV] " << V << " 的定义是GEP指令" << std::endl;
+        SCEV_DEBUG_PRINT(std::cout << "[createSCEV] " << V << " 的定义是GEP指令" << std::endl);
 
         auto Ptr = GEP->GetPtrVal();
         auto Dims = GEP->GetDims();
         auto Indexes = GEP->GetIndexes();
         
-        // 简化实现：SysY 元素类型是i32 or f32，大小为4 bytes
-        int ElemSize = 4;
-        SCEV* ElemSizeSCEV = getSCEVConstant(new ImmI32Operand(ElemSize));
-
         SCEV* BaseSCEV = getSCEV(Ptr, L);
         SCEV* TotalOffsetSCEV = getSCEVConstant(new ImmI32Operand(0));
     
@@ -161,11 +165,11 @@ SCEV *ScalarEvolution::createSCEV(Operand V, Loop *L) {
             }
             SCEV* ScaledIndex;
             if (i == 0) { // 第一个index，乘以整个数组大小
-                 SCEV* SizeOfArray = ElemSizeSCEV;
+                 SCEV* SizeOfArray = getSCEVConstant(new ImmI32Operand(1));
                  for(int d : Dims) SizeOfArray = getMulExpr({SizeOfArray, getSCEVConstant(new ImmI32Operand(d))});
                  ScaledIndex = getMulExpr({IndexSCEV, SizeOfArray});
             } else { // 后续的index
-                 SCEV* SizeOfSubArray = ElemSizeSCEV;
+                 SCEV* SizeOfSubArray = getSCEVConstant(new ImmI32Operand(1));
                  for(size_t j = i; j < Dims.size(); ++j) {
                      SizeOfSubArray = getMulExpr({SizeOfSubArray, getSCEVConstant(new ImmI32Operand(Dims[j]))});
                  }
@@ -179,7 +183,7 @@ SCEV *ScalarEvolution::createSCEV(Operand V, Loop *L) {
     }
 
     if (auto *PN = dynamic_cast<PhiInstruction*>(I)) {
-        std::cout << "[createSCEV] " << V << " 的定义是PHI, block_id=" << PN->GetBlockID() << std::endl;
+        SCEV_DEBUG_PRINT(std::cout << "[createSCEV] " << V << " 的定义是PHI, block_id=" << PN->GetBlockID() << std::endl);
         if (L->getHeader()->block_id == PN->GetBlockID()) {
             return createAddRecFromPHI(PN, L);
         } else {
@@ -188,18 +192,18 @@ SCEV *ScalarEvolution::createSCEV(Operand V, Loop *L) {
     }
 
     if (auto *ArithI = dynamic_cast<ArithmeticInstruction*>(I)) {
-        std::cout << "[createSCEV] " << V << " 的定义是算术指令, opcode=" << ArithI->GetOpcode() << std::endl;
+        SCEV_DEBUG_PRINT(std::cout << "[createSCEV] " << V << " 的定义是算术指令, opcode=" << ArithI->GetOpcode() << std::endl);
         return createSCEVForArithmetic(ArithI, L);
     }
 
-    std::cout << "[createSCEV] " << V << " 的定义类型未知，返回Unknown" << std::endl;
+    SCEV_DEBUG_PRINT(std::cout << "[createSCEV] " << V << " 的定义类型未知，返回Unknown" << std::endl);
     return getSCEVUnknown(V, L);
 }
 
 SCEV *ScalarEvolution::createAddRecFromPHI(PhiInstruction *PN, Loop *L) {
     LLVMBlock preheader = L->getPreheader();
     if (!preheader) {
-        std::cout << "[createAddRecFromPHI] 没有preheader, 返回Unknown" << std::endl;
+        SCEV_DEBUG_PRINT(std::cout << "[createAddRecFromPHI] 没有preheader, 返回Unknown" << std::endl);
         return getSCEVUnknown(PN->GetResult(), L);
     }
     
@@ -208,8 +212,8 @@ SCEV *ScalarEvolution::createAddRecFromPHI(PhiInstruction *PN, Loop *L) {
 
     for (const auto& pair : PN->GetPhiList()) {
         LLVMBlock incomingBlock = C->GetBlockWithId(((LabelOperand*)pair.first)->GetLabelNo());
-        std::cout << "[createAddRecFromPHI] PHI分支: label=" << ((LabelOperand*)pair.first)->GetLabelNo()
-                  << " value=" << pair.second << std::endl;
+        SCEV_DEBUG_PRINT(std::cout << "[createAddRecFromPHI] PHI分支: label=" << ((LabelOperand*)pair.first)->GetLabelNo()
+                  << " value=" << pair.second << std::endl);
         if (incomingBlock == preheader) {
             startValue = pair.second;
         } else if (L->contains(incomingBlock)) { // From a latch
@@ -218,7 +222,7 @@ SCEV *ScalarEvolution::createAddRecFromPHI(PhiInstruction *PN, Loop *L) {
     }
 
     if (!startValue || !stepInstOperand) {
-        std::cout << "[createAddRecFromPHI] start/step未识别, 返回Unknown" << std::endl;
+        SCEV_DEBUG_PRINT(std::cout << "[createAddRecFromPHI] start/step未识别, 返回Unknown" << std::endl);
         return getSCEVUnknown(PN->GetResult(), L);
     }
     
@@ -226,7 +230,7 @@ SCEV *ScalarEvolution::createAddRecFromPHI(PhiInstruction *PN, Loop *L) {
     auto* ArithI = dynamic_cast<ArithmeticInstruction*>(stepInstruction);
 
     if (!ArithI || ArithI->GetOpcode() != BasicInstruction::ADD) {
-        std::cout << "[createAddRecFromPHI] step不是加法, 返回Unknown" << std::endl;
+        SCEV_DEBUG_PRINT(std::cout << "[createAddRecFromPHI] step不是加法, 返回Unknown" << std::endl);
         return getSCEVUnknown(PN->GetResult(), L);
     }
 
@@ -239,11 +243,11 @@ SCEV *ScalarEvolution::createAddRecFromPHI(PhiInstruction *PN, Loop *L) {
         recurrentOperand = ArithI->GetOperand2();
         stepValue = ArithI->GetOperand1();
     } else {
-        std::cout << "[createAddRecFromPHI] step加法没有归纳变量, 返回Unknown" << std::endl;
+        SCEV_DEBUG_PRINT(std::cout << "[createAddRecFromPHI] step加法没有归纳变量, 返回Unknown" << std::endl);
         return getSCEVUnknown(PN->GetResult(), L);
     }
     
-    std::cout << "[createAddRecFromPHI] start=" << startValue << " step=" << stepValue << std::endl;
+    SCEV_DEBUG_PRINT(std::cout << "[createAddRecFromPHI] start=" << startValue << " step=" << stepValue << std::endl);
     SCEV* StartSCEV = getSCEV(startValue, L);
     SCEV* StepSCEV = getSCEV(stepValue, L);
 
@@ -445,12 +449,13 @@ void ScalarEvolution::print(std::ostream &OS) const {
 
 void SCEVPass::Execute() {
 	for (auto [defI, cfg] : llvmIR->llvm_cfg) {
-		std::cerr << "ScalarEvolution Analysis for function " << cfg->function_def->GetFunctionName() << "\n";
+		// SCEV_DEBUG_PRINT(std::cerr << "ScalarEvolution Analysis for function " << cfg->function_def->GetFunctionName() << "\n");
 		cfg->reSetBlockID();
 		ScalarEvolution* SE = new ScalarEvolution(cfg, cfg->getLoopInfo(), cfg->getDomTree());
 		cfg->SCEVInfo = SE;
 		simplifyAllSCEVExpr();
-		SE->print(std::cout);
+		// fixAllSCEVExpr();
+		// SE->print(std::cout);
     }
 }
 
@@ -521,4 +526,82 @@ bool ScalarEvolution::SCEVStructurallyEqual(const SCEV* A, const SCEV* B) {
         }
     }
     return false;
+}
+
+void SCEVPass::fixAllSCEVExpr() {
+	for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+		if(cfg->SCEVInfo) {
+			ScalarEvolution* SE = cfg->getSCEVInfo();
+			for (auto& [L, ScevMap] : SE->LoopToSCEVMap) {
+				for (auto& [V, S] : ScevMap) {
+					SCEV* simplifiedS = SE->SimplifiedSCEVCache.at(S);
+					SCEV* fixedS = SE->fixLoopInvariantUnknowns(simplifiedS, L);
+					fixedS = SE->simplify(fixedS);
+					SE->SimplifiedSCEVCache[S] = fixedS;
+				}
+			}
+		}
+	}
+}
+
+// 递归修正：将循环内但本质循环不变量的SCEVUnknown递归还原为真实表达式
+SCEV* ScalarEvolution::fixLoopInvariantUnknowns(SCEV* scev, Loop* L) {
+    if (auto* unk = dynamic_cast<SCEVUnknown*>(scev)) {
+        Operand V = unk->getValue();
+        Instruction Def = getDef(V);
+        if (Def && L->contains(C->GetBlockWithId(Def->GetBlockID())) && isLoopInvariant(V, L)) {
+            // 如果是算术指令，递归还原为表达式
+            if (auto* arith = dynamic_cast<ArithmeticInstruction*>(Def)) {
+                SCEV* op1 = fixLoopInvariantUnknowns(createSCEV(arith->GetOperand1(), L), L);
+                SCEV* op2 = fixLoopInvariantUnknowns(createSCEV(arith->GetOperand2(), L), L);
+                if (arith->GetOpcode() == BasicInstruction::ADD) {
+                    return getAddExpr({op1, op2});
+                }
+                if (arith->GetOpcode() == BasicInstruction::SUB) {
+                    // SUB: a - b == a + (-b)
+                    SCEV* negOp2 = getMulExpr({op2, getSCEVConstant(new ImmI32Operand(-1))});
+                    return getAddExpr({op1, negOp2});
+                }
+                if (arith->GetOpcode() == BasicInstruction::MUL) {
+                    return getMulExpr({op1, op2});
+                }
+                // 其它算术类型可按需扩展
+            }
+            // 其它类型递归还原
+            SCEV* real = createSCEV(V, L);
+            if (dynamic_cast<SCEVUnknown*>(real) == nullptr) {
+                return fixLoopInvariantUnknowns(real, L);
+            }
+        }
+        return scev;
+    }
+	if (auto* add = dynamic_cast<SCEVAddExpr*>(scev)) {
+        std::vector<SCEV*> newOps;
+        bool changed = false;
+        for (auto* op : add->getOperands()) {
+            SCEV* fixed = fixLoopInvariantUnknowns(op, L);
+            if (fixed != op) changed = true;
+            newOps.push_back(fixed);
+        }
+        if (!changed) return scev;
+        return getAddExpr(newOps);
+    }
+	if (auto* mul = dynamic_cast<SCEVMulExpr*>(scev)) {
+        std::vector<SCEV*> newOps;
+        bool changed = false;
+        for (auto* op : mul->getOperands()) {
+            SCEV* fixed = fixLoopInvariantUnknowns(op, L);
+            if (fixed != op) changed = true;
+            newOps.push_back(fixed);
+        }
+        if (!changed) return scev;
+        return getMulExpr(newOps);
+    }
+	if (auto* addrec = dynamic_cast<SCEVAddRecExpr*>(scev)) {
+		SCEV* newStart = fixLoopInvariantUnknowns(addrec->getStart(), L);
+        SCEV* newStep = fixLoopInvariantUnknowns(addrec->getStep(), L);
+        if (newStart == addrec->getStart() && newStep == addrec->getStep()) return scev;
+        return getAddRecExpr(newStart, newStep, const_cast<Loop*>(addrec->getLoop()));
+	}
+    return scev;
 }
