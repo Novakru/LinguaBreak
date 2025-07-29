@@ -246,6 +246,10 @@ int main(int argc, char** argv) {
 		SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
 		LoopStrengthReducePass(&llvmIR).Execute();
+		AA.Execute();
+		LoopRotate(&llvmIR, &AA).Execute();
+		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
 		SimplifyCFGPass(&llvmIR).EOBB();  
