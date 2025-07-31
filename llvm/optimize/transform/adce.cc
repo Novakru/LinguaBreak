@@ -158,3 +158,109 @@ void ADCEPass::Execute(){
 		cfg->BuildCFG();
     }
 }
+
+// 循环削弱后增加了一些同一基本块内的冗余重复的乘/加指令，删除
+void ADCEPass::EliminateSameInsts(){
+    for(auto [defI, cfg] : llvmIR->llvm_cfg){
+        std::unordered_set<int> regnos;
+        for(auto &[id,block]: *(cfg->block_map)){
+            std::unordered_set<Instruction> inst_todlt;
+            for(auto it=block->Instruction_list.begin();it!=block->Instruction_list.end();it++){
+                Instruction &inst=*it;
+                if(inst_todlt.count(inst)){continue;}
+                if(inst->GetOpcode()==BasicInstruction::MUL ||
+                   inst->GetOpcode()==BasicInstruction::ADD ||
+                   inst->GetOpcode()==BasicInstruction::GETELEMENTPTR){
+                    int def_regno=inst->GetDefRegno();
+                    std::cout<<"the result_regno is "<<def_regno<<std::endl;
+                    for(auto other=std::next(it);other!=block->Instruction_list.end();other++){
+                        Instruction &other_inst = *other;
+                        if(other_inst->GetOpcode()!=inst->GetOpcode()){continue;}
+                        if(other_inst->isSame(inst)){
+                            regnos.insert(def_regno);
+                            int def_regno_todlt=other_inst->GetDefRegno();
+                            auto use_insts=cfg->use_map[def_regno_todlt];
+                            std::cout<<" we delete result_regno: "<<def_regno_todlt<<std::endl;
+                            
+                            for(auto &use_inst:use_insts){
+                                if(use_inst==nullptr){continue;}
+                                auto operands=use_inst->GetNonResultOperands();
+                                for(auto &operand:operands){
+                                    if(operand->GetOperandType()==BasicOperand::REG && 
+                                    ((RegOperand*)operand)->GetRegNo()==def_regno_todlt){
+                                        operand = GetNewRegOperand(def_regno);
+                                        cfg->use_map[def_regno].push_back(use_inst);
+                                    }
+                                } 
+                                use_inst->SetNonResultOperands(operands);
+                                
+                            }
+                            cfg->use_map.erase(def_regno_todlt);
+                            inst_todlt.insert(*other);
+                        }
+                    }
+                }
+            }
+            auto old_list=block->Instruction_list;
+            block->Instruction_list.clear();
+            for(auto &inst:old_list){
+                if(!inst_todlt.count(inst)){
+                    block->Instruction_list.push_back(inst);
+                }
+            }
+        }
+
+        // 重复指令替换后产生冗余重复的phi指令，统一为同一源
+        for(auto &[id,block]: *(cfg->block_map)){
+            std::unordered_set<Instruction> inst_todlt;
+            for(auto it=block->Instruction_list.begin();it!=block->Instruction_list.end();it++){
+                if((*it)->GetOpcode()!=BasicInstruction::PHI){break;}
+                if(inst_todlt.count(*it)){continue;}
+                PhiInstruction* inst=(PhiInstruction*) (*it);
+                //if(inst->GetOpcode()==BasicInstruction::PHI){
+                    for(auto &regno:regnos){
+                        if(inst->GetUseRegno().count(regno)){
+                            int regno_tobesame=inst->GetDefRegno();
+                            //std::cout<<"this regno is "<<regno<<" and the result_regno is "<<regno_tobesame<<std::endl;
+                            for(auto other=std::next(it);other!=block->Instruction_list.end();other++){
+                                if((*other)->GetOpcode()==BasicInstruction::PHI &&
+                                   (PhiInstruction*)(*other)->GetUseRegno().count(regno)){
+                                    int regno_todlt=(*other)->GetDefRegno();
+                                    auto use_insts=cfg->use_map[regno_todlt];
+                                    //std::cout<<" we delete result_regno: "<<regno_todlt<<std::endl;
+                                    for(auto &use_inst:use_insts){
+                                        if(use_inst==nullptr){continue;}
+                                        auto operands=use_inst->GetNonResultOperands();
+                                        for(auto &operand:operands){
+                                            if(operand->GetOperandType()==BasicOperand::REG && 
+                                            ((RegOperand*)operand)->GetRegNo()==regno_todlt){
+                                                operand = GetNewRegOperand(regno_tobesame);
+                                                cfg->use_map[regno_tobesame].push_back(use_inst);
+                                            }
+                                        }
+                                        use_inst->SetNonResultOperands(operands); 
+                                    }
+                                    cfg->use_map.erase(regno_todlt);
+                                    inst_todlt.insert(*other);
+                                }
+                            }
+                        }
+                    }
+                //}
+            }
+            auto old_list=block->Instruction_list;
+            block->Instruction_list.clear();
+            for(auto &inst:old_list){
+                if(!inst_todlt.count(inst)){
+                    block->Instruction_list.push_back(inst);
+                }
+            }
+        }
+    }
+}
+
+
+void ADCEPass::ESI(){
+    EliminateSameInsts();
+    EliminateSameInsts();
+}

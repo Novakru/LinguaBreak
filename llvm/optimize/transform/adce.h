@@ -10,12 +10,18 @@ private:
     std::set<Instruction> live;
     std::set<int> live_block;
 
+    void EliminateSameInsts();
+
 public:
     ADCEPass(LLVMIR *IR, DomAnalysis *dom) : IRPass(IR) { domtrees = dom; }
     Instruction GetTerminal(CFG *C, int label);
     void ADCE(CFG *C);
     void CleanUnlive(CFG *C);
     void Execute();
+
+    void ESI();
+
+    
 };
 
 #endif
