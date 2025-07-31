@@ -248,13 +248,13 @@ bool DominatorTree::dominates(LLVMBlock a, LLVMBlock b) {
 }
 
 // getDominators from b block to root
-std::vector<LLVMBlock> DominatorTree::getDominators(LLVMBlock b) {
-	std::vector<LLVMBlock> result;
+std::unordered_set<LLVMBlock> DominatorTree::getDominators(LLVMBlock b) {
+	std::unordered_set<LLVMBlock> result;
 	int current_id = b->block_id;
 	auto bmap = *(C->block_map);
 	while (current_id != -1) {
 		if (bmap.count(current_id)) {
-			result.push_back(bmap[current_id]);
+			result.insert(bmap[current_id]);
 		}
 		if (current_id == 0) break;  // no exit loop
 		current_id = sdom_map.count(current_id) ? sdom_map[current_id] : -1;

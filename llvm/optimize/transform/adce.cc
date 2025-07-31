@@ -159,7 +159,7 @@ void ADCEPass::Execute(){
     }
 }
 
-// 循环削弱后增加了一些同一基本块内的冗余重复的乘/加指令，删除
+
 void ADCEPass::EliminateSameInsts(){
     for(auto [defI, cfg] : llvmIR->llvm_cfg){
         std::unordered_set<int> regnos;
@@ -172,7 +172,7 @@ void ADCEPass::EliminateSameInsts(){
                    inst->GetOpcode()==BasicInstruction::ADD ||
                    inst->GetOpcode()==BasicInstruction::GETELEMENTPTR){
                     int def_regno=inst->GetDefRegno();
-                    std::cout<<"the result_regno is "<<def_regno<<std::endl;
+                    //std::cout<<"the result_regno is "<<def_regno<<std::endl;
                     for(auto other=std::next(it);other!=block->Instruction_list.end();other++){
                         Instruction &other_inst = *other;
                         if(other_inst->GetOpcode()!=inst->GetOpcode()){continue;}
@@ -180,7 +180,7 @@ void ADCEPass::EliminateSameInsts(){
                             regnos.insert(def_regno);
                             int def_regno_todlt=other_inst->GetDefRegno();
                             auto use_insts=cfg->use_map[def_regno_todlt];
-                            std::cout<<" we delete result_regno: "<<def_regno_todlt<<std::endl;
+                            //std::cout<<" we delete result_regno: "<<def_regno_todlt<<std::endl;
                             
                             for(auto &use_inst:use_insts){
                                 if(use_inst==nullptr){continue;}
@@ -259,8 +259,79 @@ void ADCEPass::EliminateSameInsts(){
     }
 }
 
-
+// 循环削弱后增加了一些同一基本块内的冗余重复的乘/加/块内GEP指令，删除
 void ADCEPass::ESI(){
     EliminateSameInsts();
     EliminateSameInsts();
+    // 删除块间相同的GEP指令【有效性待测试】
+    for(auto [defI, cfg] : llvmIR->llvm_cfg){
+        //收集所有的gep指令信息
+        std::vector<std::pair<GetElementptrInstruction*,int>> gep_id_map;
+        for(auto &[id,block]: *(cfg->block_map)){
+            for(auto &inst:block->Instruction_list){
+                if(inst->GetOpcode()==BasicInstruction::GETELEMENTPTR){
+                    gep_id_map.push_back(std::pair((GetElementptrInstruction*)inst,id));
+                }
+            }
+        }
+
+        std::unordered_set<Instruction> insts;
+        std::unordered_set<int> blockids;
+        for(auto it=gep_id_map.begin();it!=gep_id_map.end();it++){
+            if(insts.count(it->first)){continue;}
+
+            GetElementptrInstruction* &inst=it->first;
+            int regno=inst->GetDefRegno();
+            auto same_block=cfg->GetBlockWithId(it->second);
+            for(auto other=std::next(it);other!=gep_id_map.end();other++){
+                if(other->first->isSame(inst)){
+                    auto Dominators=((DominatorTree*)(cfg->DomTree))->getDominators(cfg->GetBlockWithId(other->second));
+                    if(!Dominators.count(same_block)){continue;}// 不被支配，无法删除替代
+                    insts.insert(other->first);
+                    blockids.insert(other->second);
+                    int regno_todlt=other->first->GetDefRegno();
+
+                    auto use_insts=cfg->use_map[regno_todlt];
+                    for(auto &use_inst:use_insts){
+                        if(use_inst==nullptr){continue;}
+                        auto operands=use_inst->GetNonResultOperands();
+                        for(auto &operand:operands){
+                            if(operand->GetOperandType()==BasicOperand::REG && 
+                            ((RegOperand*)operand)->GetRegNo()==regno_todlt){
+                                operand = GetNewRegOperand(regno);
+                                cfg->use_map[regno].push_back(use_inst);
+                            }
+                        } 
+                        use_inst->SetNonResultOperands(operands);
+                    }
+                    cfg->use_map.erase(regno_todlt);
+                }
+            }
+        }
+            
+        // 删除块间相同GEP指令
+        for(auto &id:blockids){
+            auto block=cfg->GetBlockWithId(id);
+            auto old_list=block->Instruction_list;
+            block->Instruction_list.clear();
+            for(auto &inst:old_list){
+                if(!insts.count(inst)){
+                    block->Instruction_list.push_back(inst);
+                }
+            }
+        }
+    }
+
+}
+
+void ADCEPass::EliminateRedundantLS(){
+   
+}
+
+// 全局变量、数组指针存在冗余的load，删除 -->保证两次store之间最多有一次load
+void ADCEPass::ERLS(){
+     for(auto [defI, cfg] : llvmIR->llvm_cfg){
+        std::unordered_map<std::string,std::pair<bool,Instruction>> load_store_map;
+
+    }
 }

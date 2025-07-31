@@ -11,6 +11,7 @@ private:
     std::set<int> live_block;
 
     void EliminateSameInsts();
+    void EliminateRedundantLS();
 
 public:
     ADCEPass(LLVMIR *IR, DomAnalysis *dom) : IRPass(IR) { domtrees = dom; }
@@ -20,6 +21,7 @@ public:
     void Execute();
 
     void ESI();
+    void ERLS();
 
     
 };

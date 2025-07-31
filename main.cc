@@ -252,7 +252,7 @@ int main(int argc, char** argv) {
 		// SimplifyCFGPass(&llvmIR).TOPPhi();
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
-        ADCEPass(&llvmIR,&inv_dom).ESI();//删除循环削弱后产生的部分冗余重复指令
+        ADCEPass(&llvmIR,&inv_dom).ESI();//删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();
 		PeepholePass(&llvmIR).ImmResultReplaceExecute();
