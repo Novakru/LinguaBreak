@@ -1,4 +1,7 @@
 // TODO: strengthreduce for array index
+// Advanced: 07_arr_init_nd.sy
+
+// 也可作为sccp的重点考虑对象
 
 int main() {
   int a[5][3];
@@ -10,3 +13,4 @@ int main() {
   int i[2][3][4] = {1, 2, 3, 4, {5}, {}};
   return 4;
 }
+

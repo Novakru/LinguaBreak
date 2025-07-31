@@ -12,7 +12,8 @@ void MachineStrengthReducePass::ScalarStrengthReduction() {
             for (auto it = block->instructions.begin(); it != block->instructions.end();) {
                 auto inst = (RiscV64Instruction*)(*it);
                 //[1] 乘/除/模 的削弱
-                if(inst->getOpcode() == RISCV_ADDI || inst->getOpcode() == RISCV_ADDIW) {
+                if(inst->getOpcode() == RISCV_ADDI || inst->getOpcode() == RISCV_ADDIW ||
+                   inst->getOpcode() == RISCV_LI || inst->getOpcode() == RISCV_LUI ) {
                     auto next_it = std::next(it);
                     if (next_it != block->instructions.end()) {
                         auto next_inst = (RiscV64Instruction*)(*next_it);
@@ -22,8 +23,20 @@ void MachineStrengthReducePass::ScalarStrengthReduction() {
                         mul			t0,s1,t0    ---> slli t0,s1,k （目前方案：仅当k=2^n时才进行转换）
                         */
                         if(next_inst->getOpcode() == RISCV_MUL || next_inst->getOpcode() == RISCV_MULW) {
-                            if(next_inst->getRs2().reg_no == inst->getRd().reg_no && !inst->getRs1().is_virtual && inst->getRs1().reg_no == 0) {
-                                int k = inst->getImm();
+                            bool flag=false;  int k=0;
+                            if(inst->getOpcode() == RISCV_ADDI || inst->getOpcode() == RISCV_ADDIW){
+                                if(next_inst->getRs2().reg_no == inst->getRd().reg_no && !inst->getRs1().is_virtual && inst->getRs1().reg_no == 0){
+                                    flag=true;
+                                    k = inst->getImm();
+                                }
+                            }else if(next_inst->getRs2().reg_no == inst->getRd().reg_no){
+                                flag=true;
+                                k = inst->getImm();
+                                if(inst->getOpcode() == RISCV_LUI){
+                                    k=(k<<12);
+                                }
+                            }
+                            if(flag) {
                                 if(k > 0 && (k & (k - 1)) == 0 && k!=1) { // k是2的幂
                                     int shift_amount = __builtin_ctz(k);  // 获取k的二进制表示中最低位1的索引
                                     RiscV64Instruction *slli_inst = new RiscV64Instruction();

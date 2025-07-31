@@ -215,7 +215,15 @@ void MachinePeepholePass::ConstantReplacement() {
                                next_inst->getOpcode() == RISCV_SLLI || next_inst->getOpcode() == RISCV_MUL ||
                                next_inst->getOpcode() == RISCV_DIV  || next_inst->getOpcode() == RISCV_REM ||
                                next_inst->getOpcode() == RISCV_SW   || next_inst->getOpcode() == RISCV_LW ) {
+                                
                                 if(next_inst->getRs1().reg_no == inst->getRd().reg_no) {
+                                    if(inst->getRs1().reg_no == RISCV_sp){
+                                    //if(inst->getRd().reg_no == RISCV_t1 && inst->getRs1().reg_no == RISCV_sp) {
+                                        // addi t1, sp, 0
+                                        // add t0, t1, t0
+                                        // 为什么捕捉不到呢？？？？？？
+                                        std::cout<< "Occur! The regno of sp is " << inst->getRs1().reg_no << std::endl;
+                                    } 
                                     next_inst->setRs1(inst->getRs1());
                                     it = block->instructions.erase(it);
                                     ++it;

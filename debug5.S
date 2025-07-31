@@ -127,13 +127,11 @@ main:
 .main_11:
 	jal			x0,.main_14
 .main_14:
-	addi		t1,t0,0
-	slli		t1,t1,2
+	slli		t1,t0,2
 	addi		t2,sp,0
 	add			t1,t2,t1
 	lw			t2,0(t1)
-	addi		t3,t0,0
-	slli		t3,t3,2
+	slli		t3,t0,2
 	addi		t4,sp,20
 	add			t3,t4,t3
 	lw			t3,0(t3)
@@ -161,8 +159,7 @@ main:
 3:
 	auipc		t2,%pcrel_hi(state)
 	lw			t2,%pcrel_lo(3b)(t2)
-	lui			t3,2
-	mulw		t2,t2,t3
+	slliw		t2,t2,13
 	addw		t1,t1,t2
 4:
 	auipc		t2,%pcrel_hi(state)
@@ -195,8 +192,7 @@ main:
 	lw			t1,%pcrel_lo(11b)(t1)
 	addiw		t2,x0,256
 	remw		t1,t1,t2
-	addi		t2,t0,0
-	slli		t2,t2,2
+	slli		t2,t0,2
 	la			t3,buffer
 	add			t2,t2,t3
 	sw			t1,0(t2)
@@ -249,8 +245,7 @@ pseudo_sha1:
 	add			s1,a0,x0
 	jal			x0,.pseudo_sha1_1
 .pseudo_sha1_1:
-	addi		t0,a1,0
-	slli		t0,t0,2
+	slli		t0,a1,2
 	add			t0,s1,t0
 	addiw		t1,x0,128
 	sw			t1,0(t0)
@@ -264,8 +259,7 @@ pseudo_sha1:
 .pseudo_sha1_2:
 	addiw		t0,x0,64
 	remw		t0,t2,t0
-	addi		t0,t2,0
-	slli		t0,t0,2
+	slli		t0,t2,2
 	add			t0,s1,t0
 	addiw		t1,x0,0
 	sw			t1,0(t0)
@@ -281,8 +275,7 @@ pseudo_sha1:
 	divw		t1,a1,t1
 	addiw		t2,x0,256
 	remw		t1,t1,t2
-	addi		t2,t0,0
-	slli		t2,t2,2
+	slli		t2,t0,2
 	add			t2,s1,t2
 	sw			t1,0(t2)
 	lui			t1,16
@@ -337,18 +330,15 @@ pseudo_sha1:
 .pseudo_sha1_11:
 	slliw		a2,a1,2
 	addw		a2,a0,a2
-	addi		a3,a2,0
-	slli		a3,a3,2
+	slli		a3,a2,2
 	add			a3,s1,a3
 	lw			a3,0(a3)
-	lui			a4,4096
-	mulw		a3,a3,a4
+	slliw		a3,a3,24
 	addiw		a4,a2,1
 	slli		a4,a4,2
 	add			a4,s1,a4
 	lw			a4,0(a4)
-	lui			a5,16
-	mulw		a4,a4,a5
+	slliw		a4,a4,16
 	addw		a3,a3,a4
 	addiw		a4,a2,2
 	slli		a4,a4,2
@@ -361,8 +351,7 @@ pseudo_sha1:
 	add			a2,s1,a2
 	lw			a2,0(a2)
 	addw		a2,a3,a2
-	addi		a3,a1,0
-	slli		a3,a3,2
+	slli		a3,a1,2
 	addi		a4,sp,0
 	add			a3,a4,a3
 	sw			a2,0(a3)
@@ -409,8 +398,7 @@ pseudo_sha1:
 	addiw		a4,x0,2
 	remw		a2,a2,a4
 	addw		a2,a3,a2
-	addi		a3,a1,0
-	slli		a3,a3,2
+	slli		a3,a1,2
 	addi		a4,sp,0
 	add			a3,a4,a3
 	sw			a2,0(a3)
@@ -514,8 +502,7 @@ pseudo_sha1:
 	addw		a1,a1,t5
 	addw		a1,a1,a5
 	addw		a1,a1,t6
-	addi		a3,s3,0
-	slli		a3,a3,2
+	slli		a3,s3,2
 	addi		a4,sp,0
 	add			a3,a4,a3
 	lw			a3,0(a3)
@@ -539,8 +526,7 @@ pseudo_sha1:
 	addw		t6,t6,s7
 	jal			x0,.pseudo_sha1_83
 .pseudo_sha1_73:
-	lui			a1,262144
-	mulw		a1,a2,a1
+	slliw		a1,a2,30
 	lui			a3,262144
 	remw		a2,a2,a3
 	addw		s6,a1,a2

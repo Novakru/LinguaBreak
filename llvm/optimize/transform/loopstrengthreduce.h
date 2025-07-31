@@ -2,13 +2,13 @@
 #define LOOPSTRENGTHREDUCE_H
 #include "../../include/ir.h"
 #include "../pass.h"
+#include "ScalarEvolution.h"
 
-class StrengthReducePass : public IRPass { 
+class LoopStrengthReducePass : public IRPass { 
 private:
-    void ScalarReduce();
-    void LoopStrengthReduce();
+    void LoopStrengthReduce(CFG* cfg);
 public:
-    StrengthReducePass(LLVMIR *IR) : IRPass(IR) {}
+    LoopStrengthReducePass(LLVMIR *IR) : IRPass(IR) {}
     void Execute();
 };
 

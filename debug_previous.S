@@ -7,25 +7,25 @@ KMP:
 	sub			sp,sp,t0
 	jal			x0,.KMP_1
 .KMP_1:
-	slli		t0,x0,2
-	add			t0,a0,t0
-	slli		t0,x0,2
-	addi		t1,sp,0
-	add			t0,t1,t0
-	slli		t0,x0,2
-	addi		t1,sp,0
-	add			t0,t1,t0
-	addiw		t1,x0,-1
-	sw			t1,0(t0)
-	addiw		t0,x0,0
-	addiw		t1,x0,-1
+	slli		t0,x0,2    ; t0 = 0
+	add			t0,a0,t0   ; t0 = a0 
+	slli		t0,x0,2    ; t0 = 0
+	addi		t1,sp,0    ; t1 = sp
+	add			t0,t1,t0   ; t0 = sp
+	slli		t0,x0,2    ; t0 = 0
+	addi		t1,sp,0    ; t1 = sp
+	add			t0,t1,t0   ; t0 = sp
+	addiw		t1,x0,-1   ; t1 = -1
+	sw			t1,0(t0)   ; store -1 at sp
+	addiw		t0,x0,0    ; t0 = 0  (.KMP_26用到)
+	addiw		t1,x0,-1   ; t1 = -1 (貌似未用到)
 	jal			x0,.KMP_26
 .KMP_2:
-	slli		t0,t5,2
-	add			t0,a1,t0
-	lw			t1,0(t0)
-	addiw		t2,x0,-1
-	addiw		t3,x0,0
+	slli		t0,t5,2      ; t0 = t5 << 2
+	add			t0,a1,t0     ; t0 = a1 + t0
+	lw			t1,0(t0)     ; t1 = 0(t0)
+	addiw		t2,x0,-1     ; t2 = -1
+	addiw		t3,x0,0      ; t3 = 0
 	bne			t1,t3,.KMP_6
 	jal			x0,.KMP_23
 .KMP_6:
@@ -73,12 +73,12 @@ KMP:
 	add			sp,sp,t0
 	jalr		x0,ra,0
 .KMP_26:
-	slli		t2,t0,2
-	add			t2,a0,t2
-	lw			t3,0(t2)
-	addiw		t4,x0,0
-	addiw		t5,x0,0
-	addiw		t6,x0,0
+	slli		t2,t0,2    ; t2 = 0
+	add			t2,a0,t2   ; t2 = a0
+	lw			t3,0(t2)   ; t3 = 0(t2)
+	addiw		t4,x0,0    ; t4 = 0 (貌似未用到)
+	addiw		t5,x0,0    ; t5 = 0 (貌似未用到)
+	addiw		t6,x0,0    ; t6 = 0
 	bne			t3,t6,.KMP_28
 	jal			x0,.KMP_2
 .KMP_27:
