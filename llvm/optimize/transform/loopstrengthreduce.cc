@@ -617,4 +617,3 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
         }
     }
 }
-

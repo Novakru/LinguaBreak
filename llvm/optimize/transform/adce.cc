@@ -155,5 +155,6 @@ void ADCEPass::Execute(){
         live_block.clear();
         ADCE(cfg);
         CleanUnlive(cfg);
+		cfg->BuildCFG();
     }
 }

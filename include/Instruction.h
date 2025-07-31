@@ -989,6 +989,13 @@ public:
         : type(typ), index_type(idx_typ), result(res), ptrval(ptr), dims(dim), indexes(index) {
         opcode = GETELEMENTPTR;
     }
+    // 新增：线性偏移GEP构造函数
+    // typ: 元素类型（如I32），res: 结果reg，ptr: 基址，offset: 偏移量（元素个数），idx_typ: 索引类型
+    GetElementptrInstruction(enum LLVMType typ, Operand res, Operand ptr, Operand offset, LLVMType idx_typ)
+        : type(typ), index_type(idx_typ), result(res), ptrval(ptr) {
+        opcode = GETELEMENTPTR;
+        indexes.push_back(offset);
+    }
     void set_ptr(Operand ptr) { ptrval = ptr; }
     void push_dim(int d) { dims.push_back(d); }
     void set_dims(std::vector<int> new_dims) { dims = new_dims; }

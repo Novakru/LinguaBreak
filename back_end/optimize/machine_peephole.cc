@@ -2,7 +2,7 @@
 
 void MachinePeepholePass::Execute() {
     EliminateRedundantInstructions();
-    //FloatCompFusion();
+    // FloatCompFusion();
     ConstantReplacement();
 }
 
@@ -135,8 +135,9 @@ void MachinePeepholePass::FloatCompFusion(){
                     auto next_it = std::next(it);
                     if (next_it != block->instructions.end()) {
                         auto next_inst = (RiscV64Instruction*)(*next_it);
+						// FMA 指令单次舍入，精度较高，所以导致了浮点数输出结果错误，暂时关闭
                         if(next_inst->getOpcode() == RISCV_FADD_S || next_inst->getOpcode() == RISCV_FSUB_S) {
-                            if(next_inst->getRs2().reg_no == inst->getRd().reg_no) {
+						    if(next_inst->getRs2().reg_no == inst->getRd().reg_no) {
                                 RiscV64Instruction *fma_inst = new RiscV64Instruction();
                                 if(next_inst->getOpcode() == RISCV_FADD_S) {
                                     fma_inst->setOpcode(RISCV_FMADD_S,false);
