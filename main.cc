@@ -14,6 +14,7 @@
 #include "llvm/optimize/analysis/dominator_tree.h"
 #include "llvm/optimize/analysis/AliasAnalysis.h"
 #include "llvm/optimize/analysis/ScalarEvolution.h"
+#include "llvm/optimize/analysis/memdep.h"
 
 #include "llvm/optimize/transform/simplify_cfg.h"
 #include "llvm/optimize/transform/mem2reg.h"
@@ -212,6 +213,13 @@ int main(int argc, char** argv) {
         (Mem2RegPass(&llvmIR, &dom)).Execute();
         DomAnalysis inv_dom(&llvmIR);
         inv_dom.invExecute();
+        //--
+        AliasAnalysisPass AA1(&llvmIR); 
+		AA1.Execute();
+        MemDepAnalysisPass(&llvmIR,&AA1).Execute();//分析PASS，单独运行无特殊优化，为cse提供接口
+        SimpleCSEPass(&llvmIR,&dom,&AA1).BlockExecute();//仅block cse（含内存）
+        //--
+        //恢复以下所有优化后无法通过部分测试样例
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
         OneRetPass(&llvmIR).Execute();
@@ -219,17 +227,25 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
 		PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is needed
 		SimplifyCFGPass(&llvmIR).EOBB();  
-
         FunctionInlinePass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFG();
         SCCPPass(&llvmIR).Execute();
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         SimplifyCFGPass(&llvmIR).EOBB();   
         //---
-        SimpleCSEPass(&llvmIR,&dom).Execute();//测试block+domtree+branch cse
+        SimpleCSEPass(&llvmIR,&dom,&AA1).DomtreeExecute();//测试domtree+branch cse（dom暂不含内存）
         SimplifyCFGPass(&llvmIR).EOBB();
         SimplifyCFGPass(&llvmIR).RebuildCFG();//重建cfg
-        //从这之后注释
+        //tmp1
+        // SCCPPass(&llvmIR).Execute();
+        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        // SimplifyCFGPass(&llvmIR).EOBB(); 
+        // // FunctionInlinePass(&llvmIR).Execute();
+        // // SimplifyCFGPass(&llvmIR).RebuildCFG();
+        // // SCCPPass(&llvmIR).Execute();
+        // // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        // // SimplifyCFGPass(&llvmIR).EOBB(); 
+        //tmp2
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();

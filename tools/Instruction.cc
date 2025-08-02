@@ -201,9 +201,8 @@ void StoreInstruction::ChangeReg(const std::map<int, int> &store_map, const std:
     }
     if(value->GetOperandType()==BasicOperand::REG){
         int regno = ((RegOperand*)value)->GetRegNo();
-        if(use_map.find(regno)!=use_map.end()){
-            int new_regno = use_map.at(regno);
-            value = GetNewRegOperand(new_regno);
+        if (use_map.find(regno) != use_map.end()){
+            this->value = GetNewRegOperand(use_map.find(regno)->second);
         }
     }
 }

@@ -826,8 +826,10 @@ void FuncCall::codeIR() {
     if(funcRParams != nullptr){
         funcRParams->codeIR();
     }
+    
     auto &entrybb = GetCurrentBlock(); 
 	rParamsVec paramsvec = irgen_table.FuncRParamsStack.top();
+    //std::cout<<"func_args_size= "<<paramsvec.size()<<"\n";
     if(attribute.type->getType() == BuiltinType::BuiltinKind::Void){
         IRgenCallVoid(entrybb, 
         BasicInstruction::LLVMType::VOID, paramsvec, name->getName());

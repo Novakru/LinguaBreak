@@ -8,7 +8,8 @@
 #include <set>
 #include <deque>
 #include "../analysis/dominator_tree.h"
-
+#include "../analysis/AliasAnalysis.h"
+#include "../analysis/memdep.h"
 // 存储指令的CSE关键信息
 struct InstCSEInfo {
     int opcode;                        // 指令操作码
@@ -31,18 +32,30 @@ bool CSENotConsider(Instruction inst);
 // 基本块CSE优化实现
 class BasicBlockCSEOptimizer {
 public:
-    BasicBlockCSEOptimizer(CFG* cfg) : C(cfg), changed(false),flag(false) {}
+    BasicBlockCSEOptimizer(CFG* cfg,LLVMIR *ir,AliasAnalysisPass *aa) : C(cfg), llvmIR(ir),alias_analyser(aa),changed(false),flag(false),hasMemOp(true) {}
     bool optimize();
-
+    bool NoMemoptimize();
+    bool hasMemOp;
 private:
     CFG* C;
+    LLVMIR *llvmIR;
+    AliasAnalysisPass *alias_analyser;
+    void CallKillReadMemInst(Instruction I, std::map<InstCSEInfo, int> &CallInstMap,
+                         std::map<InstCSEInfo, int> &LoadInstMap, std::set<Instruction> &CallInstSet,
+                         std::set<Instruction> &LoadInstSet, CFG *C) ;
+    void StoreKillReadMemInst(Instruction I, std::map<InstCSEInfo, int> &CallInstMap,
+                          std::map<InstCSEInfo, int> &LoadInstMap, std::set<Instruction> &CallInstSet,
+                          std::set<Instruction> &LoadInstSet, CFG *C);
 public:
     bool changed;
     bool flag;
     std::map<int, int> reg_replace_map;
     std::set<Instruction> erase_set;
     std::map<InstCSEInfo, int> inst_map;
-
+    std::map<InstCSEInfo, int> LoadInstMap;
+    std::map<InstCSEInfo, int> CallInstMap;
+    std::set<Instruction> LoadInstSet;
+    std::set<Instruction> CallInstSet;
     void reset();
     void processAllBlocks();
     bool processBlock(LLVMBlock bb);
@@ -52,6 +65,7 @@ public:
     void processRegularInstruction(BasicInstruction* I);
     void removeDeadInstructions();
     void applyRegisterReplacements();
+    void inst_clear();
 };
 
 // 支配树优化
@@ -66,24 +80,28 @@ private:
     std::map<int, int> regReplaceMap;
     //DomAnalysis *domtrees;
     std::map<InstCSEInfo, std::vector<Instruction>> CmpMap; // cmp信息映射
+    std::map<InstCSEInfo, std::vector<Instruction>> LoadCSEMap;
+    AliasAnalysisPass *alias_analyser;
+    SimpleMemDepAnalyser* memdep_analyser;
 
 public:
-    DomTreeCSEOptimizer(CFG* cfg) : C(cfg), changed(true),branch_changed(true) {}
+    DomTreeCSEOptimizer(CFG* cfg,AliasAnalysisPass * aa,SimpleMemDepAnalyser* ma) : C(cfg),alias_analyser(aa), memdep_analyser(ma),changed(true),branch_changed(true) {}
     void optimize();
     void branch_optimize();
+    void no_mem_optimize();
     void branch_end();
 private:
     void dfs(int bbid);
     void branch_dfs(int bbid);
     void processLoadInstruction(LoadInstruction* loadI, std::map<InstCSEInfo, int>& tmpLoadNumMap);
     void processStoreInstruction(StoreInstruction* storeI, std::map<InstCSEInfo, int>& tmpLoadNumMap);
-    void processCallInstruction(CallInstruction* callI);
+    void processCallInstruction(CallInstruction* callI, std::set<InstCSEInfo>& tmpCSESet);
     void processIcmpInstruction(IcmpInstruction* I,std::set<InstCSEInfo>& cmpCseSet);
     void processFcmpInstruction(FcmpInstruction* I,std::set<InstCSEInfo>& cmpCseSet);
     void processRegularInstruction(BasicInstruction* I, std::set<InstCSEInfo>& tmpCSESet);
-    //void cleanupTemporaryEntries(const std::set<InstCSEInfo>& tmpCSESet,const std::map<InstCSEInfo, int>& tmpLoadNumMap);
+    void cleanupTemporaryEntries(const std::set<InstCSEInfo>& tmpCSESet,const std::map<InstCSEInfo, int>& tmpLoadNumMap);
     //void cleanupTemporaryEntries(const std::set<InstCSEInfo>& regularCSESet,const std::set<InstCSEInfo>& CmpCseSet);
-    void cleanupTemporaryEntries(const std::set<InstCSEInfo>& regularCSESet);
+    //void cleanupTemporaryEntries(const std::set<InstCSEInfo>& regularCSESet);
     void removeDeadInstructions();
     void applyRegisterReplacements();
     bool EmptyBlockJumping(CFG *C);
@@ -92,15 +110,19 @@ private:
 class SimpleCSEPass : public IRPass { 
 private:
     DomAnalysis *domtrees;
+    AliasAnalysisPass *alias_analyser;
+    SimpleMemDepAnalyser* memdep_analyser;
 
 public:
-    SimpleCSEPass(LLVMIR *IR, DomAnalysis *dom) : IRPass(IR) { domtrees = dom; }
+    SimpleCSEPass(LLVMIR *IR, DomAnalysis *dom,AliasAnalysisPass* aa) : IRPass(IR),alias_analyser(aa) { domtrees = dom; }
     void Execute();
     void BlockExecute();
     void CSEInit(CFG* cfg);
     InstCSEInfo GetCSEInfo(Instruction inst);
-    void SimpleBlockCSE(CFG* cfg);
+    void SimpleBlockCSE(CFG* cfg,LLVMIR *IR);
     void SimpleDomTreeWalkCSE(CFG* C);
+    void DomtreeExecute();//包含branch
+    void NoMemExecute();
 };
 // class BranchCSEPass : public IRPass { 
 // private:
