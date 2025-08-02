@@ -251,19 +251,31 @@ int main(int argc, char** argv) {
 		SimplifyCFGPass(&llvmIR).TOPPhi();
 		AliasAnalysisPass AA(&llvmIR); 
 		AA.Execute();
-		LoopRotate(&llvmIR, &AA).Execute();
-		LoopAnalysisPass(&llvmIR).Execute();
-		LoopSimplifyPass(&llvmIR).Execute();
-		AliasAnalysisPass aa(&llvmIR); 
-		aa.Execute();
-		LoopInvariantCodeMotionPass(&llvmIR, &aa).Execute();
+		// LoopRotate(&llvmIR, &AA).Execute();
+		// LoopAnalysisPass(&llvmIR).Execute();
+		// LoopSimplifyPass(&llvmIR).Execute();
+		// AA.Execute();
+		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
+		// LoopAnalysisPass(&llvmIR).Execute();
+		// LoopSimplifyPass(&llvmIR).Execute();
+		// SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
+		LoopStrengthReducePass(&llvmIR).Execute();
+		// AA.Execute();
+		// LoopRotate(&llvmIR, &AA).Execute();
+		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
+		// SimplifyCFGPass(&llvmIR).TOPPhi();
+        inv_dom.invExecute();
+        (ADCEPass(&llvmIR, &inv_dom)).Execute();
+        ADCEPass(&llvmIR,&inv_dom).ESI();//删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
+        ADCEPass(&llvmIR,&inv_dom).ERLS();//删除冗余load指令
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();
-        PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();
-    
-        //NOTE:重建CFG可直接调用SimplifyCFGPass(&llvmIR).RebuildCFG();它包含了build_cfg,build_domtree，不可达块消除以及相应的phi处理
+		PeepholePass(&llvmIR).ImmResultReplaceExecute();
+        PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
+        LoopStrengthReducePass(&llvmIR).GepStrengthReduce();//GEP指令强度削弱中端部分
+
     // }
 
     if (option == 3) {

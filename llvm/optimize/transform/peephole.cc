@@ -246,7 +246,7 @@ void ImmResultReplace(CFG *C){
 I->ReplaceRegByMap(), I->GetNonResultOperands(), I->SetNonResultOperands() is Useful
 */
 void PeepholePass::SrcEqResultInstEliminate(CFG* C) {
-	std::unordered_map<int,int> regno_map; // rx_regno -> ry_regno
+	std::unordered_map<int,Operand> regno_map; // rx_regno -> ry_regno
     //冗余指令删除与信息记录
     for(auto &[id,block]:*(C->block_map)){
         for(auto it=block->Instruction_list.begin(); it!=block->Instruction_list.end();){
@@ -257,11 +257,11 @@ void PeepholePass::SrcEqResultInstEliminate(CFG* C) {
                 auto op1 = arith_inst->GetOperand1();
                 auto op2 = arith_inst->GetOperand2();
                 if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)op2)->GetIntImmVal() == 0){
-                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = op1;
                     it = block->Instruction_list.erase(it);
                     continue;
                 }else if(op1->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)op1)->GetIntImmVal() == 0 && op2->GetOperandType() == BasicOperand::REG){
-                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op2)->GetRegNo();
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = op2;
                     it = block->Instruction_list.erase(it);
                     continue;
                 }
@@ -275,11 +275,11 @@ void PeepholePass::SrcEqResultInstEliminate(CFG* C) {
                 auto op1 = farith_inst->GetOperand1();
                 auto op2 = farith_inst->GetOperand2();
                 if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMF32 && ((ImmF32Operand*)op2)->GetFloatVal() == 0.0f){
-                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = op1;
                     it = block->Instruction_list.erase(it);
                     continue;
                 }else if(op1->GetOperandType() == BasicOperand::IMMF32 && ((ImmF32Operand*)op1)->GetFloatVal() == 0.0f && op2->GetOperandType() == BasicOperand::REG){
-                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op2)->GetRegNo();
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = op2;
                     it = block->Instruction_list.erase(it);
                     continue;
                 }
@@ -293,7 +293,7 @@ void PeepholePass::SrcEqResultInstEliminate(CFG* C) {
                 auto op1 = arith_inst->GetOperand1();
                 auto op2 = arith_inst->GetOperand2();
                 if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)op2)->GetIntImmVal() == 0){
-                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = op1;
                     it = block->Instruction_list.erase(it);
                     continue;
                 }else{
@@ -306,7 +306,7 @@ void PeepholePass::SrcEqResultInstEliminate(CFG* C) {
                 auto op1 = farith_inst->GetOperand1();
                 auto op2 = farith_inst->GetOperand2();
                 if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMF32 && ((ImmF32Operand*)op2)->GetFloatVal() == 0.0f){
-                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = op1;
                     it = block->Instruction_list.erase(it);
                     continue;
                 }else{
@@ -319,11 +319,11 @@ void PeepholePass::SrcEqResultInstEliminate(CFG* C) {
                 auto op1 = arith_inst->GetOperand1();
                 auto op2 = arith_inst->GetOperand2();
                 if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)op2)->GetIntImmVal() == 1){
-                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = op1;
                     it = block->Instruction_list.erase(it);
                     continue;
                 }else if(op1->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)op1)->GetIntImmVal() == 1 && op2->GetOperandType() == BasicOperand::REG){
-                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op2)->GetRegNo();
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = op2;
                     it = block->Instruction_list.erase(it);
                     continue;
                 }else{  
@@ -336,11 +336,11 @@ void PeepholePass::SrcEqResultInstEliminate(CFG* C) {
                 auto op1 = farith_inst->GetOperand1();
                 auto op2 = farith_inst->GetOperand2();
                 if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMF32 && ((ImmF32Operand*)op2)->GetFloatVal() == 1.0f){
-                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = op1;
                     it = block->Instruction_list.erase(it);
                     continue;
                 }else if(op1->GetOperandType() == BasicOperand::IMMF32 && ((ImmF32Operand*)op1)->GetFloatVal() == 1.0f && op2->GetOperandType() == BasicOperand::REG){
-                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op2)->GetRegNo();
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = op2;
                     it = block->Instruction_list.erase(it);
                     continue;
                 }else{  
@@ -353,7 +353,7 @@ void PeepholePass::SrcEqResultInstEliminate(CFG* C) {
                 auto op1 = arith_inst->GetOperand1();
                 auto op2 = arith_inst->GetOperand2();
                 if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)op2)->GetIntImmVal() == 1){
-                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = op1;
                     it = block->Instruction_list.erase(it);
                     continue;
                 }else{  
@@ -366,13 +366,29 @@ void PeepholePass::SrcEqResultInstEliminate(CFG* C) {
                 auto op1 = farith_inst->GetOperand1();
                 auto op2 = farith_inst->GetOperand2();
                 if(op1->GetOperandType() == BasicOperand::REG && op2->GetOperandType() == BasicOperand::IMMF32 && ((ImmF32Operand*)op2)->GetFloatVal() == 1.0f){
-                    regno_map[((RegOperand*)result_op)->GetRegNo()] = ((RegOperand*)op1)->GetRegNo();
+                    regno_map[((RegOperand*)result_op)->GetRegNo()] = op1;
                     it = block->Instruction_list.erase(it);
                     continue;
                 }else{
                     ++it;
                     continue;
                 }
+            }else if(inst->GetOpcode() == BasicInstruction::GETELEMENTPTR){//如果将普通元素的ptr替换为数组基址的ptr，是否含义变了？
+                // //%r34 = getelementptr i32, ptr @sorted_array, i32 0
+                // //%r10 = getelementptr [10000 x i32], ptr @sorted_array, i32 0
+                // //均可用@sorted_array直接替换
+                // auto gep_inst=(GetElementptrInstruction*)inst;
+                // auto indexes=gep_inst->GetIndexes();
+                // if(indexes.size()==1&&indexes[0]->GetFullName()=="0"){
+                //     Operand ptr=gep_inst->GetPtrVal();
+                //     int res_regno=((RegOperand*)gep_inst->GetResult())->GetRegNo();
+                //     regno_map[res_regno] = ptr;
+                //     it = block->Instruction_list.erase(it);
+                //     continue;
+                // }else{
+                //     ++it;
+                //     continue;
+                // }
             }
             ++it;
         }   
@@ -386,11 +402,16 @@ void PeepholePass::SrcEqResultInstEliminate(CFG* C) {
                 if(op->GetOperandType() == BasicOperand::REG){
                     int regno = ((RegOperand*)op)->GetRegNo();
                     if(regno_map.count(regno)){
-                        int new_regno = regno_map[regno];
-                        while(regno_map.count(new_regno)) {
-                            new_regno = regno_map[new_regno];
+                        Operand op_torpl = regno_map[regno];
+                        while(op_torpl->GetOperandType()==BasicOperand::REG) {
+                            int new_regno=((RegOperand*)op_torpl)->GetRegNo();
+                            if(regno_map.count(new_regno)){
+                                op_torpl = regno_map[new_regno];
+                            }else{
+                                break;
+                            }
                         }
-                        op = GetNewRegOperand(new_regno);
+                        op = op_torpl->Clone();
                     }
                 }
             }

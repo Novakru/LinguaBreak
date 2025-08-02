@@ -2,7 +2,7 @@
 
 void MachinePeepholePass::Execute() {
     EliminateRedundantInstructions();
-    //FloatCompFusion();
+    // FloatCompFusion();
     ConstantReplacement();
 }
 
@@ -135,8 +135,9 @@ void MachinePeepholePass::FloatCompFusion(){
                     auto next_it = std::next(it);
                     if (next_it != block->instructions.end()) {
                         auto next_inst = (RiscV64Instruction*)(*next_it);
+						// FMA 指令单次舍入，精度较高，所以导致了浮点数输出结果错误，暂时关闭
                         if(next_inst->getOpcode() == RISCV_FADD_S || next_inst->getOpcode() == RISCV_FSUB_S) {
-                            if(next_inst->getRs2().reg_no == inst->getRd().reg_no) {
+						    if(next_inst->getRs2().reg_no == inst->getRd().reg_no) {
                                 RiscV64Instruction *fma_inst = new RiscV64Instruction();
                                 if(next_inst->getOpcode() == RISCV_FADD_S) {
                                     fma_inst->setOpcode(RISCV_FMADD_S,false);
@@ -215,7 +216,15 @@ void MachinePeepholePass::ConstantReplacement() {
                                next_inst->getOpcode() == RISCV_SLLI || next_inst->getOpcode() == RISCV_MUL ||
                                next_inst->getOpcode() == RISCV_DIV  || next_inst->getOpcode() == RISCV_REM ||
                                next_inst->getOpcode() == RISCV_SW   || next_inst->getOpcode() == RISCV_LW ) {
+                                
                                 if(next_inst->getRs1().reg_no == inst->getRd().reg_no) {
+                                    if(inst->getRs1().reg_no == RISCV_sp){
+                                    //if(inst->getRd().reg_no == RISCV_t1 && inst->getRs1().reg_no == RISCV_sp) {
+                                        // addi t1, sp, 0
+                                        // add t0, t1, t0
+                                        // 为什么捕捉不到呢？？？？？？
+                                        std::cout<< "Occur! The regno of sp is " << inst->getRs1().reg_no << std::endl;
+                                    } 
                                     next_inst->setRs1(inst->getRs1());
                                     it = block->instructions.erase(it);
                                     ++it;

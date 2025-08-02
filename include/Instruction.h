@@ -315,6 +315,7 @@ public:
     virtual bool isTerminator() const {
         return opcode == BR_COND || opcode == BR_UNCOND || opcode == RET;
     }
+    virtual bool isSame(const Instruction& other)=0; //判断两指令内容是否完全一致
 	// 如果要通过基类指针 Instruction 拷贝其实际指向的子类对象 (loopRoate 首次用到)
     virtual BasicInstruction* Clone() const = 0; 
 	virtual bool mayReadFromMemory() const { return false; }
@@ -359,6 +360,7 @@ public:
     inline void SetResult(Operand op) override { result = op; }
 	bool mayReadFromMemory() const override { return true; }
 	bool mayWriteToMemory() const override { return false; }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 // store
@@ -406,6 +408,7 @@ public:
     inline void SetResult(Operand op) override { }
 	bool mayReadFromMemory() const override { return false; }
 	bool mayWriteToMemory() const override { return true; }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 //<result>=add <ty> <op1>,<op2>
@@ -461,6 +464,16 @@ public:
     float CompConst(float value1, float value2);
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { result = op; }
+    bool isSame(const Instruction& other) override {
+        ArithmeticInstruction* other_inst = (ArithmeticInstruction*) other;
+        if(other_inst->GetOpcode()==this->opcode){
+            if(this->op1->GetFullName()==other_inst->GetOperand1()->GetFullName() &&
+               this->op2->GetFullName()==other_inst->GetOperand2()->GetFullName() ){
+                return true;
+               }
+        }
+        return false;
+    }
 };
 
 //<result>=icmp <cond> <ty> <op1>,<op2>
@@ -513,6 +526,7 @@ public:
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { result = op; }
     IcmpCond GetCompareCondition() { return cond; }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 //<result>=fcmp <cond> <ty> <op1>,<op2>
@@ -561,6 +575,7 @@ public:
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { result = op; }
     FcmpCond GetCompareCondition() { return cond; }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 // phi syntax:
@@ -634,6 +649,7 @@ public:
     bool NotEqual(Operand op1, Operand op2);
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { result = op; }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 // alloca
@@ -675,6 +691,7 @@ public:
     }
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { result = op; }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 // Conditional branch
@@ -726,6 +743,7 @@ public:
     }
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 // Unconditional branch
@@ -760,6 +778,7 @@ public:
     }
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 /*
@@ -814,6 +833,7 @@ public:
     }
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 class GlobalStringConstInstruction : public BasicInstruction {
@@ -842,6 +862,7 @@ public:
     }
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 /*
@@ -913,6 +934,7 @@ public:
     inline void SetResult(Operand op) override { result = op; }
 	bool mayReadFromMemory() const override { return true; }  // conservatively assume both
 	bool mayWriteToMemory() const override { return true; }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 /*
@@ -958,6 +980,7 @@ public:
     }
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 /*
@@ -976,6 +999,7 @@ private:
     std::vector<Operand> indexes;
 
 public:
+    GetElementptrInstruction(){}
     GetElementptrInstruction(enum LLVMType typ, Operand res, Operand ptr, LLVMType idx_typ)
         : type(typ), index_type(idx_typ), result(res), ptrval(ptr) {
         opcode = GETELEMENTPTR;
@@ -989,6 +1013,13 @@ public:
         : type(typ), index_type(idx_typ), result(res), ptrval(ptr), dims(dim), indexes(index) {
         opcode = GETELEMENTPTR;
     }
+    // 新增：线性偏移GEP构造函数
+    // typ: 元素类型（如I32），res: 结果reg，ptr: 基址，offset: 偏移量（元素个数），idx_typ: 索引类型
+    GetElementptrInstruction(enum LLVMType typ, Operand res, Operand ptr, Operand offset, LLVMType idx_typ)
+        : type(typ), index_type(idx_typ), result(res), ptrval(ptr) {
+        opcode = GETELEMENTPTR;
+        indexes.push_back(offset);
+    }
     void set_ptr(Operand ptr) { ptrval = ptr; }
     void push_dim(int d) { dims.push_back(d); }
     void set_dims(std::vector<int> new_dims) { dims = new_dims; }
@@ -999,6 +1030,7 @@ public:
     void set_indexes(std::vector<Operand> new_indexes) { indexes = new_indexes; }
 
     enum LLVMType GetType() { return type; }
+    enum LLVMType GetIndexType() { return index_type; }
     Operand GetResult() override { return result; }
     Operand GetPtrVal() { return ptrval; }
     std::vector<int> GetDims() { return dims; }
@@ -1031,6 +1063,30 @@ public:
     }
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { result = op; }
+    bool isSame(const Instruction& other) override {
+        GetElementptrInstruction* other_inst = (GetElementptrInstruction*) other;
+        if(this->index_type == other_inst->GetIndexType() &&
+           this->type == other_inst->GetType() &&
+           this->ptrval->GetFullName() == other_inst->GetPtrVal()->GetFullName()){
+            if(this->dims.size()==other_inst->GetDims().size() &&
+               this->indexes.size() == other_inst->GetIndexes().size()){
+                auto other_dims=other_inst->GetDims();
+                auto other_indexes=other_inst->GetIndexes();
+                for(int i=0;i<dims.size();i++){
+                    if(dims[i]!=other_dims[i]){
+                        return false;
+                    }
+                }
+                for(int i=0;i<indexes.size();i++){
+                    if(indexes[i]->GetFullName()!=other_indexes[i]->GetFullName()){
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+        return false;
+    }
 };
 
 class FunctionDefineInstruction : public BasicInstruction {
@@ -1073,6 +1129,7 @@ public:
     }
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { }
+    bool isSame(const Instruction& other) override {return false;}
 };
 typedef FunctionDefineInstruction *FuncDefInstruction;
 
@@ -1107,6 +1164,7 @@ public:
     }
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 // 这条指令目前只支持float和i32的转换，如果你需要double, i64等类型，需要自己添加更多变量
@@ -1139,6 +1197,7 @@ public:
     }
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { result = op; }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 // 这条指令目前只支持float和i32的转换，如果你需要double, i64等类型，需要自己添加更多变量
@@ -1172,6 +1231,7 @@ public:
     }
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { result = op; }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 // 无符号扩展，你大概率需要它来将i1无符号扩展至i32(即对应c语言bool类型转int)
@@ -1208,6 +1268,7 @@ public:
     }
     virtual BasicInstruction* Clone() const override;
     inline void SetResult(Operand op) override { result = op; }
+    bool isSame(const Instruction& other) override {return false;}
 };
 
 std::ostream &operator<<(std::ostream &s, BasicInstruction::LLVMType type);

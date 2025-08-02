@@ -27,7 +27,10 @@ public:
     void display_sdom_map();                          // 显示半支配点map 最终维护成idom {map{(v, u)} <=> v -> u that dominate v}
 
     bool dominates(LLVMBlock a, LLVMBlock b);     // 判断a是否支配b
-    std::vector<LLVMBlock> getDominators(LLVMBlock b); // 获取b的所有支配者（从最外层到最内层）
+    bool dominates(int a, int b) { 
+        return dominates(C->GetBlockWithId(a),C->GetBlockWithId(b));
+    }
+    std::unordered_set<LLVMBlock> getDominators(LLVMBlock b); // 获取b的所有支配者（从最外层到最内层）
 
 	LLVMBlock getBlockByID(int id) { return (*C->block_map)[id]; }
 };

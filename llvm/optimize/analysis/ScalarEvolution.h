@@ -67,6 +67,8 @@ public:
     const std::vector<SCEV *> &getOperands() const { return Operands; }
     void print(std::ostream &OS) const override;
     SCEV* clone() const override = 0;
+    size_t getNumOperands() const { return Operands.size(); }
+    SCEV* getOperand(size_t idx) const { return Operands[idx]; }
 };
 
 class SCEVAddExpr : public SCEVCommutativeExpr {
@@ -103,7 +105,7 @@ class ScalarEvolution {
     CFG* C;
     LoopInfo *LI;
     DominatorTree *DT;
-
+public:
     std::map<Loop *, std::map<Operand, SCEV *>> LoopToSCEVMap;
     mutable std::vector<SCEV *> Allocations;
     mutable std::map<SCEV *, SCEV *> SimplifiedSCEVCache;  // orgin -> simplified
@@ -120,11 +122,11 @@ class ScalarEvolution {
     SCEV *getAddExpr(const std::vector<SCEV *> &Ops) const;
     SCEV *getMulExpr(const std::vector<SCEV *> &Ops) const;
     SCEV *getAddRecExpr(SCEV *Start, SCEV *Step, Loop *L) const;
-    
-    Instruction getDef(Operand V) const;
 
-public:
     ScalarEvolution(CFG* C, LoopInfo *LI, DominatorTree *DT);
+
+	Instruction getDef(Operand V) const;
+	SCEV* fixLoopInvariantUnknowns(SCEV* scev, Loop* L);
 
     SCEV *getSCEV(Operand V, Loop *L);
     SCEV *simplify(SCEV *S) const;
@@ -141,6 +143,7 @@ public:
     SCEVPass(LLVMIR* IR) : IRPass(IR) {}
     void Execute() override;
 	void simplifyAllSCEVExpr();
+	void fixAllSCEVExpr();
 };
 
 #endif // SCALAR_EVOLUTION_H 

@@ -57,6 +57,9 @@ void DominatorTree::SearchInvB(int bbid){
 }
 
 void DominatorTree::BuildDominatorTree(bool reverse) {
+
+	// C->display(reverse);
+	
     // 清空所有内容
     dom_tree.clear();
     sdom_map.clear();
@@ -123,14 +126,13 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
         }
     }
     else{
-        std::set<int> inv_start; // 反转图的起点（其实就是cfg的exit）
-
-        // 寻找结束代码块
-        for(int i=0; i<C->G.size(); i++){
-            if(C->G[i].size()==0){
-                inv_start.insert(i);
+        std::set<int> inv_start;
+        for (auto iter = C->block_map->begin(); iter != C->block_map->end(); ++iter) {
+            int block_id = iter->first;
+            if (C->G[block_id].size() == 0) {
+                inv_start.insert(block_id);
             }
-            dfs[i]=-1; //初始化作为未访问标记
+            dfs[block_id] = -1;
         }
 
         // 计算反图的dfs
@@ -246,13 +248,13 @@ bool DominatorTree::dominates(LLVMBlock a, LLVMBlock b) {
 }
 
 // getDominators from b block to root
-std::vector<LLVMBlock> DominatorTree::getDominators(LLVMBlock b) {
-	std::vector<LLVMBlock> result;
+std::unordered_set<LLVMBlock> DominatorTree::getDominators(LLVMBlock b) {
+	std::unordered_set<LLVMBlock> result;
 	int current_id = b->block_id;
 	auto bmap = *(C->block_map);
 	while (current_id != -1) {
 		if (bmap.count(current_id)) {
-			result.push_back(bmap[current_id]);
+			result.insert(bmap[current_id]);
 		}
 		if (current_id == 0) break;  // no exit loop
 		current_id = sdom_map.count(current_id) ? sdom_map[current_id] : -1;
