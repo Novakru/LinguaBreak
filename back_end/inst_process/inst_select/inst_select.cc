@@ -91,6 +91,8 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
 
             cur_block->setParent(cur_func);
             cur_func->blocks.push_back(cur_block);
+
+            block->dfs_id=0;
         }
 
         // 遍历每个LLVM IR基本块
@@ -101,6 +103,15 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
 		// slove method2: search the blocks in domtree
 
 		DomtreeDfs((*cfg->block_map)[0], cfg);
+        // DEBUG: 监测是否有空Block
+        // for(auto it=cur_func->blocks.begin();it!=cur_func->blocks.end();){
+        //     if((*it)->instructions.empty()){
+        //         std::cout<<"null block with id "<<(*it)->getLabelId()<<std::endl;
+        //         it=cur_func->blocks.erase(it);
+        //     }else{
+        //         it++;
+        //     }
+        // }
 
         // visset.clear();
         // DFS((*cfg->block_map)[0], cfg, cur_mcfg, cur_func);
@@ -417,7 +428,9 @@ void RiscV64Unit::LowerStack()
                 }
             }
             auto y_ins = *(b->ReverseBegin());
-            Assert(y_ins->arch == MachineBaseInstruction::RiscV);
+            if(y_ins==nullptr){continue;}
+
+            //Assert(y_ins->arch == MachineBaseInstruction::RiscV);
             auto riscv_y_ins = (RiscV64Instruction *)y_ins;
             if (riscv_y_ins->getOpcode() == RISCV_JALR) {
                 if (riscv_y_ins->getRd() == GetPhysicalReg(RISCV_x0)) {
@@ -741,29 +754,50 @@ int RiscV64Unit::InsertArgInStack(BasicInstruction::LLVMType type, Operand arg_o
 	return 0;
 }
 
+
+// void RiscV64Unit::DomtreeDfs(BasicBlock* block, CFG *C){
+//     if(block->dfs_id>0){return ;}
+//     block->dfs_id=1;
+//    for(auto &inst:block->Instruction_list){
+//         ConvertAndAppend<Instruction>(inst);
+//    }
+
+//    for(auto &succ: C->GetSuccessor(block)){
+//         DomtreeDfs(succ,C);
+//    }
+//    return ;
+// }
+
 void RiscV64Unit::DomtreeDfs(BasicBlock* ubb, CFG *C){
-    if (!ubb || !C || !C->DomTree) {
+    if (!ubb || !C || !C->DomTree ) {
         ERROR("Invalid parameters in DomtreeDfs");
         return;
     }
+    if(ubb->dfs_id>0){return ;}
+    ubb->dfs_id=1;
+
     auto ubbid = ubb->block_id;
 	auto DomTree = (DominatorTree*)C->DomTree;
 	auto domtree = DomTree->dom_tree;
 	// DomTree->display();
     cur_block = curblockmap[ubbid];
-    
+
     // std::cerr << "\n[指令选择] 开始处理基本块 B" << ubbid << std::endl;
+    assert(!ubb->Instruction_list.empty());
     for (auto instruction : ubb->Instruction_list) {
         // std::cerr << "[指令选择] 处理指令: ";
         // instruction->PrintIR(std::cerr);
+        assert(instruction!=nullptr);
         ConvertAndAppend<Instruction>(instruction);
     }
-    // std::cerr << "[指令选择] 完成基本块 B" << ubbid << " 的处理\n" << std::endl;
 
+    //assert(!domtree[ubbid].empty());
+    if(domtree[ubbid].empty()){return ;}
+    
 	for (auto vbb : domtree[ubbid]) {
+        if(vbb==nullptr){continue;}
 		DomtreeDfs(vbb, C);
 	}
-
 }
 
 // 模板特化实现

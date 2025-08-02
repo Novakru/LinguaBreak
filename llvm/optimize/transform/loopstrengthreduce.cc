@@ -617,3 +617,197 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
         }
     }
 }
+
+/*
+GEP指令的强度削弱分为两部分：
+    - 中端：识别模式并转换为getelementptr ... i32 1格式
+    - 后端：识别getelementptr ... i32 1格式并优化为addi指令
+仅考虑两类：
+    1. gep指令的indexes完全由立即数组成
+    2. gep指令的indexes仅最后一位是RegOperand，其余均为立即数
+*/
+int GepIndexTypeIdentify(GetElementptrInstruction* inst){//0: 不属于任何类型  1：属于类型1  2：属于类型2
+    auto dims=inst->GetDims();
+    auto indexes=inst->GetIndexes();
+    int size=indexes.size();
+    if(dims.size()!=(size-1)){
+        return 0;
+    }
+    // 1类型最短长度：dims:1  indexes 2
+    // 2类型最短长度: dims:0  indexes 1
+
+    for(int i=0;i<size;i++){
+        if(i!=(size-1)&&indexes[i]->GetOperandType()!=BasicOperand::IMMI32){
+            return 0;
+        }else if(i==(size-1)){
+            if(indexes[i]->GetOperandType()==BasicOperand::IMMI32){
+                if(size>1){return 1;}
+                return 0;
+            }else if(indexes[i]->GetOperandType()==BasicOperand::REG){
+                return 2;
+            }
+        }
+    }
+    return 0;
+}
+
+struct ImmGepInfo{
+    GetElementptrInstruction* gep;
+    int index;//根据gep的indexes计算出的总偏移
+    int res_regno;
+    int block_id;
+    ImmGepInfo(GetElementptrInstruction* &inst, int blockid):gep(inst),block_id(blockid){
+        res_regno=gep->GetDefRegno();
+        index=gep->ComputeIndex();
+    }
+};
+struct RegGepInfo{
+    GetElementptrInstruction* gep;
+    Instruction def_inst;//gep指令最后一个reg_index的定义指令
+    int index_regno;//gep指令indexes中最后一个RegOperand的regno
+    int res_regno;  //gep指令的res
+    int block_id;   //gep指令所在blockid
+    bool changed;
+    RegGepInfo(GetElementptrInstruction* &inst, Instruction def,int index,int blockid):
+                gep(inst),def_inst(def),index_regno(index),block_id(blockid),changed(false){
+        res_regno=gep->GetDefRegno();
+    }
+};
+
+bool isNearbyGeps(RegGepInfo* info1, RegGepInfo* info2){
+    auto inst1=info1->gep;
+    auto inst2=info2->gep;
+    //[1]判断前面的imm_indexes是否完全一致
+    auto indexes1=inst1->GetIndexes();
+    auto indexes2=inst2->GetIndexes();
+    if(indexes1.size()!=indexes2.size()){
+        return false;
+    }
+    int size=indexes1.size();
+    for(auto i=0;i<size-1;i++){
+        if(((ImmI32Operand*)indexes1[i])->GetIntImmVal()!=((ImmI32Operand*)indexes2[i])->GetIntImmVal()){
+            return false;
+        }
+    }
+    //[2]判断最后一个reg_index是否相邻
+    //[2.1]直接相邻 + 
+    if(info2->def_inst->GetOpcode()==BasicInstruction::ADD){
+        ArithmeticInstruction* def_inst=(ArithmeticInstruction*)info2->def_inst;
+        if(def_inst->GetOperand1()->GetOperandType()==BasicOperand::REG //inst2的reg_index是在inst1的reg_index上偏移而来
+           &&def_inst->GetOperand2()->GetOperandType()==BasicOperand::IMMI32
+           &&((RegOperand*)def_inst->GetOperand1())->GetRegNo()==info1->index_regno){
+            
+            return true;
+        }
+    }
+    //[2.2]间接相邻 - 
+
+    return false;
+}
+
+
+void LoopStrengthReducePass::GepStrengthReduce(){
+    for(auto &[defI,cfg]:llvmIR->llvm_cfg){
+        std::unordered_map<std::string,std::vector<ImmGepInfo*>>imm_geps;
+        std::unordered_map<std::string,std::vector<RegGepInfo*>>reg_geps;
+
+        //【1】收集gep指令信息
+        for(auto &[id,block]:*(cfg->block_map)){
+            for(auto &inst:block->Instruction_list){
+                if(inst->GetOpcode()==BasicInstruction::GETELEMENTPTR){
+                    auto gep=(GetElementptrInstruction*)inst;
+                    int type=GepIndexTypeIdentify(gep);
+                    if(type==1){
+                        auto info=new ImmGepInfo(gep,id);
+                        imm_geps[gep->GetPtrVal()->GetFullName()].push_back(info);
+                    }else if(type==2){
+                        auto indexes=gep->GetIndexes();
+                        Operand reg_index=indexes[indexes.size()-1];
+                        int index_regno=((RegOperand*)reg_index)->GetRegNo();
+                        Instruction def_inst=cfg->def_map[index_regno];
+                        if(def_inst==nullptr){continue;}//可能是函数参数，一定不会满足我们的要求
+                        auto info=new RegGepInfo(gep,def_inst,index_regno,id);
+                        reg_geps[gep->GetPtrVal()->GetFullName()].push_back(info);
+                    }
+                }
+            }
+        }
+
+        //【2】进行强度削弱
+        //【2.1】imm类型
+        for(auto &[ptrname,infos]:imm_geps){
+            //std::cout<<"------- Ptr: "<<ptrname<<" ------------ "<<std::endl;
+            for(int i=1;i<infos.size();i++){
+                int gap=infos[i]->index-infos[i-1]->index;
+                //std::cout<<"gap = "<<gap<<std::endl;
+                if(gap>0){
+                    if(((DominatorTree*)cfg->DomTree)->dominates(infos[i-1]->block_id,infos[i]->block_id)){
+                        auto inst = new GetElementptrInstruction(infos[i]->gep->GetType(),GetNewRegOperand(infos[i]->res_regno),
+                                                    GetNewRegOperand(infos[i-1]->res_regno),new ImmI32Operand(gap),BasicInstruction::LLVMType::I32);
+                        infos[i]->gep=inst;
+                        //std::cout<<"replaced!"<<std::endl;
+                    }
+                }
+            }
+        }
+        //【2.2】reg类型
+        std::unordered_set<int> index_regno_todlt;
+        for(auto &[ptrname,infos]:reg_geps){
+            //std::cout<<"------- Ptr: "<<ptrname<<" ------------ "<<std::endl;
+            for(int i=0;i<infos.size()-1;i++){
+                if(infos[i]->changed){continue;}
+                for(int j=i+1;j<infos.size();j++){
+                    if(isNearbyGeps(infos[i],infos[j])){
+                        int gap=((ImmI32Operand*)((ArithmeticInstruction*)infos[j]->def_inst)->GetOperand2())->GetIntImmVal();
+                        //std::cout<<"gap = "<<gap<<std::endl;
+                        auto inst = new GetElementptrInstruction(infos[j]->gep->GetType(),GetNewRegOperand(infos[j]->res_regno),
+                                                    GetNewRegOperand(infos[i]->res_regno),new ImmI32Operand(gap),BasicInstruction::LLVMType::I32);
+                        infos[j]->gep=inst;
+                        infos[j]->changed=true;
+                        int def_regno=infos[j]->def_inst->GetDefRegno();
+                        if(cfg->use_map[def_regno].size()==1){//若此def指令定义的reg仅这一处使用，那么可删除此指令
+                            index_regno_todlt.insert(infos[j]->def_inst->GetDefRegno());
+                        }
+                        //std::cout<<"replaced!"<<std::endl;
+                    }
+                }
+            }
+        }
+
+        //【3】指令替换
+        for(auto &[id,block]:*(cfg->block_map)){
+            for(auto it=block->Instruction_list.begin();it!=block->Instruction_list.end();){
+                auto &inst=*it;
+                if(inst->GetOpcode()==BasicInstruction::GETELEMENTPTR){
+                    Operand ptr=((GetElementptrInstruction*)inst)->GetPtrVal();
+                    int type=GepIndexTypeIdentify((GetElementptrInstruction*)inst);
+                    if(type==1){
+                        for(auto &info:imm_geps[ptr->GetFullName()]){
+                            if(info->res_regno==((GetElementptrInstruction*)inst)->GetDefRegno()){
+                                assert(info->gep!=nullptr);
+                                inst = info->gep;
+                                //std::cout<<"the inst with res_regno "<<info->res_regno<<" is replaced!"<<std::endl;
+                                break;
+                            }
+                        }
+                    }else if(type==2){
+                        for(auto &info:reg_geps[ptr->GetFullName()]){
+                            if(info->res_regno==((GetElementptrInstruction*)inst)->GetDefRegno()){
+                                inst = info->gep;
+                                //std::cout<<"the inst with res_regno "<<info->res_regno<<" is replaced!"<<std::endl;
+                                break;
+                            }
+                        }
+                    }
+                }else if(inst->GetOpcode()==BasicInstruction::ADD){ //删除偏移计算指令
+                    if(index_regno_todlt.count(inst->GetDefRegno())){
+                        it=block->Instruction_list.erase(it);
+                        continue;
+                    }
+                }
+                ++it;
+            }
+        }
+    }
+    return ;
+}

@@ -253,12 +253,12 @@ int main(int argc, char** argv) {
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
         ADCEPass(&llvmIR,&inv_dom).ESI();//删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
+        ADCEPass(&llvmIR,&inv_dom).ERLS();//删除冗余load指令
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();
 		PeepholePass(&llvmIR).ImmResultReplaceExecute();
-        PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();
-        
-    
+        PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
+        LoopStrengthReducePass(&llvmIR).GepStrengthReduce();//GEP指令强度削弱中端部分
 
     // }
 

@@ -10,6 +10,7 @@ private:
 public:
     LoopStrengthReducePass(LLVMIR *IR) : IRPass(IR) {}
     void Execute();
+    void GepStrengthReduce();
 };
 
 #endif

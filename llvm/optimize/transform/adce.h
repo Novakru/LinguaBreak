@@ -4,6 +4,13 @@
 #include "../pass.h"
 #include "../analysis/dominator_tree.h"
 
+struct LSInfo{
+    bool defed;
+    Operand load_res;
+    LSInfo();
+    LSInfo(bool def, Operand res):defed(def),load_res(res){}
+};
+
 class ADCEPass : public IRPass { 
 private:
     DomAnalysis *domtrees;
@@ -11,7 +18,7 @@ private:
     std::set<int> live_block;
 
     void EliminateSameInsts();
-    void EliminateRedundantLS();
+    void EliminateRedundantLS(CFG* cfg,LLVMBlock block);
 
 public:
     ADCEPass(LLVMIR *IR, DomAnalysis *dom) : IRPass(IR) { domtrees = dom; }

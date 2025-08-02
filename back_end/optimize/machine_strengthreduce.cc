@@ -2,6 +2,7 @@
 
 void MachineStrengthReducePass::Execute() {
     ScalarStrengthReduction();
+    GepStrengthReduction();
 }
 
 // 仅保留乘法的优化
@@ -135,3 +136,163 @@ void MachineStrengthReducePass::ScalarStrengthReduction() {
     }
 }
 
+// void MachineStrengthReducePass::GepStrengthReduction(){
+//     // gep .... i32 1 指令消解优化
+//     for (auto &func : unit->functions) {
+//         for (auto &block : func->blocks) {
+//             auto old_block=block->instructions;
+//             block->instructions.clear();
+//             for (auto it = old_block.begin(); it != old_block.end();) {
+//                 auto inst1 = (RiscV64Instruction*)(*it);
+//                 if(inst1->getOpcode()==RISCV_ADDIW && inst1->getRs1().reg_no==0){
+//                     it = std::next(it);
+//                     if(it!=old_block.end()){
+//                         auto inst2=(RiscV64Instruction*)(*it);
+//                         if(inst2->getOpcode()==RISCV_ADDIW && inst2->getRs1().reg_no==0){
+//                             it = std::next(it);
+//                             if(it!=old_block.end()){
+//                                 auto inst3=(RiscV64Instruction*)(*it);
+//                                 if(inst3->getOpcode()==RISCV_MUL
+//                                    &&inst3->getRs1().reg_no==inst2->getRd().reg_no
+//                                    &&inst3->getRs2().reg_no==inst1->getRd().reg_no){
+//                                     it = std::next(it);
+//                                     if(it!=old_block.end()){
+//                                         auto inst4=(RiscV64Instruction*)(*it);
+//                                         if(inst4->getOpcode()==RISCV_SLLI 
+//                                            &&inst4->getRs1().reg_no==inst3->getRd().reg_no
+//                                            &&inst4->getImm()==2){
+//                                             it = std::next(it);
+//                                             if(it!=old_block.end()){
+//                                                 auto inst5=(RiscV64Instruction*)(*it);
+//                                                 if(inst5->getOpcode()==RISCV_ADD && inst5->getRs2().reg_no==inst4->getRd().reg_no){
+//                                                     int op1=inst1->getImm();
+//                                                     int op2=inst2->getImm();
+//                                                     int index=4*op1*op2;
+
+//                                                     assert(index>=0);
+//                                                     if(index>2047){
+//                                                         RiscV64Instruction* li_inst = new RiscV64Instruction();
+//                                                         li_inst->setOpcode(RISCV_LI,false);
+//                                                         li_inst->setRd(inst4->getRd());
+//                                                         li_inst->setImm(index);
+//                                                         block->instructions.push_back(li_inst);
+
+//                                                         block->instructions.push_back(inst5);//仅加入指令5
+//                                                     }else{
+//                                                         inst5->setOpcode(RISCV_ADDI,false);
+//                                                         inst5->setImm(index);
+//                                                         block->instructions.push_back(inst5);//仅加入指令5
+//                                                     }
+//                                                     ++it;
+//                                                     continue;
+//                                                 }else{
+//                                                     block->instructions.push_back(inst1);
+//                                                     block->instructions.push_back(inst2);
+//                                                     block->instructions.push_back(inst3);
+//                                                     block->instructions.push_back(inst4);
+//                                                     continue;
+//                                                 }
+//                                             }
+//                                         }else{
+//                                             block->instructions.push_back(inst1);
+//                                             block->instructions.push_back(inst2);
+//                                             block->instructions.push_back(inst3);
+//                                             continue;
+//                                         }
+//                                     }
+//                                 }else{
+//                                     block->instructions.push_back(inst1);
+//                                     block->instructions.push_back(inst2);
+//                                     continue;
+//                                 }
+//                             }
+//                         }else{
+//                             block->instructions.push_back(inst1);
+//                             block->instructions.push_back(inst2);
+//                             ++it; //当前it必然不可能匹配inst1了
+//                             continue;
+//                         }
+//                     }
+//                 }else{
+//                     block->instructions.push_back(inst1);
+//                     ++it;
+//                 }
+                
+//             }
+//         }
+//     }
+// }
+
+void MachineStrengthReducePass::GepStrengthReduction() {
+    for (auto &func : unit->functions) {
+        for (auto &block : func->blocks) {
+            auto old_block = block->instructions;
+            block->instructions.clear();
+
+            auto it = old_block.begin();
+            while (it != old_block.end()) {
+                auto inst1 = (RiscV64Instruction*)(*it);
+
+                //一次取5条指令
+                auto it2 = std::next(it);
+                auto it3 = (it2 != old_block.end()) ? std::next(it2) : old_block.end();
+                auto it4 = (it3 != old_block.end()) ? std::next(it3) : old_block.end();
+                auto it5 = (it4 != old_block.end()) ? std::next(it4) : old_block.end();
+
+                bool matched = false;
+                if (it2 != old_block.end() && it3 != old_block.end() && it4 != old_block.end() && it5 != old_block.end()) {
+                    auto inst2 = (RiscV64Instruction*)(*it2);
+                    auto inst3 = (RiscV64Instruction*)(*it3);
+                    auto inst4 = (RiscV64Instruction*)(*it4);
+                    auto inst5 = (RiscV64Instruction*)(*it5);
+
+                    if (inst1->getOpcode() == RISCV_ADDIW && inst1->getRs1().reg_no == 0 &&
+                        inst2->getOpcode() == RISCV_ADDIW && inst2->getRs1().reg_no == 0 &&
+                        inst3->getOpcode() == RISCV_MUL &&
+                            inst3->getRs1().reg_no == inst2->getRd().reg_no &&
+                            inst3->getRs2().reg_no == inst1->getRd().reg_no &&
+                        inst4->getOpcode() == RISCV_SLLI &&
+                            inst4->getRs1().reg_no == inst3->getRd().reg_no &&
+                            inst4->getImm() == 2 &&
+                        inst5->getOpcode() == RISCV_ADD &&
+                            inst5->getRs2().reg_no == inst4->getRd().reg_no) 
+                    {
+                        // 完全匹配：做 strength reduction
+                        int op1 = inst1->getImm();
+                        int op2 = inst2->getImm();
+                        int index = 4 * op1 * op2;
+
+                        if (index > 2047) {
+                            // 需要先 materialize 常数，再 add
+                            RiscV64Instruction* li_inst = new RiscV64Instruction();
+                            li_inst->setOpcode(RISCV_LI, false);
+                            li_inst->setRd(inst4->getRd()); // 目标寄存器要合理设置
+                            li_inst->setImm(index);
+                            block->instructions.push_back(li_inst);
+
+                            block->instructions.push_back(inst5);
+                        } else {
+                            // 直接用 ADDI（造一个新的，不改 inst5 原地）
+                            RiscV64Instruction* new_addi = new RiscV64Instruction();
+                            new_addi->setOpcode(RISCV_ADDI, false);
+                            new_addi->setRd(inst5->getRd());
+                            new_addi->setRs1(inst5->getRs1());
+                            new_addi->setImm(index);
+                            block->instructions.push_back(new_addi);
+                        }
+
+                        // 跳过这 5 条原始指令
+                        std::advance(it, 5);
+                        matched = true;
+                    }
+                }
+
+                if (!matched) {
+                    // 没匹配上：原样搬运当前这一条
+                    block->instructions.push_back(inst1);
+                    ++it;
+                }
+            }
+        }
+    }
+}

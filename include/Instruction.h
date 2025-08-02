@@ -999,6 +999,7 @@ private:
     std::vector<Operand> indexes;
 
 public:
+    GetElementptrInstruction(){}
     GetElementptrInstruction(enum LLVMType typ, Operand res, Operand ptr, LLVMType idx_typ)
         : type(typ), index_type(idx_typ), result(res), ptrval(ptr) {
         opcode = GETELEMENTPTR;

@@ -45,6 +45,7 @@ INCLUDES = $(addprefix -I, $(SRCDIR))
 # CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES) -fsanitize=undefined -fno-omit-frame-pointer -g
 # LDFLAGS += -fsanitize=undefined -g
 
+
 CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES)
 
 SRCS := $(foreach dir,$(SRCDIR),$(wildcard $(dir)/*.cc))
