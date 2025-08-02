@@ -1402,6 +1402,11 @@ void SimpleCSEPass::SimpleDomTreeWalkCSE(CFG* C) {
 // 整体CSE优化入口
 void SimpleCSEPass::Execute() {
     memdep_analyser = new SimpleMemDepAnalyser(llvmIR,alias_analyser);
+    cfgTable.clear();
+    for(auto [defI, cfg] : llvmIR->llvm_cfg){
+		std::string funcName = defI->GetFunctionName();
+		cfgTable[funcName] = cfg;
+    }
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         CSEInit(cfg);
         BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser);
@@ -1441,6 +1446,11 @@ void SimpleCSEPass::NoMemExecute() {
     }
 }
 void SimpleCSEPass::BlockExecute() {
+    cfgTable.clear();
+    for(auto [defI, cfg] : llvmIR->llvm_cfg){
+		std::string funcName = defI->GetFunctionName();
+		cfgTable[funcName] = cfg;
+    }
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         CSEInit(cfg);
         BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser);
@@ -1449,7 +1459,11 @@ void SimpleCSEPass::BlockExecute() {
 }
 void SimpleCSEPass::DomtreeExecute() {
     memdep_analyser = new SimpleMemDepAnalyser(llvmIR,alias_analyser);
-    
+    cfgTable.clear();
+    for(auto [defI, cfg] : llvmIR->llvm_cfg){
+		std::string funcName = defI->GetFunctionName();
+		cfgTable[funcName] = cfg;
+    }
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         for (auto [id, bb] : *cfg->block_map) {
             for (auto I : bb->Instruction_list) {
