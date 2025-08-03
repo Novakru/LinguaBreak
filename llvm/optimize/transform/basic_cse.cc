@@ -4,7 +4,7 @@
 #include<functional>
 #include <stack>
 //记得修改cse_init!!!以及注意GetCSEInfo
-DomAnalysis *domtrees;
+//DomAnalysis *domtrees;
 //AliasAnalysisPass *alias_analyser;
 extern std::unordered_map<std::string, CFG*> cfgTable;
 // 获取指令的CSE特征信息
@@ -55,6 +55,14 @@ static InstCSEInfo GetCSEInfo(Instruction inst) {
             }
             break;
         }
+        case BasicInstruction::ICMP:
+            {auto IcmpI = (IcmpInstruction *)inst;
+            info.cond = IcmpI->GetCompareCondition(); // 记录比较条件
+            }
+        case BasicInstruction::FCMP:
+            {auto FcmpI = (FcmpInstruction *)inst;
+            info.cond = FcmpI->GetCompareCondition(); // 记录比较条件;
+            }
         default:
             info.operand_list.reserve(operands.size());
             for (auto op : operands) {
@@ -64,39 +72,7 @@ static InstCSEInfo GetCSEInfo(Instruction inst) {
     }  
     return info;
 }
-// static InstCSEInfo GetCSEInfo(Instruction I) {
-//     InstCSEInfo ans;
-//     ans.opcode = I->GetOpcode();
 
-//     auto list = I->GetNonResultOperands();
-//     if (I->GetOpcode() == BasicInstruction::CALL) {
-//         auto CallI = (CallInstruction *)I;
-//         ans.operand_list.push_back(CallI->GetFunctionName());
-//     }
-
-//     // consider the Commutative property
-//     if (I->GetOpcode() == BasicInstruction::ADD || I->GetOpcode() == BasicInstruction::MUL) {
-//         assert(list.size() == 2);
-//         auto op1 = list[0], op2 = list[1];
-//         if (op1->GetFullName() > op2->GetFullName()) {
-//             std::swap(op1, op2);
-//         }
-//         ans.operand_list.push_back(op1->GetFullName());
-//         ans.operand_list.push_back(op2->GetFullName());
-//     } else {
-//         for (auto op : list) {
-//             ans.operand_list.push_back(op->GetFullName());
-//         }
-//     }
-
-//     if (I->GetOpcode() == BasicInstruction::GETELEMENTPTR) {
-//         auto GEPI = (GetElementptrInstruction *)I;
-//         for (auto dim : GEPI->GetDims()) {
-//             ans.operand_list.push_back((new ImmI32Operand(dim))->GetFullName());
-//         }
-//     }
-//     return ans;
-// }
 // 从指令中提取CSE关键信息
 static InstCSEInfo GetBranchCSEInfo(Instruction I) {
     InstCSEInfo ans;
@@ -1136,7 +1112,7 @@ void DomTreeCSEOptimizer::branch_dfs(int bbid)
         auto I = *(now->Instruction_list.end() - 2);
         //2)如果存在比较指令，提取CSE信息
         if (I->GetOpcode() == BasicInstruction::FCMP || I->GetOpcode() == BasicInstruction::ICMP) {
-            auto info = GetBranchCSEInfo(I);  // 提取CSE信息
+            auto info = GetCSEInfo(I);  // 提取CSE信息
             bool isConstCmp = false;
             
             //3）检查是否为整型常量比较（？不可消除）
@@ -1183,7 +1159,7 @@ void DomTreeCSEOptimizer::branch_dfs(int bbid)
 
 void DomTreeCSEOptimizer::processIcmpInstruction(IcmpInstruction* IcmpI,std::set<InstCSEInfo>& cmpCseSet)
 {
-    auto info = GetBranchCSEInfo(IcmpI);  // 提取CSE信息
+    auto info = GetCSEInfo(IcmpI);  // 提取CSE信息
     bool isConstCmp = false;
     //检查是否为整型常量比较（？不可消除）(是否需要扩展成浮点数常量比较？)
     if (IcmpI->GetOp1()->GetOperandType() == BasicOperand::IMMI32 &&
@@ -1210,7 +1186,7 @@ void DomTreeCSEOptimizer::processIcmpInstruction(IcmpInstruction* IcmpI,std::set
 }
 void DomTreeCSEOptimizer::processFcmpInstruction(FcmpInstruction* FcmpI,std::set<InstCSEInfo>& cmpCseSet)
 {
-    auto info = GetBranchCSEInfo(FcmpI);  // 提取CSE信息
+    auto info = GetCSEInfo(FcmpI);  // 提取CSE信息
     bool isConstCmp = false;
     //检查是否为整型常量比较（？不可消除）(是否需要扩展成浮点数常量比较？)
     if (FcmpI->GetOp1()->GetOperandType() == BasicOperand::IMMF32 &&
@@ -1237,91 +1213,94 @@ void DomTreeCSEOptimizer::processFcmpInstruction(FcmpInstruction* FcmpI,std::set
 
 }
 void DomTreeCSEOptimizer::processLoadInstruction(LoadInstruction* LoadI, std::map<InstCSEInfo, int>& tmpLoadNumMap) {
-    // auto info = GetCSEInfo(LoadI);
-    // auto CSEiter = LoadCSEMap.find(info);
-    // if (CSEiter != LoadCSEMap.end()) {
-    //     bool is_cse = false;
-    //     for (auto I2 : LoadCSEMap[info]) {
-    //         // I->PrintIR(std::cerr);I2->PrintIR(std::cerr);
-    //         if (memdep_analyser->isLoadSameMemory(LoadI, I2, C) == true) {
-    //             eraseSet.insert(LoadI);
-    //             // I->PrintIR(std::cerr);
-    //             // I2->PrintIR(std::cerr);
-    //             // std::cerr<<"-----------------------------\n";
-    //             if (I2->GetOpcode() == BasicInstruction::STORE) {
-    //                 // I->PrintIR(std::cerr);
-    //                 auto StoreI2 = (StoreInstruction *)I2;
-    //                 int val_regno = ((RegOperand *)StoreI2->GetValue())->GetRegNo();
-    //                 if (regReplaceMap.find(val_regno) != regReplaceMap.end()) {
-    //                     val_regno = regReplaceMap[val_regno];
-    //                 }
-    //                 regReplaceMap[GetResultRegNo(LoadI)] = val_regno;
+    //1.查找是否有等价的load指令
+    auto info = GetCSEInfo(LoadI);
+    auto CSEiter = LoadCSEMap.find(info);
+    bool is_cse = false;
+    //2.如果存在等价的load指令
+    if (CSEiter != LoadCSEMap.end()) {
+        //3.遍历映射中存储的等价load指令，记为I2
+        for (auto I2 : LoadCSEMap[info]) {
+            // I->PrintIR(std::cerr);I2->PrintIR(std::cerr);
+            if(memdep_analyser->isLoadSameMemory(LoadI, I2, C) == false){continue;}
+            //4.如果I2与该条load2加载同一块内存
+            //1)该条load指令插入删除集合
+            eraseSet.insert(LoadI);
+            // I->PrintIR(std::cerr);
+            // I2->PrintIR(std::cerr);
+            // std::cerr<<"-----------------------------\n";
+            //2)如果I2是store指令，更改替代的reg;load指令同理
+            if (I2->GetOpcode() == BasicInstruction::STORE) {
+                // I->PrintIR(std::cerr);
+                auto StoreI2 = (StoreInstruction *)I2;
+                int val_regno = ((RegOperand *)StoreI2->GetValue())->GetRegNo();
+                if (regReplaceMap.find(val_regno) != regReplaceMap.end()) {
+                    val_regno = regReplaceMap[val_regno];
+                }
+                regReplaceMap[GetResultRegNo(LoadI)] = val_regno;
 
-    //             } else if (I2->GetOpcode() == BasicInstruction::LOAD) {
+            } else if (I2->GetOpcode() == BasicInstruction::LOAD) {
 
-    //                 regReplaceMap[GetResultRegNo(LoadI)] = GetResultRegNo(I2);
-    //             } else {    // should not reach here
-    //                 assert(false);
-    //             }
+                regReplaceMap[GetResultRegNo(LoadI)] = GetResultRegNo(I2);
+            } else {    // should not reach here
+                assert(false);
+            }
 
-    //             changed|= true;//很可能需要改成flag
-    //             is_cse = true;
-    //             break;
-    //         }
-    //     }
-    //     if (is_cse) {
-    //         return;
-    //     }
-    // }
-
-    // LoadCSEMap[info].push_back(LoadI);
-    // tmpLoadNumMap[info] += 1;
-    // return;
+            changed|= true;//很可能需要改成flag
+            is_cse = true;
+            break;
+        }
+    }
+    if(!is_cse)
+    {
+        LoadCSEMap[info].push_back(LoadI);
+        tmpLoadNumMap[info] += 1;
+    }
 }
 
 void DomTreeCSEOptimizer::processStoreInstruction(StoreInstruction* StoreI, std::map<InstCSEInfo, int>& tmpLoadNumMap) {
-    // assert(StoreI->GetValue()->GetOperandType() == BasicOperand::REG);
+    assert(StoreI->GetValue()->GetOperandType() == BasicOperand::REG);
 
-    // int val_regno = ((RegOperand *)StoreI->GetValue())->GetRegNo();
-    // if (regReplaceMap.find(val_regno) != regReplaceMap.end()) {
-    //     val_regno = regReplaceMap[val_regno];
-    // }
+    int val_regno = ((RegOperand *)StoreI->GetValue())->GetRegNo();
+    if (regReplaceMap.find(val_regno) != regReplaceMap.end()) {
+        val_regno = regReplaceMap[val_regno];
+    }
 
-    // auto LoadI =
-    // new LoadInstruction(StoreI->GetDataType(), StoreI->GetPointer(), GetNewRegOperand(val_regno));
-    // auto info = GetCSEInfo(LoadI);
-    // LoadCSEMap[info].push_back(StoreI);
-    // tmpLoadNumMap[info] += 1;
-    // return;
+    auto LoadI =
+    new LoadInstruction(StoreI->GetDataType(), StoreI->GetPointer(), GetNewRegOperand(val_regno));
+    auto info = GetCSEInfo(LoadI);
+    LoadCSEMap[info].push_back(StoreI);
+    tmpLoadNumMap[info] += 1;
+    return;
 }
 
 void DomTreeCSEOptimizer::processCallInstruction(CallInstruction* CallI, std::set<InstCSEInfo>& regularCseSet) {
-    // if (cfgTable.find(CallI->GetFunctionName()) == cfgTable.end()) {
-    //     return;    // external call
-    // }
-    // auto cfg = cfgTable[CallI->GetFunctionName()];
-    // if(cfg==nullptr){return;}
-    // auto& rwmap = alias_analyser->GetRWMap();
-    // auto it = rwmap.find(cfg);
-    // if (it == rwmap.end()) {
-    //         return;
-    // }
-    // const RWInfo& rwinfo = it->second;
-    // // we only CSE independent call in this Pass
-    // if( (rwinfo.has_lib_func_call) || rwinfo.ReadRoots.size() !=0 || rwinfo.WriteRoots.size() != 0) {
-    //     return;
-    // }
-    // auto info = GetCSEInfo(CallI);
-    // auto cseIter = instCSEMap.find(info);
+    if (cfgTable.find(CallI->GetFunctionName()) == cfgTable.end()) {
+        return;    // external call
+    }
+    auto cfg = cfgTable[CallI->GetFunctionName()];
+    if(cfg==nullptr){return;}
+    auto& rwmap = alias_analyser->GetRWMap();
+    auto it = rwmap.find(cfg);
+    if (it == rwmap.end()) {
+            return;
+    }
+    const RWInfo& rwinfo = it->second;
+    // we only CSE independent call in this Pass
+    if( (rwinfo.has_lib_func_call) || rwinfo.ReadRoots.size() !=0 || rwinfo.WriteRoots.size() != 0) {
+        return;
+    }
+    auto info = GetCSEInfo(CallI);
+    auto cseIter = instCSEMap.find(info);
 
-    // if (cseIter != instCSEMap.end()) {
-    //     eraseSet.insert(CallI);
-    //     regReplaceMap[GetResultRegNo(CallI)] = cseIter->second;
-    //     changed|= true;
-    // } else {
-    //     instCSEMap[info] = GetResultRegNo(CallI);
-    //     regularCseSet.insert(info);
-    // }
+    if (cseIter != instCSEMap.end()) {
+        eraseSet.insert(CallI);
+        regReplaceMap[GetResultRegNo(CallI)] = cseIter->second;
+        changed|= true;
+    } else {
+        instCSEMap[info] = GetResultRegNo(CallI);
+        regularCseSet.insert(info);
+    }
 }
 
 void DomTreeCSEOptimizer::processRegularInstruction(BasicInstruction* I, std::set<InstCSEInfo>& regularCseSet) {
@@ -1395,13 +1374,13 @@ void DomTreeCSEOptimizer::applyRegisterReplacements() {
 
 // 支配树CSE优化入口
 void SimpleCSEPass::SimpleDomTreeWalkCSE(CFG* C) {
-    DomTreeCSEOptimizer optimizer(C,alias_analyser,memdep_analyser);
+    DomTreeCSEOptimizer optimizer(C,alias_analyser,memdep_analyser,domtrees);
     optimizer.optimize();
 }
 
 // 整体CSE优化入口
 void SimpleCSEPass::Execute() {
-    memdep_analyser = new SimpleMemDepAnalyser(llvmIR,alias_analyser);
+    memdep_analyser = new SimpleMemDepAnalyser(llvmIR,alias_analyser,domtrees);
     cfgTable.clear();
     for(auto [defI, cfg] : llvmIR->llvm_cfg){
 		std::string funcName = defI->GetFunctionName();
@@ -1411,7 +1390,7 @@ void SimpleCSEPass::Execute() {
         CSEInit(cfg);
         BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser);
         optimizer.optimize();
-        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser);
+        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
         optimizer2.optimize();
     }
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
@@ -1421,17 +1400,22 @@ void SimpleCSEPass::Execute() {
                 I->SetBlockID(id);
             }
         }
-        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser);
+        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
         optimizer2.branch_optimize();
     }
 }
-void SimpleCSEPass::NoMemExecute() {
-    memdep_analyser = new SimpleMemDepAnalyser(llvmIR,alias_analyser);
+void SimpleCSEPass::BNExecute() {
+    memdep_analyser = new SimpleMemDepAnalyser(llvmIR,alias_analyser,domtrees);
+    cfgTable.clear();
+    for(auto [defI, cfg] : llvmIR->llvm_cfg){
+		std::string funcName = defI->GetFunctionName();
+		cfgTable[funcName] = cfg;
+    }
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         CSEInit(cfg);
         BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser);
         optimizer.NoMemoptimize();
-        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser);
+        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
         optimizer2.optimize();
     }
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
@@ -1441,7 +1425,7 @@ void SimpleCSEPass::NoMemExecute() {
                 I->SetBlockID(id);
             }
         }
-        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser);
+        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
         optimizer2.branch_optimize();
     }
 }
@@ -1458,7 +1442,7 @@ void SimpleCSEPass::BlockExecute() {
     }
 }
 void SimpleCSEPass::DomtreeExecute() {
-    memdep_analyser = new SimpleMemDepAnalyser(llvmIR,alias_analyser);
+    memdep_analyser = new SimpleMemDepAnalyser(llvmIR,alias_analyser,domtrees);
     cfgTable.clear();
     for(auto [defI, cfg] : llvmIR->llvm_cfg){
 		std::string funcName = defI->GetFunctionName();
@@ -1471,7 +1455,7 @@ void SimpleCSEPass::DomtreeExecute() {
             }
         }
         //CSEInit(cfg);
-        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser);
+        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
         optimizer2.optimize();
     }
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
@@ -1481,7 +1465,7 @@ void SimpleCSEPass::DomtreeExecute() {
             }
         }
         //CSEInit(cfg);
-        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser);
+        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
         optimizer2.branch_optimize();
     }
 }

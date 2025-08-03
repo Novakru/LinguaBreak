@@ -78,14 +78,14 @@ private:
     std::map<InstCSEInfo, int> instCSEMap;
     //std::map<InstCSEInfo, std::vector<Instruction>> loadCSEMap;
     std::map<int, int> regReplaceMap;
-    //DomAnalysis *domtrees;
+    DomAnalysis *domtrees;
     std::map<InstCSEInfo, std::vector<Instruction>> CmpMap; // cmp信息映射
     std::map<InstCSEInfo, std::vector<Instruction>> LoadCSEMap;
     AliasAnalysisPass *alias_analyser;
     SimpleMemDepAnalyser* memdep_analyser;
 
 public:
-    DomTreeCSEOptimizer(CFG* cfg,AliasAnalysisPass * aa,SimpleMemDepAnalyser* ma) : C(cfg),alias_analyser(aa), memdep_analyser(ma),changed(true),branch_changed(true) {}
+    DomTreeCSEOptimizer(CFG* cfg,AliasAnalysisPass * aa,SimpleMemDepAnalyser* ma, DomAnalysis * dom) : C(cfg),alias_analyser(aa), memdep_analyser(ma),domtrees(dom),changed(true),branch_changed(true) {}
     void optimize();
     void branch_optimize();
     void no_mem_optimize();
@@ -122,7 +122,7 @@ public:
     void SimpleBlockCSE(CFG* cfg,LLVMIR *IR);
     void SimpleDomTreeWalkCSE(CFG* C);
     void DomtreeExecute();//包含branch
-    void NoMemExecute();
+    void BNExecute();
 };
 // class BranchCSEPass : public IRPass { 
 // private:

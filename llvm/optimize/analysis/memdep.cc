@@ -6,7 +6,7 @@
 #include <array> 
 #include <algorithm>
 std::unordered_map<std::string, CFG*> cfgTable;
-extern DomAnalysis *domtrees;
+//extern DomAnalysis *domtrees;
 //新增：获取ret_block
 LLVMBlock GetRetBlock(CFG* C)
 {
@@ -607,7 +607,7 @@ void MemDepAnalysisPass::Execute()
 		std::string funcName = defI->GetFunctionName();
 		cfgTable[funcName] = cfg;
     }
-    SimpleMemDepAnalyser* memdep_analyser = new SimpleMemDepAnalyser(llvmIR,alias_analyser);
+    SimpleMemDepAnalyser* memdep_analyser = new SimpleMemDepAnalyser(llvmIR,alias_analyser,domtrees);
 
     //memdep_analyser->MemDepTest();
 }

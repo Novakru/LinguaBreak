@@ -741,6 +741,7 @@ void LoopStrengthReducePass::GepStrengthReduce(){
                 int gap=infos[i]->index-infos[i-1]->index;
                 //std::cout<<"gap = "<<gap<<std::endl;
                 if(gap>0){
+                    
                     if(((DominatorTree*)cfg->DomTree)->dominates(infos[i-1]->block_id,infos[i]->block_id)){
                         auto inst = new GetElementptrInstruction(infos[i]->gep->GetType(),GetNewRegOperand(infos[i]->res_regno),
                                                     GetNewRegOperand(infos[i-1]->res_regno),new ImmI32Operand(gap),BasicInstruction::LLVMType::I32);
@@ -757,6 +758,7 @@ void LoopStrengthReducePass::GepStrengthReduce(){
             for(int i=0;i<infos.size()-1;i++){
                 if(infos[i]->changed){continue;}
                 for(int j=i+1;j<infos.size();j++){
+                    if (!((DominatorTree*)cfg->DomTree)->dominates(infos[i]->block_id, infos[j]->block_id)){continue;}//新增
                     if(isNearbyGeps(infos[i],infos[j])){
                         int gap=((ImmI32Operand*)((ArithmeticInstruction*)infos[j]->def_inst)->GetOperand2())->GetIntImmVal();
                         //std::cout<<"gap = "<<gap<<std::endl;

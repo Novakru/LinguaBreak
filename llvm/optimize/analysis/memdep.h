@@ -3,6 +3,7 @@
 #include "../../../include/Instruction.h"
 #include "../pass.h"
 #include "AliasAnalysis.h"
+#include "dominator_tree.h"
 class CFG;
 class LLVMIR;
 
@@ -24,7 +25,18 @@ private:
     bool IsExternalCallReadPtr(CallInstruction *I, Operand ptr, CFG *C);
 
     AliasAnalysisPass *alias_analyser;  // 别名分析器实例
-    LLVMIR* IR;                         // LLVM 中间表示
+    LLVMIR* IR;  
+    DomAnalysis *domtrees;                       // LLVM 中间表示
+    Instruction FindCriticalInstInBlock(
+    LLVMBlock block, Operand ptr,int startIdx,
+    int endIdx,int step,bool isLoadMode,CFG* cfg
+);
+    bool CheckInstForClobber(
+    Instruction inst, 
+    Operand ptr, 
+    CFG* cfg, 
+    bool isLoadMode
+);
 
 public:
     // 判断两条加载/存储指令是否访问相同内存区域
@@ -41,19 +53,19 @@ public:
     // 测试函数 (开发调试用)
     //void MemDepTest();
 
-    SimpleMemDepAnalyser(LLVMIR *ir, AliasAnalysisPass * aa)
-        : IR(ir), alias_analyser(aa) {}
+    SimpleMemDepAnalyser(LLVMIR *ir, AliasAnalysisPass * aa,DomAnalysis *dom)
+        : IR(ir), alias_analyser(aa),domtrees(dom) {}
 };
 
 // 内存依赖分析 Pass
 class MemDepAnalysisPass : public IRPass { 
 private:
     AliasAnalysisPass *alias_analyser;  // 依赖的别名分析器
-
+    DomAnalysis *domtrees;
 public:
 
-    MemDepAnalysisPass(LLVMIR *IR, AliasAnalysisPass * aa) 
-        : IRPass(IR), alias_analyser(aa) {}
+    MemDepAnalysisPass(LLVMIR *IR, AliasAnalysisPass * aa,DomAnalysis *dom)
+        : IRPass(IR), alias_analyser(aa),domtrees(dom) {}
     
     // Pass 执行入口 (除了建立cfgTable之外，没有任何实际意义)
     void Execute();

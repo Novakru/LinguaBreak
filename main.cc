@@ -216,7 +216,6 @@ int main(int argc, char** argv) {
         //--
         AliasAnalysisPass AA1(&llvmIR); 
 		AA1.Execute();
-        MemDepAnalysisPass(&llvmIR,&AA1).Execute();//分析PASS，单独运行无特殊优化，为cse提供接口
         SimpleCSEPass(&llvmIR,&dom,&AA1).BlockExecute();//仅block cse（含内存）
         //--
         //恢复以下所有优化后无法通过部分测试样例
@@ -233,18 +232,21 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         SimplifyCFGPass(&llvmIR).EOBB();   
         //---
-        SimpleCSEPass(&llvmIR,&dom,&AA1).DomtreeExecute();//测试domtree+branch cse（dom暂不含内存）
+        AliasAnalysisPass AA2(&llvmIR); 
+		AA2.Execute();
+        SimpleCSEPass(&llvmIR,&dom,&AA2).Execute();//测试block+domtree+branch cse
         SimplifyCFGPass(&llvmIR).EOBB();
         SimplifyCFGPass(&llvmIR).RebuildCFG();//重建cfg
+        dom.Execute();//暂时重建dom尝试
         //tmp1
+        SCCPPass(&llvmIR).Execute();
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        SimplifyCFGPass(&llvmIR).EOBB(); 
+        // FunctionInlinePass(&llvmIR).Execute();
+        // SimplifyCFGPass(&llvmIR).RebuildCFG();
         // SCCPPass(&llvmIR).Execute();
         // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         // SimplifyCFGPass(&llvmIR).EOBB(); 
-        // // FunctionInlinePass(&llvmIR).Execute();
-        // // SimplifyCFGPass(&llvmIR).RebuildCFG();
-        // // SCCPPass(&llvmIR).Execute();
-        // // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        // // SimplifyCFGPass(&llvmIR).EOBB(); 
         //tmp2
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
@@ -274,6 +276,7 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).MergeBlocks();
 		PeepholePass(&llvmIR).ImmResultReplaceExecute();
         PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
+        
         LoopStrengthReducePass(&llvmIR).GepStrengthReduce();//GEP指令强度削弱中端部分
 
     // }
