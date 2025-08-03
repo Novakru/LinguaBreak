@@ -7,6 +7,7 @@ test_output/*
 debug.sy
 debug.ll
 graphviz/*
+tmp.o
 
 # Debug files
 debug.S
