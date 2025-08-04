@@ -253,21 +253,18 @@ int main(int argc, char** argv) {
 		SimplifyCFGPass(&llvmIR).TOPPhi();
 		AliasAnalysisPass AA(&llvmIR); 
 		AA.Execute();
-		// LoopRotate(&llvmIR, &AA).Execute();
-		// LoopAnalysisPass(&llvmIR).Execute();
-		// LoopSimplifyPass(&llvmIR).Execute();
-		// AA.Execute();
+		LoopRotate(&llvmIR, &AA).Execute();
+		LoopAnalysisPass(&llvmIR).Execute();
+		LoopSimplifyPass(&llvmIR).Execute();
+		AA.Execute();
 		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
-		// LoopAnalysisPass(&llvmIR).Execute();
-		// LoopSimplifyPass(&llvmIR).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		LoopAnalysisPass(&llvmIR).Execute();
+		LoopSimplifyPass(&llvmIR).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
 		LoopStrengthReducePass(&llvmIR).Execute();
-		// AA.Execute();
-		// LoopRotate(&llvmIR, &AA).Execute();
-		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		// LoopRotate do here, but no efficiency improvement
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
         ADCEPass(&llvmIR,&inv_dom).ESI();//删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
