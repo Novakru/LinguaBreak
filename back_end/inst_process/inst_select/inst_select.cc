@@ -24,12 +24,8 @@ template <> void RiscV64Unit::ConvertAndAppend<SitofpInstruction*>(SitofpInstruc
 
 void RiscV64Unit::SelectInstructionAndBuildCFG()
 {
-    // 与中间代码生成一样, 如果你完全无从下手, 可以先看看输出是怎么写的
-    // 即riscv64gc/instruction_print/*  common/machine_passes/machine_printer.h
-    // 指令选择除了一些函数调用约定必须遵守的情况需要物理寄存器，其余情况必须均为虚拟寄存器
     global_def = IR->global_def;
 
-    // 遍历每个LLVM IR函数    
     for (auto [defI,cfg] : IR->llvm_cfg) {
         cfg->BuildCFG();
         if (cfg && cfg->DomTree) {
@@ -41,9 +37,7 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
         std::string name = cfg->function_def->GetFunctionName();
 
         cur_func = new RiscV64Function(name);
-        // cur_func->SetParent(dest);
         cur_func->SetParent(this);
-        // 你可以使用cur_func->GetNewRegister来获取新的虚拟寄存器
         functions.push_back(cur_func);
 
         auto cur_mcfg = new MachineCFG;
@@ -51,11 +45,8 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
 
         cur_cfg = cfg;
 
-        // 清空指令选择状态(可能需要自行添加初始化操作)
         ClearFunctionSelectState();
 
-        // TODO: 添加函数参数(推荐先阅读一下riscv64_lowerframe.cc中的代码和注释)
-        // See MachineFunction::AddParameter()
         auto funcdefI = (FunctionDefineInstruction*)defI;
         int i32_cnt = 0;
         int f32_cnt = 0;
@@ -74,18 +65,12 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
                 ERROR("Unknown type");
             }
         }
-        // std::cerr<<cur_offset<<'\n';
-        // TODO("Add function parameter if you need");
-		// std::cerr << "defI->formals.size():" <<  defI->formals.size() << std::endl;
 
         BuildPhiWeb(cfg);
         
         for (auto [id, block] : *(cfg->block_map)) {
-            // std::cout<<"[in inst_select.cc line 82] block id: "<<id<<"; size: "<<block->Instruction_list.size()<<std::endl;
-
             cur_block = new RiscV64Block(id);
             curblockmap[id] = cur_block;
-            // 将新块添加到Machine CFG中
             cur_mcfg->AssignEmptyNode(id, cur_block);
             cur_func->UpdateMaxLabel(id);
 
@@ -95,35 +80,12 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
             block->dfs_id=0;
         }
 
-        // 遍历每个LLVM IR基本块
-
 		// icmp / fcmp not found error 
 		// slove method1: select icmp_inst/fcmp_inst previously (no use)
 		// try : 1. typeid(*instruction).name(), 2. dynamic_cast<>
 		// slove method2: search the blocks in domtree
-
 		DomtreeDfs((*cfg->block_map)[0], cfg);
-        // DEBUG: 监测是否有空Block
-        // for(auto it=cur_func->blocks.begin();it!=cur_func->blocks.end();){
-        //     if((*it)->instructions.empty()){
-        //         std::cout<<"null block with id "<<(*it)->getLabelId()<<std::endl;
-        //         it=cur_func->blocks.erase(it);
-        //     }else{
-        //         it++;
-        //     }
-        // }
 
-        // visset.clear();
-        // DFS((*cfg->block_map)[0], cfg, cur_mcfg, cur_func);
-        // for (auto [id, block] : *(cfg->block_map)) {
-        //     cur_block = curblockmap[id];
-        //     // 指令选择主要函数, 请注意指令选择时需要维护变量cur_offset
-	    //     for (auto instruction : block->Instruction_list) {
-		// 		ConvertAndAppend<Instruction>(instruction);
-        //     }
-        // }
-
-        // RISCV 8字节对齐（）
         if (cur_offset % 8 != 0) {
             cur_offset = ((cur_offset + 7) / 8) * 8;
         }
@@ -134,12 +96,9 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
 		// 当参数溢出的时候，会影响局部变量的位置
 		// 难点.遍历完被调用的所有函数才能知道参数栈的偏移, 此时所有的指令都已经选择
 		// 解决方案：先预存所有的局部变量alloca指令，在最后的时候加上参数栈偏移
-		// cite from sysY
 		int paraSize = (cur_func->GetParaSize() + 7) / 8 * 8;
  		((RiscV64Function *)cur_func)->AddParameterSize(cur_func->GetParaSize());
-		// std::cerr << cur_func->getFunctionName() + "'s paraSize is "<<paraSize << std::endl;
-
-		// std::cerr << "stackSz: " << cur_offset << std::endl;
+		
         // 控制流图连边
         for (int i = 0; i < cfg->G.size(); i++) {
             const auto &arcs = cfg->G[i];
@@ -148,7 +107,6 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
             }
         }
 
-		// 打印CFG, 方便调试
 		// cur_mcfg->display();
 
         // 遍历完所有基本块后插入phi生成的额外指令
@@ -177,7 +135,6 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
 }
 void RiscV64Unit::LowerFrame()
 {
-    //std::cout<<"LowerFrame() is called\n";
     // 在每个函数的开头处插入获取参数的指令
     for (auto func : functions) {
         cur_func = func;
@@ -208,7 +165,6 @@ void RiscV64Unit::LowerFrame()
                         }
                         i32_cnt++;
                     } else if (para.type.data_type == FLOAT64.data_type) {    // 处理浮点数
-                        // TODO("Implement this if you need");
 						if (f32_cnt < 8) {    // 插入使用寄存器传参的指令
 							cur_block->push_front(rvconstructor->ConstructR2(RISCV_FMV_S, para, GetPhysicalReg(RISCV_fa0 + f32_cnt)));
                         }
@@ -243,8 +199,6 @@ const int TotalRegs = 64;
 extern bool optimize_flag;//在main.cc中定义
 void RiscV64Unit::LowerStack()
 {
-    //TODO
-    //原架构中需要通过unit获取functions等信息，此处直接获取即可
     //逐一处理函数
     for(auto func:functions)
     {
@@ -261,58 +215,17 @@ void RiscV64Unit::LowerStack()
         {
             //1）保存"被调用者保存寄存器"s0-s11,fs0-fs11,ra，保证函数被调用后这些寄存器的值能恢复原样
             std::bitset<TotalRegs> RegNeedSaved;
-            RegNeedSaved.set(RISCV_s0);
-            RegNeedSaved.set(RISCV_s1);
-            RegNeedSaved.set(RISCV_s2);
-            RegNeedSaved.set(RISCV_s3);
-            RegNeedSaved.set(RISCV_s4);
-            RegNeedSaved.set(RISCV_s5);
-            RegNeedSaved.set(RISCV_s6);
-            RegNeedSaved.set(RISCV_s7);
-            RegNeedSaved.set(RISCV_s8);
-            RegNeedSaved.set(RISCV_s9);
-            RegNeedSaved.set(RISCV_s10);
-            RegNeedSaved.set(RISCV_s11);
-            RegNeedSaved.set(RISCV_fs0);
-            RegNeedSaved.set(RISCV_fs1);
-            RegNeedSaved.set(RISCV_fs2);
-            RegNeedSaved.set(RISCV_fs3);
-            RegNeedSaved.set(RISCV_fs4);
-            RegNeedSaved.set(RISCV_fs5);
-            RegNeedSaved.set(RISCV_fs6);
-            RegNeedSaved.set(RISCV_fs7);
-            RegNeedSaved.set(RISCV_fs8);
-            RegNeedSaved.set(RISCV_fs9);
-            RegNeedSaved.set(RISCV_fs10);
-            RegNeedSaved.set(RISCV_fs11);
+            RegNeedSaved.set(RISCV_s0); RegNeedSaved.set(RISCV_s1); RegNeedSaved.set(RISCV_s2);
+            RegNeedSaved.set(RISCV_s3); RegNeedSaved.set(RISCV_s4); RegNeedSaved.set(RISCV_s5);
+            RegNeedSaved.set(RISCV_s6); RegNeedSaved.set(RISCV_s7); RegNeedSaved.set(RISCV_s8);
+            RegNeedSaved.set(RISCV_s9); RegNeedSaved.set(RISCV_s10); RegNeedSaved.set(RISCV_s11);
+            RegNeedSaved.set(RISCV_fs0); RegNeedSaved.set(RISCV_fs1); RegNeedSaved.set(RISCV_fs2);
+            RegNeedSaved.set(RISCV_fs3); RegNeedSaved.set(RISCV_fs4); RegNeedSaved.set(RISCV_fs5);
+            RegNeedSaved.set(RISCV_fs6); RegNeedSaved.set(RISCV_fs7); RegNeedSaved.set(RISCV_fs8);
+            RegNeedSaved.set(RISCV_fs9); RegNeedSaved.set(RISCV_fs10); RegNeedSaved.set(RISCV_fs11);
             RegNeedSaved.set(RISCV_ra);
+
             //2）保存当前块中被访问过的寄存器
-            // std::bitset<TotalRegs> RegVisited; // 类似isvisited,避免重复记录
-            // //A.遍历当前块中的所有指令
-            // for(auto ins:*b)
-            // {
-            //     //B.遍历指令的写寄存器
-            //     for (auto reg : ins->GetWriteReg()) 
-            //     {
-            //         //如果是物理寄存器（不用溢出），且是需要保存的寄存器，则同时记录在occur和rw中
-            //         if (!reg->is_virtual && RegNeedSaved[reg->reg_no] && !RegVisited[reg->reg_no]) 
-            //         {
-            //             RegVisited[reg->reg_no] = true;
-            //             saveregs_occurblockids[reg->reg_no].push_back(b->getLabelId());
-            //             saveregs_rwblockids[reg->reg_no].push_back(b->getLabelId());
-            //         }
-            //     }
-            //     //C.遍历指令的读寄存器
-            //     for (auto reg : ins->GetReadReg()) 
-            //     {
-            //         //如果是物理寄存器且是被调用者保存寄存器，则加入rw块中
-            //         if (!reg->is_virtual && RegNeedSaved[reg->reg_no] && !RegVisited[reg->reg_no]) 
-            //         {
-            //             saveregs_rwblockids[reg->reg_no].push_back(b->getLabelId());
-            //         }
-            //     }
-            // }
-            //修改逻辑，避免重复记录很多次
             std::bitset<TotalRegs> RegVisited; // 标记当前块中该寄存器是否已经记录过使用（读或写）
             std::bitset<TotalRegs> RegWritten; // 标记当前块中该寄存器是否已经记录过写（用于避免重复记录到occurblockids）
             for(auto ins:*b)
@@ -379,8 +292,6 @@ void RiscV64Unit::LowerStack()
         // }
 
          for (auto &b : func->blocks) {
-            //if(b->getLabelId()==26){continue;}
-            //std::cout<<"func->blocks:"<<b->getLabelId()<<"\n";
             cur_block = b;
             if (b->getLabelId() == 0) {
                 if (func->GetStackSize() <= 2032) {
@@ -753,20 +664,6 @@ int RiscV64Unit::InsertArgInStack(BasicInstruction::LLVMType type, Operand arg_o
 	}
 	return 0;
 }
-
-
-// void RiscV64Unit::DomtreeDfs(BasicBlock* block, CFG *C){
-//     if(block->dfs_id>0){return ;}
-//     block->dfs_id=1;
-//    for(auto &inst:block->Instruction_list){
-//         ConvertAndAppend<Instruction>(inst);
-//    }
-
-//    for(auto &succ: C->GetSuccessor(block)){
-//         DomtreeDfs(succ,C);
-//    }
-//    return ;
-// }
 
 void RiscV64Unit::DomtreeDfs(BasicBlock* ubb, CFG *C){
     if (!ubb || !C || !C->DomTree ) {

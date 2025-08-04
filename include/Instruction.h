@@ -320,6 +320,7 @@ public:
     virtual BasicInstruction* Clone() const = 0; 
 	virtual bool mayReadFromMemory() const { return false; }
 	virtual bool mayWriteToMemory() const { return false; }
+	virtual enum LLVMType GetType() = 0; // 获取指令的类型
 };
 
 // load
@@ -331,6 +332,7 @@ class LoadInstruction : public BasicInstruction {
 
 public:
     enum LLVMType GetDataType() { return type; }
+    enum LLVMType GetType() override { return type; }
     Operand GetPointer() { return pointer; }
     void SetPointer(Operand op) { pointer = op; }
     Operand GetResult() override { return result; }
@@ -372,6 +374,7 @@ class StoreInstruction : public BasicInstruction {
 
 public:
     enum LLVMType GetDataType() { return type; }
+    enum LLVMType GetType() override { return type; }
     Operand GetPointer() { return pointer; }
     Operand GetValue() { return value; }
     void SetValue(Operand op) { value = op; }
@@ -424,6 +427,7 @@ class ArithmeticInstruction : public BasicInstruction {
 
 public:
     enum LLVMType GetDataType() { return type; }
+    enum LLVMType GetType() override { return type; }
     Operand GetOperand1() { return op1; }
     Operand GetOperand2() { return op2; }
     Operand GetResult() override { return result; }
@@ -486,6 +490,7 @@ class IcmpInstruction : public BasicInstruction {
 
 public:
     enum LLVMType GetDataType() { return type; }
+    enum LLVMType GetType() override { return type; }
     Operand GetOp1() { return op1; }
     Operand GetOp2() { return op2; }
     IcmpCond GetCond() { return cond; }
@@ -539,6 +544,7 @@ class FcmpInstruction : public BasicInstruction {
 
 public:
     enum LLVMType GetDataType() { return type; }
+    enum LLVMType GetType() override { return type; }
     Operand GetOp1() { return op1; }
     Operand GetOp2() { return op2; }
     FcmpCond GetCond() { return cond; }
@@ -590,6 +596,7 @@ private:
     std::vector<std::pair<Operand, Operand>> phi_list;// label-reg
 
 public:
+    enum LLVMType GetType() override { return type; }
     PhiInstruction(enum LLVMType type, Operand result, decltype(phi_list) val_labels) {
         this->opcode = LLVMIROpcode::PHI;
         this->type = type;
@@ -662,6 +669,7 @@ class AllocaInstruction : public BasicInstruction {
 
 public:
     enum LLVMType GetDataType() { return type; }
+    enum LLVMType GetType() override { return type; }
     Operand GetResult() override { return result; }
     std::vector<int> GetDims() { return dims; }
     AllocaInstruction(enum LLVMType dttype, Operand result) {
@@ -703,6 +711,7 @@ class BrCondInstruction : public BasicInstruction {
     Operand falseLabel;
 
 public:
+    enum LLVMType GetType() override { return VOID; }
     Operand GetCond() { return cond; }
     Operand GetTrueLabel() { return trueLabel; }
     Operand GetFalseLabel() { return falseLabel; }
@@ -753,6 +762,7 @@ class BrUncondInstruction : public BasicInstruction {
     Operand destLabel;
 
 public:
+    enum LLVMType GetType() override { return VOID; }
     Operand GetDestLabel() { return destLabel; }
     BrUncondInstruction(Operand destLabel) {
         this->opcode = BR_UNCOND;
@@ -811,6 +821,7 @@ public:
     Operand GetResult() override { return nullptr; };
     std::string GetName() const { return name; }
     LLVMType GetDataType() const { return type; }
+    enum LLVMType GetType() override { return VOID; }
     Operand GetInitVal() const { return init_val; }
     bool IsConst() const { return is_const; }
     bool IsArray() const { return !arrayval.dims.empty(); }
@@ -840,6 +851,7 @@ class GlobalStringConstInstruction : public BasicInstruction {
 public:
     std::string str_val;
     std::string str_name;
+    enum LLVMType GetType() override { return VOID; }
     GlobalStringConstInstruction(std::string strval, std::string strname) : str_val(strval), str_name(strname) {
         this->opcode = LLVMIROpcode::GLOBAL_STR;
     }
@@ -908,6 +920,7 @@ public:
     std::string GetFunctionName() { return name; }
     void SetFunctionName(std::string new_name) { name = new_name; }
     std::vector<std::pair<enum LLVMType, Operand>> GetParameterList() { return args; }
+    enum LLVMType GetType() override { return ret_type; }
 	void SetParameterList(std::vector<std::pair<enum LLVMType, Operand>> new_args) { args = new_args; }
     void push_back_Parameter(std::pair<enum LLVMType, Operand> newPara) { args.push_back(newPara); }
     void push_back_Parameter(enum LLVMType type, Operand val) { args.push_back(std::make_pair(type, val)); }
@@ -958,7 +971,7 @@ public:
     // Construction Function:Set All datas
     RetInstruction(enum LLVMType retType, Operand res) : ret_type(retType), ret_val(res) { this->opcode = RET; }
     // Getters
-    enum LLVMType GetType() { return ret_type; }
+    enum LLVMType GetType() override { return ret_type; }
     Operand GetRetVal() { return ret_val; }
     virtual void PrintIR(std::ostream &s) override;
     Operand GetResult() override { return nullptr; };
@@ -1029,7 +1042,7 @@ public:
     void change_index(int i, Operand op) { indexes[i] = op; }
     void set_indexes(std::vector<Operand> new_indexes) { indexes = new_indexes; }
 
-    enum LLVMType GetType() { return type; }
+    enum LLVMType GetType() override { return type; }
     enum LLVMType GetIndexType() { return index_type; }
     Operand GetResult() override { return result; }
     Operand GetPtrVal() { return ptrval; }
@@ -1107,6 +1120,7 @@ public:
         formals_reg.push_back(GetNewRegOperand(formals_reg.size()));
     }
     enum LLVMType GetReturnType() { return return_type; }
+    enum LLVMType GetType() override { return VOID; }
     std::string GetFunctionName() { return Func_name; }
     void PrintIR(std::ostream &s) override;
     Operand GetResult() override { return nullptr; };
@@ -1146,6 +1160,7 @@ public:
     }
     void InsertFormal(enum LLVMType t) { formals.push_back(t); }
     enum LLVMType GetReturnType() { return return_type; }
+    enum LLVMType GetType() override { return VOID; }
     std::string GetFunctionName() { return Func_name; }
     void PrintIR(std::ostream &s) override;
     
@@ -1179,6 +1194,7 @@ public:
         this->opcode = FPTOSI;
     }
     Operand GetResult() override { return result; }
+    enum LLVMType GetType() override { return I32; }
     Operand GetSrc() { return value; }
     void PrintIR(std::ostream &s) override;
     int GetDefRegno() override;
@@ -1213,6 +1229,7 @@ public:
     }
 
     Operand GetResult() override { return result; }
+    enum LLVMType GetType() override { return FLOAT32; }
     Operand GetSrc() { return value; }
     void PrintIR(std::ostream &s) override;
     int GetDefRegno() override;
@@ -1244,6 +1261,7 @@ private:
 
 public:
     Operand GetResult() override { return result; }
+    enum LLVMType GetType() override { return to_type; }
     Operand GetSrc() { return value; }
     ZextInstruction(LLVMType to_type, Operand result_receiver, LLVMType from_type, Operand value_for_cast)
         : to_type(to_type), result(result_receiver), from_type(from_type), value(value_for_cast) {

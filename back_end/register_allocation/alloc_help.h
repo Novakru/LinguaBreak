@@ -54,9 +54,8 @@ private:
 public:
     // 检测两个活跃区间是否重叠
     // 保证两个活跃区间各个段各自都是不降序（升序）排列的
-    //reference https://github.com/yuhuifishash/SysY/target/common/machine_passes/register_alloc/liveinterval.h line 64-line93
+    // reference https://github.com/yuhuifishash/SysY/target/common/machine_passes/register_alloc/liveinterval.h line 64-line93
     bool operator&(const LiveInterval &that) const {
-        //TODO("& operator in LiveInterval");
         //1.其中任一活跃区间为空，直接返回不重叠
         if(segments.empty()||that.segments.empty()){return false;}
         auto it=segments.begin();
@@ -344,82 +343,5 @@ public:
     }
 };
     
-// class LiveInterval {
-// private:
-//     Register reg;
-//     // 当begin和end不同时, 活跃区间为[begin,end), 即左闭右开
-//     // 当begin和end相同时, 表示[begin,end], 即一个单点 (这么做的原因是方便活跃区间计算)
-//     // 注意特殊判断begin和end相同时的情况
-//     struct LiveSegment {
-//         int begin;
-//         int end;
-//         bool inside(int pos) const {
-//             if (begin == end) return begin == pos;
-//             return begin <= pos && pos < end; 
-//         }
-//         bool operator&(const struct LiveSegment &that) const {
-//             return this->inside(that.begin) || this->inside(that.end - 1 > that.begin ? that.end - 1 : that.begin) ||
-//                     that.inside(this->begin) || that.inside(this->end - 1 > this->begin ? this->end - 1 : this->begin);
-//         }
-//         bool operator==(const struct LiveSegment &that) const {
-//             return this->begin == that.begin && this->end == that.end;
-//         }
-//     };
-//     std::list<LiveSegment> segments{};
-//     int reference_count;
-
-// public:
-//     // 检测两个活跃区间是否重叠
-//     // 保证两个活跃区间各个段各自都是不降序（升序）排列的
-//     //reference https://github.com/yuhuifishash/SysY/target/common/machine_passes/register_alloc/liveinterval.h line 64-line93
-//     bool operator&(const LiveInterval &that) const {
-//         //TODO("& operator in LiveInterval");
-//         //1.其中任一活跃区间为空，直接返回不重叠
-//         if(segments.empty()||that.segments.empty()){return false;}
-//         auto it=segments.begin();
-//         auto jt=that.segments.begin();
-//         while(1)
-//         {
-//             if(*it&*jt){return true;}//如果两个段有重叠
-//             if(it->end <= jt->begin)//it的活跃段早于jt的活跃段
-//             {
-//                 ++it;//判断it的下一段
-//                 if(it==segments.end()){return false;}
-//             }
-//             else if(jt->end<=it->begin)
-//             {
-//                 ++jt;
-//                 if(jt==that.segments.end()){return false;}
-//             }
-//             else{
-//                 ERROR("LiveInterval::operator&: Error");
-//             }
-//         }
-//         return false;
-//     }
-
-//     // 更新引用计数
-//     void IncreaseReferenceCount(int count) { reference_count += count; }
-//     int getReferenceCount() { return reference_count; }
-//     // 返回活跃区间长度
-//     int getIntervalLen() {
-//         int ret = 0;
-//         for (auto seg : segments) {
-//             ret += (seg.end - seg.begin + 1);
-//         }
-//         return ret;
-//     }
-//     Register getReg() { return reg; }
-//     LiveInterval() : reference_count(0) {}    // Temp
-//     LiveInterval(Register reg) : reg(reg), reference_count(0) {}
-
-//     void PushFront(int begin, int end) { segments.push_front({begin = begin, end = end}); }
-//     void SetMostBegin(int begin) { segments.begin()->begin = begin; }
-
-//     // 可以直接 for(auto segment : liveinterval)
-//     decltype(segments.begin()) begin() { return segments.begin(); }
-//     decltype(segments.end()) end() { return segments.end(); }
-
-// };
 #endif
 

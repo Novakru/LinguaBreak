@@ -7,7 +7,7 @@
 #include <algorithm>
 std::unordered_map<std::string, CFG*> cfgTable;
 //extern DomAnalysis *domtrees;
-//新增：获取ret_block
+
 LLVMBlock GetRetBlock(CFG* C)
 {
     int size=C->block_map->size();

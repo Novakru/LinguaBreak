@@ -1,3 +1,6 @@
+### citation
+本项目改自南开大学2024年编译系统课程框架 (https://github.com/yuhuifishash/NKU-Compilers2024-RV64GC)
+
 ### How to complile LinguaBreak
 ```bash
 make lexer # input: sysy_lexer.l output: sysy_lexer.cc

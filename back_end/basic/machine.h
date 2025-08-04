@@ -9,10 +9,9 @@
 #include"register.h"
 #include"../inst_process/machine_instruction.h"
 
-// 前向声明
 class RiscV64Printer;
 
-//注：参考原框架的MachineBlock,RiscV64Block,MachineBlockFactory,RiscV64BlockFactory,MachineCFG,MachineFunction,RiscV64Function,MachineUnit,RiscV64Unit
+// 注：参考原框架的 MachineBlock, RiscV64Block, MachineCFG, MachineFunction, RiscV64Function, MachineUnit, RiscV64Unit
 
 class MachineUnit;
 class MachineFunction;
@@ -320,28 +319,14 @@ public:
     std::list<MachineBaseInstruction *>::iterator getInsertBeforeBrIt();
 };
     
-
-// class MachineBlockFactory {
-// public:
-//     virtual MachineBlock *CreateBlock(int id) = 0;
-// };
-
-// class RiscV64BlockFactory : public MachineBlockFactory {
-// public:
-//     MachineBlock *CreateBlock(int id) { return new RiscV64Block(id); }
-// };
-
 class RiscV64Function : public MachineFunction {
 public:
     RiscV64Function(std::string name) : MachineFunction(name) {}
 
 private:
-    // TODO: add your own members here
     std::vector<RiscV64Instruction *> allocalist;
 public:
-    // TODO: add your own members here
     void AddAllocaInst(RiscV64Instruction *ins) { allocalist.push_back(ins); }
-    //新增
     void AddParameterSize(int sz) {
         for (auto ins : allocalist) {
             ins->setImm(ins->getImm() + sz);
