@@ -29,6 +29,7 @@
 #include "llvm/optimize/transform/loopRotate.h"
 #include "llvm/optimize/transform/basic_cse.h"
 #include "llvm/optimize/transform/loopstrengthreduce.h"
+#include "llvm/optimize/transform/lcssa.h"
 
 
 //-target
@@ -268,7 +269,7 @@ int main(int argc, char** argv) {
         ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
         ADCEPass(&llvmIR,&inv_dom).ERLS();			// 删除冗余load指令
 		SimplifyCFGPass(&llvmIR).EOBB();  
-        SimplifyCFGPass(&llvmIR).MergeBlocks();
+        SimplifyCFGPass(&llvmIR).MergeBlocks();			
 		PeepholePass(&llvmIR).ImmResultReplaceExecute();
         PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
         LoopStrengthReducePass(&llvmIR).GepStrengthReduce();	// GEP指令强度削弱中端部分
