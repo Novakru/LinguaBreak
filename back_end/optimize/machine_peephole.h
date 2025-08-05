@@ -8,6 +8,7 @@ class MachinePeepholePass : MachinePass {
     void FloatCompFusion();
     // 常量替换
     void ConstantReplacement() ;
+    
 public:
     MachinePeepholePass(MachineUnit *unit) : MachinePass(unit) {}
     void Execute();

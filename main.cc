@@ -29,6 +29,7 @@
 #include "llvm/optimize/transform/loopRotate.h"
 #include "llvm/optimize/transform/basic_cse.h"
 #include "llvm/optimize/transform/loopstrengthreduce.h"
+#include "llvm/optimize/transform/reassociate.h"
 
 
 //-target
@@ -276,8 +277,9 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).MergeBlocks();
 		PeepholePass(&llvmIR).ImmResultReplaceExecute();
         PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
-        
         LoopStrengthReducePass(&llvmIR).GepStrengthReduce();//GEP指令强度削弱中端部分
+        //SimplifyCFGPass(&llvmIR).RebuildCFG();
+        //ReassociatePass(&llvmIR).Execute();
 
     // }
 
@@ -302,7 +304,6 @@ int main(int argc, char** argv) {
         //optimizer
         MachinePeepholePass(m_unit).Execute();
         MachineStrengthReducePass(m_unit).Execute();
-        
         
         RiscV64Printer(out, m_unit).emit();
         fclose(input);
