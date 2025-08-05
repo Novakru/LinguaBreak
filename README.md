@@ -53,8 +53,6 @@
 
 - Basic Common SubExpression elimination
 
-- Reassociate
-
 - Loop Invariant Code Motion
 
 - Loop Strength Reduce
