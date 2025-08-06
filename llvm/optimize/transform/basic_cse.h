@@ -34,7 +34,7 @@ class BasicBlockCSEOptimizer {
 public:
     BasicBlockCSEOptimizer(CFG* cfg,LLVMIR *ir,AliasAnalysisPass *aa) : C(cfg), llvmIR(ir),alias_analyser(aa),changed(false),flag(false),hasMemOp(true) {}
     bool optimize();
-    bool NoMemoptimize();
+    void NoMemoptimize();
     bool hasMemOp;
 private:
     CFG* C;

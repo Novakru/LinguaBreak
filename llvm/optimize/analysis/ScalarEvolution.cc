@@ -549,7 +549,8 @@ SCEV* ScalarEvolution::fixLoopInvariantUnknowns(SCEV* scev, Loop* L) {
     if (auto* unk = dynamic_cast<SCEVUnknown*>(scev)) {
         Operand V = unk->getValue();
         Instruction Def = getDef(V);
-        if (Def && L->contains(C->GetBlockWithId(Def->GetBlockID())) && isLoopInvariant(V, L)) {
+        LLVMBlock DefBlock = C->GetBlockWithId(Def->GetBlockID());
+        if (Def && DefBlock && L->contains(DefBlock) && isLoopInvariant(V, L)) {
             // 如果是算术指令，递归还原为表达式
             if (auto* arith = dynamic_cast<ArithmeticInstruction*>(Def)) {
                 SCEV* op1 = fixLoopInvariantUnknowns(createSCEV(arith->GetOperand1(), L), L);

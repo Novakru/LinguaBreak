@@ -27,7 +27,10 @@ int DominatorTree::find(std::map<int,int>&mn_map, std::map<int,int> &fa_map, int
 
     int fa_sdom = sdom_map[mn_map[temp]];
     int id_sdom = sdom_map[mn_map[id]];
-    if((*(C->block_map))[fa_sdom]->dfs_id < (*(C->block_map))[id_sdom]->dfs_id){
+    // 检查基本块是否存在
+    if (C->block_map->find(fa_sdom) != C->block_map->end() && 
+        C->block_map->find(id_sdom) != C->block_map->end() &&
+        (*(C->block_map))[fa_sdom]->dfs_id < (*(C->block_map))[id_sdom]->dfs_id){
         mn_map[id] = mn_map[temp];
     }
     return fa_map[id];
@@ -40,7 +43,10 @@ int DominatorTree::invfind(std::map<int,int>&mn_map, std::map<int,int> &fa_map, 
 
     int fa_sdom = sdom_map[mn_map[temp]];
     int id_sdom = sdom_map[mn_map[id]];
-    if(dfs[(*(C->block_map))[fa_sdom]->block_id] < dfs[(*(C->block_map))[id_sdom]->block_id]){
+    // 检查基本块是否存在
+    if (C->block_map->find(fa_sdom) != C->block_map->end() && 
+        C->block_map->find(id_sdom) != C->block_map->end() &&
+        dfs[(*(C->block_map))[fa_sdom]->block_id] < dfs[(*(C->block_map))[id_sdom]->block_id]){
         mn_map[id] = mn_map[temp];
     }
     return fa_map[id];
@@ -103,7 +109,10 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
                 else{
                     find(mn_map, fa_map, block->block_id);
                     int sdom = sdom_map[mn_map[block->block_id]];
-                    res = std::min(res, (*(C->block_map))[sdom]->dfs_id);
+                    // 检查基本块是否存在
+                    if (C->block_map->find(sdom) != C->block_map->end()) {
+                        res = std::min(res, (*(C->block_map))[sdom]->dfs_id);
+                    }
                 }
             }
             sdom_map[block_id] = dfs_map[res];
@@ -170,7 +179,10 @@ void DominatorTree::BuildDominatorTree(bool reverse) {
                 else{
                     invfind(mn_map, fa_map, block->block_id);
                     int sdom = sdom_map[mn_map[block->block_id]];
-                    res = std::min(res, dfs[(*(C->block_map))[sdom]->block_id]);
+                    // 检查基本块是否存在
+                    if (C->block_map->find(sdom) != C->block_map->end()) {
+                        res = std::min(res, dfs[(*(C->block_map))[sdom]->block_id]);
+                    }
                 }
             }
             sdom_map[block_id] = dfs_map[res];
@@ -238,6 +250,10 @@ void DominatorTree::display_sdom_map() {
 }
 
 bool DominatorTree::dominates(LLVMBlock a, LLVMBlock b) {
+	if (a == nullptr || b == nullptr) {
+		return false;
+	}
+	
 	int current_id = b->block_id;
 	while (current_id != -1) {
 		if (current_id == a->block_id) return true;
@@ -250,6 +266,11 @@ bool DominatorTree::dominates(LLVMBlock a, LLVMBlock b) {
 // getDominators from b block to root
 std::unordered_set<LLVMBlock> DominatorTree::getDominators(LLVMBlock b) {
 	std::unordered_set<LLVMBlock> result;
+	
+	if (b == nullptr) {
+		return result;
+	}
+	
 	int current_id = b->block_id;
 	auto bmap = *(C->block_map);
 	while (current_id != -1) {

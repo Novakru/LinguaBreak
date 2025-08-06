@@ -32,7 +32,12 @@ public:
     }
     std::unordered_set<LLVMBlock> getDominators(LLVMBlock b); // 获取b的所有支配者（从最外层到最内层）
 
-	LLVMBlock getBlockByID(int id) { return (*C->block_map)[id]; }
+	LLVMBlock getBlockByID(int id) { 
+		if (C->block_map->find(id) != C->block_map->end()) {
+			return (*C->block_map)[id]; 
+		}
+		return nullptr;
+	}
 };
 
 extern std::map<CFG *, DominatorTree *> DomInfo;

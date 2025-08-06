@@ -283,9 +283,12 @@ void ADCEPass::ESI(){
             GetElementptrInstruction* &inst=it->first;
             int regno=inst->GetDefRegno();
             auto same_block=cfg->GetBlockWithId(it->second);
+            if (!same_block) continue; // 跳过无效的基本块
             for(auto other=std::next(it);other!=gep_id_map.end();other++){
                 if(other->first->isSame(inst)){
-                    auto Dominators=((DominatorTree*)(cfg->DomTree))->getDominators(cfg->GetBlockWithId(other->second));
+                    auto other_block = cfg->GetBlockWithId(other->second);
+                    if (!other_block) continue; // 跳过无效的基本块
+                    auto Dominators=((DominatorTree*)(cfg->DomTree))->getDominators(other_block);
                     if(!Dominators.count(same_block)){continue;}// 不被支配，无法删除替代
                     insts.insert(other->first);
                     blockids.insert(other->second);
@@ -312,6 +315,7 @@ void ADCEPass::ESI(){
         // 删除块间相同GEP指令
         for(auto &id:blockids){
             auto block=cfg->GetBlockWithId(id);
+            if (!block) continue; // 跳过无效的基本块
             auto old_list=block->Instruction_list;
             block->Instruction_list.clear();
             for(auto &inst:old_list){

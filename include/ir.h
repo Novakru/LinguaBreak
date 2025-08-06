@@ -38,6 +38,8 @@ public:
     void printIR(std::ostream &s);
 
     void CFGInit();
+    
+    void SyncMaxInfo();
 };
 
 #endif

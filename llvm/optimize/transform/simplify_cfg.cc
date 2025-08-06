@@ -134,7 +134,9 @@ void SimplifyCFGPass::RebuildCFGforSCCP(){
 void SimplifyCFGPass::RebuildCFG(){
     // 重建CFG（遍历cfg，重建G与invG)
     DomInfo.clear();
+	// llvmIR->SyncMaxInfo();
     llvmIR->CFGInit();
+
     for (auto &[defI,cfg] : llvmIR->llvm_cfg) {
         //重建支配树 （正向）
         delete DomInfo[cfg];
@@ -451,6 +453,7 @@ void DFS_MergeBlocks(LLVMBlock block, CFG* cfg, std::unordered_map<int, int>& bl
                 //将merge_blockids中的所有块合并到block中
                 for (int merge_block_id : merge_blockids) {
                     LLVMBlock merge_block = cfg->GetBlockWithId(merge_block_id);
+                    if (merge_block == nullptr) continue; // 跳过无效的基本块
                     // 将merge_block的指令移动到block中
                     block->Instruction_list.pop_back();
                     block->Instruction_list.insert(block->Instruction_list.end(),
