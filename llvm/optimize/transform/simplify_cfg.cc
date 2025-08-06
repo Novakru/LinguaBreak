@@ -134,8 +134,14 @@ void SimplifyCFGPass::RebuildCFGforSCCP(){
 void SimplifyCFGPass::RebuildCFG(){
     // 重建CFG（遍历cfg，重建G与invG)
     DomInfo.clear();
-	// llvmIR->SyncMaxInfo();
+	llvmIR->SyncMaxInfo();
     llvmIR->CFGInit();
+
+	// for(auto &[defI,cfg] : llvmIR->llvm_cfg){
+	// 	std::cout << "function_def: " << defI->GetFunctionName() << std::endl;
+	// 	std::cout << "max_reg: " << cfg->max_reg << std::endl;
+	// 	std::cout << "max_label: " << cfg->max_label << std::endl;
+	// }
 
     for (auto &[defI,cfg] : llvmIR->llvm_cfg) {
         //重建支配树 （正向）
