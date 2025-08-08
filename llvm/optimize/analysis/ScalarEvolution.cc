@@ -133,6 +133,25 @@ SCEV *ScalarEvolution::getSCEV(Operand V, Loop *L) {
     return S;
 }
 
+SCEV *ScalarEvolution::getSimpleSCEV(Operand V, Loop *L) {
+    if (LoopToSCEVMap.count(L) && LoopToSCEVMap.at(L).count(V)) {
+        auto scev = LoopToSCEVMap.at(L).at(V);
+		if (SimplifiedSCEVCache.count(scev)) {
+			return SimplifiedSCEVCache.at(scev);
+		} else {
+			SCEV* simplifiedSCEV = simplify(scev);
+			SimplifiedSCEVCache[scev] = simplifiedSCEV;
+			return simplifiedSCEV;
+		}
+    }
+
+	// 如果查表没有，则创建一个，并简化
+    SCEV* createdSCEV = getSCEV(V, L);
+	SCEV* simplifiedSCEV = simplify(createdSCEV);
+	SimplifiedSCEVCache[createdSCEV] = simplifiedSCEV;
+	return simplifiedSCEV;
+}
+
 SCEV *ScalarEvolution::createSCEV(Operand V, Loop *L) {
     if (isLoopInvariant(V, L)) {
         SCEV_DEBUG_PRINT(std::cout << "[createSCEV] " << V << " 是循环不变量" << std::endl);
@@ -229,13 +248,15 @@ SCEV *ScalarEvolution::createAddRecFromPHI(PhiInstruction *PN, Loop *L) {
     Instruction stepInstruction = getDef(stepInstOperand);
     auto* ArithI = dynamic_cast<ArithmeticInstruction*>(stepInstruction);
 
-    if (!ArithI || ArithI->GetOpcode() != BasicInstruction::ADD) {
-        SCEV_DEBUG_PRINT(std::cout << "[createAddRecFromPHI] step不是加法, 返回Unknown" << std::endl);
+    if (!ArithI || (ArithI->GetOpcode() != BasicInstruction::ADD && ArithI->GetOpcode() != BasicInstruction::SUB)) {
+        SCEV_DEBUG_PRINT(std::cout << "[createAddRecFromPHI] step不是加法或减法, 返回Unknown" << std::endl);
         return getSCEVUnknown(PN->GetResult(), L);
     }
 
     Operand recurrentOperand = nullptr;
     Operand stepValue = nullptr;
+    bool isSubtraction = (ArithI->GetOpcode() == BasicInstruction::SUB);
+    
     if (ArithI->GetOperand1() == PN->GetResult()) {
         recurrentOperand = ArithI->GetOperand1();
         stepValue = ArithI->GetOperand2();
@@ -243,13 +264,18 @@ SCEV *ScalarEvolution::createAddRecFromPHI(PhiInstruction *PN, Loop *L) {
         recurrentOperand = ArithI->GetOperand2();
         stepValue = ArithI->GetOperand1();
     } else {
-        SCEV_DEBUG_PRINT(std::cout << "[createAddRecFromPHI] step加法没有归纳变量, 返回Unknown" << std::endl);
+        SCEV_DEBUG_PRINT(std::cout << "[createAddRecFromPHI] step算术指令没有归纳变量, 返回Unknown" << std::endl);
         return getSCEVUnknown(PN->GetResult(), L);
     }
     
-    SCEV_DEBUG_PRINT(std::cout << "[createAddRecFromPHI] start=" << startValue << " step=" << stepValue << std::endl);
+    SCEV_DEBUG_PRINT(std::cout << "[createAddRecFromPHI] start=" << startValue << " step=" << stepValue << " isSubtraction=" << isSubtraction << std::endl);
     SCEV* StartSCEV = getSCEV(startValue, L);
     SCEV* StepSCEV = getSCEV(stepValue, L);
+    
+    // 如果是减法，需要将step取负
+    if (isSubtraction) {
+        StepSCEV = getMulExpr({StepSCEV, getSCEVConstant(new ImmI32Operand(-1))});
+    }
 
     return getAddRecExpr(StartSCEV, StepSCEV, L);
 }
@@ -388,6 +414,11 @@ SCEV *ScalarEvolution::createSCEVForArithmetic(ArithmeticInstruction *I, Loop *L
     if (I->GetOpcode() == BasicInstruction::ADD) {
         return getAddExpr({Op1, Op2});
     }
+    if (I->GetOpcode() == BasicInstruction::SUB) {
+        // SUB: a - b == a + (-b)
+        SCEV* negOp2 = getMulExpr({Op2, getSCEVConstant(new ImmI32Operand(-1))});
+        return getAddExpr({Op1, negOp2});
+    }
     if (I->GetOpcode() == BasicInstruction::MUL) {
         return getMulExpr({Op1, Op2});
     }
@@ -455,7 +486,7 @@ void SCEVPass::Execute() {
 		cfg->SCEVInfo = SE;
 		simplifyAllSCEVExpr();
 		// fixAllSCEVExpr();
-		// SE->print(std::cout);
+		SE->print(std::cout);
     }
 }
 

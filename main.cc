@@ -30,7 +30,7 @@
 #include "llvm/optimize/transform/basic_cse.h"
 #include "llvm/optimize/transform/loopstrengthreduce.h"
 #include "llvm/optimize/transform/lcssa.h"
-
+#include "llvm/optimize/transform/loopidiomrecognize.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -261,10 +261,7 @@ int main(int argc, char** argv) {
 		// SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
 		LoopStrengthReducePass(&llvmIR).Execute();
-		// AA.Execute();
-		// LoopRotate(&llvmIR, &AA).Execute();
-		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		// LoopIdiomRecognizePass(&llvmIR).Execute();
 
 		llvmIR.SyncMaxInfo();
         inv_dom.invExecute();

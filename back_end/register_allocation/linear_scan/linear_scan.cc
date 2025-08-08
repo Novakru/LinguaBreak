@@ -172,6 +172,7 @@ void FastLinearScan::Execute() {
         not_allocated_funcs.push(func);
     }
     //1.逐一处理函数
+	int spill_size=0;
     while (!not_allocated_funcs.empty()) {
         current_func = not_allocated_funcs.front();
         numbertoins.clear();
@@ -187,8 +188,19 @@ void FastLinearScan::Execute() {
         if (DoAllocInCurrentFunc()) {    // 5.尝试进行分配
             // 6.如果发生溢出，插入spill指令后将所有物理寄存器退回到虚拟寄存器，重新分配
             SpillCodeGen(current_func, &alloc_result[current_func]);    // 生成溢出代码
-            current_func->AddStackSize(phy_regs_tools->getSpillSize());                 // 调整栈的大小
+			// std::cerr<<"spill size:"<<phy_regs_tools->getSpillSize()<<std::endl;
+			spill_size+=phy_regs_tools->getSpillSize();
+			current_func->AddStackSize(phy_regs_tools->getSpillSize());                 // 调整栈的大小
             not_allocated_funcs.push(current_func);                               // 重新分配直到不再spill
+        }
+    }
+    // INSERT_YOUR_CODE
+    // 文件输出，id, spillsize，id从0开始，随着文件末尾递增
+    {
+        FILE* fp = fopen("spillsize.txt", "a");
+        if (fp) {
+            fprintf(fp, "%d\n", spill_size);
+            fclose(fp);
         }
     }
     // 重写虚拟寄存器，全部转换为物理寄存器
