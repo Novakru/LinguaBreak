@@ -1,7 +1,9 @@
 #include "peephole.h"
 #include <functional>
+#include "../analysis/ScalarEvolution.h"
 
 void ImmResultReplace(CFG *C);
+static void NegMulAddToSub(CFG *C);
 
 void PeepholePass::Execute() {
 	DeadArgElim();
@@ -9,6 +11,13 @@ void PeepholePass::Execute() {
         // add all implemented pass
 		SrcEqResultInstEliminate(cfg);
 		ImmResultReplace(cfg);
+        NegMulAddToSub(cfg);
+    }
+}
+
+void PeepholePass::NegMulAddToSubExecute(){
+    for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+        NegMulAddToSub(cfg);
     }
 }
 
@@ -232,6 +241,149 @@ void ImmResultReplace(CFG *C){
                 I->SetNonResultOperands(opvec);
                 
                 bb->InsertInstruction(1, I);
+            }
+        }
+    }
+}
+
+// 将如下模式进行合并：
+//   %t1 = mul i32 %x, -1
+//   %t2 = add i32 %t1, 2147483647
+// =>
+//   %t2 = sub i32 2147483647, %x
+static void NegMulAddToSub(CFG *C) {
+    ScalarEvolution* SE = C->getSCEVInfo();
+    if (!SE) return;
+
+    struct TransformItem {
+        Instruction addI;
+        Instruction mulI;
+        Operand x_reg;     // 被取负的寄存器 %x
+        Operand base_op;   // add 的另一个操作数（可以是寄存器或立即数）
+    };
+    std::vector<TransformItem> worklist;
+
+    // 收集所有满足条件的 add
+    for (auto &[id, bb] : *C->block_map) {
+        for (auto I : bb->Instruction_list) {
+            if (!I || I->GetOpcode() != BasicInstruction::ADD) continue;
+            auto addAI = (ArithmeticInstruction*)I;
+            if (addAI->GetDataType() != BasicInstruction::I32) continue;
+
+            Operand a1 = addAI->GetOperand1();
+            Operand a2 = addAI->GetOperand2();
+
+            auto try_collect = [&](Operand regTmp, Operand base_op) -> bool {
+                if (!regTmp || regTmp->GetOperandType() != BasicOperand::REG) return false;
+                Instruction defI = SE->getDef(regTmp);
+                if (!defI || defI->GetOpcode() != BasicInstruction::MUL) return false;
+                auto mulAI = (ArithmeticInstruction*)defI;
+                if (mulAI->GetDataType() != BasicInstruction::I32) return false;
+
+                Operand m1 = mulAI->GetOperand1();
+                Operand m2 = mulAI->GetOperand2();
+                Operand x_reg = nullptr;
+                bool is_neg1_mul = false;
+                if (m1 && m1->GetOperandType() == BasicOperand::REG &&
+                    m2 && m2->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)m2)->GetIntImmVal() == -1) {
+                    x_reg = m1; is_neg1_mul = true;
+                } else if (m2 && m2->GetOperandType() == BasicOperand::REG &&
+                           m1 && m1->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)m1)->GetIntImmVal() == -1) {
+                    x_reg = m2; is_neg1_mul = true;
+                }
+                if (!is_neg1_mul || !x_reg) return false;
+
+                int mul_res_regno = -1;
+                if (mulAI->GetResult() && mulAI->GetResult()->GetOperandType() == BasicOperand::REG) {
+                    mul_res_regno = ((RegOperand*)mulAI->GetResult())->GetRegNo();
+                } else { return false; }
+
+                int use_cnt = 0;
+                for (auto &[bid, bblk] : *C->block_map) {
+                    for (auto I2 : bblk->Instruction_list) {
+                        if (!I2) continue;
+                        auto uses = I2->GetUseRegno();
+                        if (uses.count(mul_res_regno)) ++use_cnt;
+                    }
+                }
+                // 允许被多处使用：只替换 add，不强制删除 mul；若仅此处使用则顺带删除 mul
+                worklist.push_back({addAI, mulAI, x_reg, base_op});
+                return true;
+            };
+
+            bool matched = false;
+            // 1) imm(2147483647) + (-x) => 2147483647 - x
+            if (a1 && a1->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)a1)->GetIntImmVal() == 2147483647 &&
+                a2 && a2->GetOperandType() == BasicOperand::REG) {
+                matched = try_collect(a2, a1);
+            }
+            if (!matched && a2 && a2->GetOperandType() == BasicOperand::IMMI32 && ((ImmI32Operand*)a2)->GetIntImmVal() == 2147483647 &&
+                a1 && a1->GetOperandType() == BasicOperand::REG) {
+                matched = try_collect(a1, a2);
+            }
+
+            // 2) y + (-x) => y - x （一般情形）
+            if (!matched && a1 && a1->GetOperandType() == BasicOperand::REG && a2 && a2->GetOperandType() == BasicOperand::REG) {
+                // a1 + (def as neg) a2
+                matched = try_collect(a2, a1);
+                if (!matched) {
+                    // (def as neg) a1 + a2
+                    matched = try_collect(a1, a2);
+                }
+            }
+        }
+    }
+
+    // 应用变换：add -> sub，删除 mul
+    std::unordered_set<Instruction> removed;
+    for (auto &item : worklist) {
+        if (removed.count(item.mulI)) continue;
+
+        // 替换 add
+        auto addAI = (ArithmeticInstruction*)item.addI;
+        Operand sub_res = addAI->GetResult();
+        auto *subI = new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::SUB,
+                                               BasicInstruction::I32,
+                                               item.base_op,
+                                               item.x_reg,
+                                               sub_res);
+
+        // 在所在基本块中用 sub 替换 add
+        for (auto &[id, bb] : *C->block_map) {
+            for (auto it = bb->Instruction_list.begin(); it != bb->Instruction_list.end(); ++it) {
+                if (*it == item.addI) {
+                    *it = subI;
+                    break;
+                }
+            }
+        }
+
+        // 若 mul 结果的使用已减少到 0，则删除 mul 指令
+        int mul_res_regno = -1;
+        auto mulAI = (ArithmeticInstruction*)item.mulI;
+        if (mulAI->GetResult() && mulAI->GetResult()->GetOperandType() == BasicOperand::REG) {
+            mul_res_regno = ((RegOperand*)mulAI->GetResult())->GetRegNo();
+        }
+        if (mul_res_regno != -1) {
+            int use_cnt = 0;
+            for (auto &[bid, bblk] : *C->block_map) {
+                for (auto I2 : bblk->Instruction_list) {
+                    if (!I2) continue;
+                    auto uses = I2->GetUseRegno();
+                    if (uses.count(mul_res_regno)) ++use_cnt;
+                }
+            }
+            if (use_cnt == 0) {
+                for (auto &[id2, bb2] : *C->block_map) {
+                    for (auto it = bb2->Instruction_list.begin(); it != bb2->Instruction_list.end(); ++it) {
+                        if (*it == item.mulI) {
+                            bb2->Instruction_list.erase(it);
+                            removed.insert(item.mulI);
+                            break;
+                        }
+                    }
+                    if (removed.count(item.mulI)) break;
+                }
             }
         }
     }

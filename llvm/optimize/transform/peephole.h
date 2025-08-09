@@ -13,6 +13,7 @@ public:
     void SrcEqResultInstEliminateExecute();
     void ImmResultReplaceExecute();
 	void DeadArgElim();
+	void NegMulAddToSubExecute();
 };
 
 #endif
