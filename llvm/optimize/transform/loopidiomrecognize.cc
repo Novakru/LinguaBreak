@@ -104,9 +104,8 @@ bool LoopIdiomRecognizePass::recognizeMemsetIdiom(Loop* loop, CFG* C, ScalarEvol
 
     // 使用extractLoopParams获取循环参数
     LoopParams params = extractLoopParams(loop, C, SE);
-	// 暂时只支持步长为1的memset
-	if (params.step_val != 1) return false;
-    if (params.count <= 0) return false;
+    // 暂时只支持步长为1的memset；trip count 可为动态（上下界循环不变量）
+    if (params.step_val != 1) return false;
 	
     // 检查数组访问模式
     SCEV* array_scev = SE->getSimpleSCEV(store->GetPointer(), loop);
@@ -492,15 +491,28 @@ GepParams LoopIdiomRecognizePass::extractGepParams(SCEV* array_scev, Loop* loop,
     if (auto* add_expr = dynamic_cast<SCEVAddExpr*>(array_scev)) {
         for (SCEV* operand : add_expr->getOperands()) {
             if (auto* unknown = dynamic_cast<SCEVUnknown*>(operand)) {
-                // 找到基址指针
-                base_ptr = unknown->getValue();
-            } else {
-                // 其他所有操作数都是偏移计算的一部分
+                Operand val = unknown->getValue();
+                // 仅当是指针类型时作为base_ptr；否则视为偏移量的一部分
+                if (val && val->GetOperandType() == BasicOperand::REG && base_ptr == nullptr) {
+                    base_ptr = val;
+                    continue;
+                }
+                // 非指针unknown归入offset
                 Operand operand_op = generateExpressionOperand(operand, SE, preheader, C);
                 if (offset_op == nullptr) {
                     offset_op = operand_op;
                 } else {
-                    // 生成加法指令
+                    Operand res = GetNewRegOperand(++C->max_reg);
+                    auto* addInst = new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::ADD, BasicInstruction::I32, offset_op, operand_op, res);
+                    preheader->Instruction_list.push_back(addInst);
+                    offset_op = res;
+                }
+            } else {
+                // 常量、AddRec、Mul 等均加入offset表达式（AddRec将取其start，表示起始地址）
+                Operand operand_op = generateExpressionOperand(operand, SE, preheader, C);
+                if (offset_op == nullptr) {
+                    offset_op = operand_op;
+                } else {
                     Operand res = GetNewRegOperand(++C->max_reg);
                     auto* addInst = new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::ADD, BasicInstruction::I32, offset_op, operand_op, res);
                     preheader->Instruction_list.push_back(addInst);
@@ -570,45 +582,111 @@ Operand LoopIdiomRecognizePass::generateExpressionOperand(SCEV* scev, ScalarEvol
 void LoopIdiomRecognizePass::replaceWithMemset(Loop* loop, CFG* C, Operand array, Operand value, GepParams gep_params) {
     LLVMBlock preheader = loop->getPreheader();
     LLVMBlock exit = *loop->getExits().begin();
-    
-    LoopParams params = extractLoopParams(loop, C, C->getSCEVInfo());
-    
-    preheader->Instruction_list.pop_back();
-    
+
+    ScalarEvolution* SE = C->getSCEVInfo();
+    LoopParams params = extractLoopParams(loop, C, SE);
+
+    // 删除原 preheader 末尾到循环头的无条件跳转，准备插入新指令
+    if (!preheader->Instruction_list.empty()) {
+        preheader->Instruction_list.pop_back();
+    }
+
+    // 计算动态/静态的memset字节数参数：trip_count * 4
+    // 从header的icmp提取 start 与 bound（均允许为循环不变量表达式）
+    LLVMBlock header = loop->getHeader();
+    BrCondInstruction* br_cond = (BrCondInstruction*)header->Instruction_list.back();
+    IcmpInstruction* icmp = (IcmpInstruction*)SE->getDef(br_cond->GetCond());
+
+    SCEV* scev1 = SE->getSimpleSCEV(icmp->GetOp1(), loop);
+    SCEV* scev2 = SE->getSimpleSCEV(icmp->GetOp2(), loop);
+
+    SCEVAddRecExpr* induction_addrec = nullptr;
+    SCEV* bound_scev = nullptr;
+    if (auto* addrec = dynamic_cast<SCEVAddRecExpr*>(scev1); addrec && addrec->getLoop() == loop) {
+        induction_addrec = addrec;
+        bound_scev = scev2;
+    } else if (auto* addrec = dynamic_cast<SCEVAddRecExpr*>(scev2); addrec && addrec->getLoop() == loop) {
+        induction_addrec = addrec;
+        bound_scev = scev1;
+    }
+
+    Operand trip_bytes_op = nullptr;
+    if (induction_addrec && bound_scev) {
+        // start = addrec.start; bound = expr
+        Operand start_op = generateExpressionOperand(induction_addrec->getStart(), SE, preheader, C);
+        Operand bound_op = generateExpressionOperand(bound_scev, SE, preheader, C);
+
+        if (start_op && bound_op) {
+            // 保证二者均为循环不变量（若为寄存器）
+            bool start_ok = true, bound_ok = true;
+            if (start_op->GetOperandType() == BasicOperand::REG) {
+                start_ok = SE->isLoopInvariant(start_op, loop);
+            }
+            if (bound_op->GetOperandType() == BasicOperand::REG) {
+                bound_ok = SE->isLoopInvariant(bound_op, loop);
+            }
+            if (start_ok && bound_ok) {
+				// diff = bound - start
+				Operand diff_reg = GetNewRegOperand(++C->max_reg);
+				auto* subInst = new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::SUB, BasicInstruction::I32, bound_op, start_op, diff_reg);
+				preheader->Instruction_list.push_back(subInst);
+
+				Operand trip_reg = diff_reg;
+				auto cmp_op = icmp->GetCond();
+				if (cmp_op == BasicInstruction::IcmpCond::sle || cmp_op == BasicInstruction::IcmpCond::ule) {
+					// trip = diff + 1
+					Operand plus1_reg = GetNewRegOperand(++C->max_reg);
+					auto* add1 = new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::ADD, BasicInstruction::I32, trip_reg, new ImmI32Operand(1), plus1_reg);
+					preheader->Instruction_list.push_back(add1);
+					trip_reg = plus1_reg;
+				}
+
+				// bytes = trip * 4
+				Operand bytes_reg = GetNewRegOperand(++C->max_reg);
+				auto* mulBytes = new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::MUL, BasicInstruction::I32, trip_reg, new ImmI32Operand(4), bytes_reg);
+				preheader->Instruction_list.push_back(mulBytes);
+				trip_bytes_op = bytes_reg;
+            }
+        }
+    }
+
     // 生成线性GEP指令计算起始地址
     GetElementptrInstruction* gep = nullptr;
-    
     if (gep_params.offset_op) {
         // 使用计算出的偏移量生成线性GEP指令
         gep = new GetElementptrInstruction(
-            BasicInstruction::I32, 
-            GetNewRegOperand(++C->max_reg),  
-            gep_params.base_ptr,  
-            gep_params.offset_op,  
-            BasicInstruction::I32  
+            BasicInstruction::I32,
+            GetNewRegOperand(++C->max_reg),
+            gep_params.base_ptr,
+            gep_params.offset_op,
+            BasicInstruction::I32
         );
         LOOP_IDIOM_DEBUG_PRINT(std::cerr << "生成线性GEP指令，偏移量: " << gep_params.offset_op->GetFullName() << std::endl);
     } else {
         // 如果没有偏移量，直接使用基址
         gep = new GetElementptrInstruction(
-            BasicInstruction::I32, 
-            GetNewRegOperand(++C->max_reg),  
-            gep_params.base_ptr,  
-            new ImmI32Operand(0),  
-            BasicInstruction::I32  
+            BasicInstruction::I32,
+            GetNewRegOperand(++C->max_reg),
+            gep_params.base_ptr,
+            new ImmI32Operand(0),
+            BasicInstruction::I32
         );
         LOOP_IDIOM_DEBUG_PRINT(std::cerr << "生成线性GEP指令，无偏移量" << std::endl);
     }
-    
     preheader->Instruction_list.push_back(gep);
-    
+
     // 生成memset调用
     std::vector<std::pair<BasicInstruction::LLVMType, Operand>> args;
     args.push_back(std::make_pair(BasicInstruction::PTR, gep->GetResult()));
     args.push_back(std::make_pair(BasicInstruction::I8, value));
-    args.push_back(std::make_pair(BasicInstruction::I32, new ImmI32Operand(params.count * 4)));
+    if (trip_bytes_op) {
+        args.push_back(std::make_pair(BasicInstruction::I32, trip_bytes_op));
+    } else {
+        // 回退到静态参数（仅当可用）
+        args.push_back(std::make_pair(BasicInstruction::I32, new ImmI32Operand(params.count * 4)));
+    }
     args.push_back(std::make_pair(BasicInstruction::I1, new ImmI32Operand(0)));
-    
+
     CallInstruction* memset_call = new CallInstruction(BasicInstruction::VOID, nullptr, "llvm.memset.p0.i32", args);
     preheader->Instruction_list.push_back(memset_call);
 
