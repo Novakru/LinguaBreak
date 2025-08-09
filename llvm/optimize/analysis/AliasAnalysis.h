@@ -15,12 +15,8 @@
     - 查看某指令(store/load/call)是否Mod/Ref某ptr：
         if( QueryInstModRef(inst,op,cfg) == Ref )...
 4. 对于GEP指令Index为RegOperand的情况，我们无法直接判定为是否相同，统一认为存在别名冲突的风险，即MustAlias
-5. 我们假定数组基址作为ptr不在分析范围之内
-    即：
-    %r1 = Alloc ...
-    %r2 = getelementptr ... , ptr %r1, i32 0， i32 0, ...
-    我们认为查询分析的Operand都是有实际意义的数组元素ptr，如%r2，而非数组声明时的起始地址%r1，尽管它们可能指向同一块内存
-6. 对于call函数名称为lib_function_names中的指令，我们不做处理，并非是它们没有mod/ref，而是参数不会被查询到（见5）
+5. 若查询的指针是数组基址，默认代表整个数组，即某inst是否访问了该数组
+6. 对于call函数名称为lib_function_names中的指令，也可以识别和分析
 */
 enum AliasStatus{ 
     NoAlias=0, 
@@ -33,13 +29,14 @@ enum ModRefStatus{
     ModRef=3 
 };
 
-struct PtrInfo{
+struct PtrInfo{//根类型的PtrInfo的AliasOps一定为空； 非根类型的PtrInfo一定要有root
     enum sources{ Undef=0, Gep=1, Phi=2 }source;
     enum types{ Undefed=0, Global=1, Param=2, Local=3 }type;
     Operand root;//祖先指针，Global/Param/Local定义的数组基址
     std::unordered_set<Operand> AliasOps;//别名集，仅记录本身及其祖先
 
     PtrInfo(){ source=sources::Undef; type=types::Undefed; }
+    PtrInfo(types ty){source=sources::Undef;  type=ty;}//用于根信息的创建
     PtrInfo(types ty, Operand op){ source=sources::Undef;  type=ty;  AliasOps.emplace(op);  }
     PtrInfo(sources so,types ty,  Operand op){ source=so;  type=ty;  AliasOps.emplace(op);  }
     void AddAliass(std::unordered_set<Operand> newOps){ AliasOps.insert(newOps.begin(),newOps.end());}
@@ -52,7 +49,7 @@ struct RWInfo{
     std::unordered_set<Operand> WriteRoots;
     bool has_lib_func_call = false;
 
-    RWInfo(){ has_lib_func_call = false; }
+    RWInfo(){has_lib_func_call = false;}
     void AddRead(Operand root){ ReadRoots.insert(root); }
     void AddWrite(Operand root){ WriteRoots.insert(root); }
 };
@@ -63,19 +60,44 @@ struct CallInfo{
     CallInfo(){}
 };
 
+struct GlobalValInfo{//每个函数读/写的global val（不含global array)
+    std::unordered_set<Operand> ref_ops;
+    std::unordered_set<Operand> mod_ops;
+    GlobalValInfo(){}
+    void AddInfo(GlobalValInfo* info){
+        ref_ops.insert(info->ref_ops.begin(),info->ref_ops.end());
+        mod_ops.insert(info->mod_ops.begin(),info->mod_ops.end());
+    }
+    ModRefStatus TypeDef(){
+        if(ref_ops.empty()){
+            if(mod_ops.empty()){
+                return NoModRef;
+            }
+            return Mod;
+        }else{
+            if(mod_ops.empty()){
+                return Ref;
+            }
+            return ModRef;
+        }
+        return NoModRef;
+    }
+};
+
 class AliasAnalysisPass : public IRPass { 
 private:
     std::unordered_map<CFG*,std::unordered_map<int,PtrInfo>>ptrmap;//regno-->PtrInfo (only for RegOperand)
     std::unordered_map<CFG*,RWInfo>rwmap;//ref_operands,mod_operands
-    std::unordered_map<CFG*,CallInfo>ReCallGraph;
-    std::unordered_set<CFG*>LeafFuncs;
+    std::unordered_map<CFG*,GlobalValInfo*> globalmap;
+    std::unordered_map<std::string,CallInfo>ReCallGraph;
+    std::unordered_set<std::string>LeafFuncs;
 
     void FindPhi();
 
     PtrInfo GetPtrInfo(Operand op, CFG* cfg);
     Operand CalleeParamToCallerArgu(Operand op, CFG* callee_cfg, CallInstruction* CallI);
     void RWInfoAnalysis();
-    void GatherRWInfos(CFG*cfg);
+    void GatherRWInfos(std::string func_name);
 
     void GatherPtrInfos(CFG* cfg, int regno);
     void PtrPropagationAnalysis();
@@ -89,7 +111,7 @@ public:
 
     std::unordered_map<CFG*,std::unordered_map<int,PtrInfo>>& GetPtrMap() { return ptrmap; }
 	std::unordered_map<CFG*,RWInfo>& GetRWMap() { return rwmap; }
-    std::unordered_map<CFG*,CallInfo>& GetReCallGraph() { return ReCallGraph; }
+    std::unordered_map<std::string,CallInfo>& GetReCallGraph() { return ReCallGraph; }
 
     void Test();
     void PrintAAResult();

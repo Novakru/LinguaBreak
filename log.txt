@@ -1,0 +1,727 @@
+ ----------- CallInfo ------------- 
+define i32 @getMaxNum(i32 %r0,ptr %r1)
+para_order:  
+Operand: %r1 order: 1
+callers:  
+
+-------------
+define i32 @getNumPos(i32 %r0,i32 %r1)
+para_order:  
+callers:  
+radixSort    
+-------------
+define void @radixSort(i32 %r0,ptr %r1,i32 %r2,i32 %r3)
+para_order:  
+Operand: %r1 order: 1
+callers:  
+main    
+-------------
+define i32 @main()
+para_order:  
+callers:  
+
+-------------
+ ----------- PtrInfo ------------- 
+define i32 @getMaxNum(i32 %r0,ptr %r1)
+REG: %r11
+source: Gep type: Param root: %r1
+Aliases: 
+         %r11
+-----------
+REG: %r16
+source: Gep type: Param root: %r1
+Aliases: 
+         %r16
+-----------
+REG: %r1
+source: Undef type: Param root: %r1
+Aliases: 
+-----------
+define i32 @getNumPos(i32 %r0,i32 %r1)
+define void @radixSort(i32 %r0,ptr %r1,i32 %r2,i32 %r3)
+REG: %r49
+source: Gep type: Local root: %r8
+Aliases: 
+         %r49
+-----------
+REG: %r53
+source: Gep type: Local root: %r12
+Aliases: 
+         %r53
+-----------
+REG: %r57
+source: Gep type: Local root: %r10
+Aliases: 
+         %r57
+-----------
+REG: %r66
+source: Gep type: Local root: %r10
+Aliases: 
+         %r66
+-----------
+REG: %r72
+source: Gep type: Local root: %r8
+Aliases: 
+         %r72
+-----------
+REG: %r75
+source: Gep type: Local root: %r12
+Aliases: 
+         %r75
+-----------
+REG: %r79
+source: Gep type: Local root: %r10
+Aliases: 
+         %r79
+-----------
+REG: %r182
+source: Gep type: Local root: %r8
+Aliases: 
+         %r182
+-----------
+REG: %r176
+source: Gep type: Local root: %r10
+Aliases: 
+         %r176
+-----------
+REG: %r29
+source: Gep type: Param root: %r1
+Aliases: 
+         %r29
+-----------
+REG: %r147
+source: Gep type: Local root: %r8
+Aliases: 
+         %r147
+-----------
+REG: %r89
+source: Gep type: Local root: %r8
+Aliases: 
+         %r89
+-----------
+REG: %r42
+source: Gep type: Local root: %r12
+Aliases: 
+         %r42
+-----------
+REG: %r160
+source: Gep type: Local root: %r12
+Aliases: 
+         %r160
+-----------
+REG: %r199
+source: Gep type: Local root: %r10
+Aliases: 
+         %r199
+-----------
+REG: %r164
+source: Gep type: Local root: %r10
+Aliases: 
+         %r164
+-----------
+REG: %r179
+source: Gep type: Local root: %r8
+Aliases: 
+         %r179
+-----------
+REG: %r121
+source: Gep type: Param root: %r1
+Aliases: 
+         %r121
+-----------
+REG: %r33
+source: Gep type: Local root: %r12
+Aliases: 
+         %r33
+-----------
+REG: %r92
+source: Gep type: Local root: %r10
+Aliases: 
+         %r92
+-----------
+REG: %r69
+source: Gep type: Local root: %r8
+Aliases: 
+         %r69
+-----------
+REG: %r10
+source: Undef type: Local root: %r10
+Aliases: 
+-----------
+REG: %r8
+source: Undef type: Local root: %r8
+Aliases: 
+-----------
+REG: %r185
+source: Gep type: Local root: %r12
+Aliases: 
+         %r185
+-----------
+REG: %r126
+source: Gep type: Local root: %r8
+Aliases: 
+         %r126
+-----------
+REG: %r38
+source: Gep type: Param root: %r1
+Aliases: 
+         %r38
+-----------
+REG: %r156
+source: Gep type: Local root: %r8
+Aliases: 
+         %r156
+-----------
+REG: %r97
+source: Gep type: Local root: %r8
+Aliases: 
+         %r97
+-----------
+REG: %r194
+source: Gep type: Param root: %r1
+Aliases: 
+         %r194
+-----------
+REG: %r189
+source: Gep type: Local root: %r10
+Aliases: 
+         %r189
+-----------
+REG: %r12
+source: Undef type: Local root: %r12
+Aliases: 
+-----------
+REG: %r99
+source: Gep type: Param root: %r1
+Aliases: 
+         %r99
+-----------
+REG: %r142
+source: Gep type: Local root: %r8
+Aliases: 
+         %r142
+-----------
+REG: %r113
+source: Gep type: Param root: %r1
+Aliases: 
+         %r113
+-----------
+REG: %r139
+source: Gep type: Param root: %r1
+Aliases: 
+         %r139
+-----------
+REG: %r196
+source: Gep type: Local root: %r8
+Aliases: 
+         %r196
+-----------
+REG: %r137
+source: Gep type: Local root: %r8
+Aliases: 
+         %r137
+-----------
+REG: %r133
+source: Gep type: Local root: %r8
+Aliases: 
+         %r133
+-----------
+REG: %r1
+source: Undef type: Param root: %r1
+Aliases: 
+-----------
+REG: %r119
+source: Gep type: Local root: %r8
+Aliases: 
+         %r119
+-----------
+REG: %r111
+source: Gep type: Local root: %r8
+Aliases: 
+         %r111
+-----------
+define i32 @main()
+REG: %r1
+source: Gep type: Global root: @a
+Aliases: 
+         %r1
+-----------
+REG: %r5
+source: Gep type: Global root: @a
+Aliases: 
+         %r5
+-----------
+REG: %r16
+source: Gep type: Global root: @a
+Aliases: 
+         %r16
+-----------
+ ----------- RWInfo -------------- 
+define i32 @getMaxNum(i32 %r0,ptr %r1)
+read :   %r1 
+write :   
+
+define i32 @getNumPos(i32 %r0,i32 %r1)
+read :   
+write :   
+
+define void @radixSort(i32 %r0,ptr %r1,i32 %r2,i32 %r3)
+read :   %r1 
+write :   %r1 
+
+define i32 @main()
+read :   @a 
+write :   @a 
+
+ ----------- Leafs -------------- 
+getNumPos
+getMaxNum
+ ----------- Globalvar Info -------------- 
+define i32 @getMaxNum(i32 %r0,ptr %r1)
+read :   
+write :   
+define i32 @getNumPos(i32 %r0,i32 %r1)
+read :   @base 
+write :   
+define void @radixSort(i32 %r0,ptr %r1,i32 %r2,i32 %r3)
+read :   @base 
+write :   
+define i32 @main()
+read :   @base @ans 
+write :   @ans 
+ ----------- CallInfo ------------- 
+define i32 @getMaxNum(i32 %r0,ptr %r1)
+para_order:  
+Operand: %r1 order: 1
+callers:  
+
+-------------
+define void @radixSort(i32 %r0,ptr %r1,i32 %r2,i32 %r3)
+para_order:  
+Operand: %r1 order: 1
+callers:  
+main    
+-------------
+define i32 @main()
+para_order:  
+callers:  
+
+-------------
+ ----------- PtrInfo ------------- 
+define i32 @getMaxNum(i32 %r0,ptr %r1)
+REG: %r11
+source: Gep type: Param root: %r1
+Aliases: 
+         %r11
+-----------
+REG: %r16
+source: Gep type: Param root: %r1
+Aliases: 
+         %r16
+-----------
+REG: %r1
+source: Undef type: Param root: %r1
+Aliases: 
+-----------
+define void @radixSort(i32 %r0,ptr %r1,i32 %r2,i32 %r3)
+REG: %r99
+source: Gep type: Param root: %r1
+Aliases: 
+         %r99
+-----------
+REG: %r57
+source: Gep type: Local root: %r10
+Aliases: 
+         %r57
+-----------
+REG: %r176
+source: Gep type: Local root: %r10
+Aliases: 
+         %r176
+-----------
+REG: %r89
+source: Gep type: Local root: %r8
+Aliases: 
+         %r89
+-----------
+REG: %r111
+source: Gep type: Local root: %r8
+Aliases: 
+         %r111
+-----------
+REG: %r53
+source: Gep type: Local root: %r12
+Aliases: 
+         %r53
+-----------
+REG: %r113
+source: Gep type: Param root: %r1
+Aliases: 
+         %r113
+-----------
+REG: %r199
+source: Gep type: Local root: %r10
+Aliases: 
+         %r199
+-----------
+REG: %r164
+source: Gep type: Local root: %r10
+Aliases: 
+         %r164
+-----------
+REG: %r185
+source: Gep type: Local root: %r12
+Aliases: 
+         %r185
+-----------
+REG: %r8
+source: Undef type: Local root: %r8
+Aliases: 
+-----------
+REG: %r66
+source: Gep type: Local root: %r10
+Aliases: 
+         %r66
+-----------
+REG: %r179
+source: Gep type: Local root: %r8
+Aliases: 
+         %r179
+-----------
+REG: %r69
+source: Gep type: Local root: %r8
+Aliases: 
+         %r69
+-----------
+REG: %r10
+source: Undef type: Local root: %r10
+Aliases: 
+-----------
+REG: %r156
+source: Gep type: Local root: %r8
+Aliases: 
+         %r156
+-----------
+REG: %r97
+source: Gep type: Local root: %r8
+Aliases: 
+         %r97
+-----------
+REG: %r1
+source: Undef type: Param root: %r1
+Aliases: 
+-----------
+REG: %r49
+source: Gep type: Local root: %r8
+Aliases: 
+         %r49
+-----------
+REG: %r194
+source: Gep type: Param root: %r1
+Aliases: 
+         %r194
+-----------
+REG: %r12
+source: Undef type: Local root: %r12
+Aliases: 
+-----------
+REG: %r189
+source: Gep type: Local root: %r10
+Aliases: 
+         %r189
+-----------
+REG: %r160
+source: Gep type: Local root: %r12
+Aliases: 
+         %r160
+-----------
+REG: %r92
+source: Gep type: Local root: %r10
+Aliases: 
+         %r92
+-----------
+REG: %r33
+source: Gep type: Local root: %r12
+Aliases: 
+         %r33
+-----------
+REG: %r75
+source: Gep type: Local root: %r12
+Aliases: 
+         %r75
+-----------
+REG: %r29
+source: Gep type: Param root: %r1
+Aliases: 
+         %r29
+-----------
+REG: %r79
+source: Gep type: Local root: %r10
+Aliases: 
+         %r79
+-----------
+REG: %r137
+source: Gep type: Local root: %r8
+Aliases: 
+         %r137
+-----------
+REG: %r196
+source: Gep type: Local root: %r8
+Aliases: 
+         %r196
+-----------
+REG: %r139
+source: Gep type: Param root: %r1
+Aliases: 
+         %r139
+-----------
+define i32 @main()
+REG: %r16
+source: Gep type: Global root: @a
+Aliases: 
+         %r16
+-----------
+REG: %r1
+source: Gep type: Global root: @a
+Aliases: 
+         %r1
+-----------
+ ----------- RWInfo -------------- 
+define i32 @getMaxNum(i32 %r0,ptr %r1)
+read :   %r1 
+write :   
+
+define void @radixSort(i32 %r0,ptr %r1,i32 %r2,i32 %r3)
+read :   %r1 
+write :   %r1 
+
+define i32 @main()
+read :   @a 
+write :   @a 
+
+ ----------- Leafs -------------- 
+radixSort
+getMaxNum
+ ----------- Globalvar Info -------------- 
+define i32 @getMaxNum(i32 %r0,ptr %r1)
+read :   
+write :   
+define void @radixSort(i32 %r0,ptr %r1,i32 %r2,i32 %r3)
+read :   
+write :   
+define i32 @main()
+read :   @ans 
+write :   @ans 
+ ----------- CallInfo ------------- 
+define i32 @getMaxNum(i32 %r0,ptr %r1)
+para_order:  
+Operand: %r1 order: 1
+callers:  
+
+-------------
+define void @radixSort(i32 %r0,ptr %r1,i32 %r2,i32 %r3)
+para_order:  
+Operand: %r1 order: 1
+callers:  
+main    
+-------------
+define i32 @main()
+para_order:  
+callers:  
+
+-------------
+ ----------- PtrInfo ------------- 
+define i32 @getMaxNum(i32 %r0,ptr %r1)
+REG: %r11
+source: Gep type: Param root: %r1
+Aliases: 
+         %r11
+-----------
+REG: %r1
+source: Undef type: Param root: %r1
+Aliases: 
+-----------
+define void @radixSort(i32 %r0,ptr %r1,i32 %r2,i32 %r3)
+REG: %r139
+source: Gep type: Param root: %r1
+Aliases: 
+         %r139
+-----------
+REG: %r111
+source: Gep type: Local root: %r8
+Aliases: 
+         %r111
+-----------
+REG: %r53
+source: Gep type: Local root: %r12
+Aliases: 
+         %r53
+-----------
+REG: %r113
+source: Gep type: Param root: %r1
+Aliases: 
+         %r113
+-----------
+REG: %r156
+source: Gep type: Local root: %r8
+Aliases: 
+         %r156
+-----------
+REG: %r199
+source: Gep type: Local root: %r10
+Aliases: 
+         %r199
+-----------
+REG: %r99
+source: Gep type: Param root: %r1
+Aliases: 
+         %r99
+-----------
+REG: %r164
+source: Gep type: Local root: %r10
+Aliases: 
+         %r164
+-----------
+REG: %r185
+source: Gep type: Local root: %r12
+Aliases: 
+         %r185
+-----------
+REG: %r8
+source: Undef type: Local root: %r8
+Aliases: 
+-----------
+REG: %r66
+source: Gep type: Local root: %r10
+Aliases: 
+         %r66
+-----------
+REG: %r179
+source: Gep type: Local root: %r8
+Aliases: 
+         %r179
+-----------
+REG: %r69
+source: Gep type: Local root: %r8
+Aliases: 
+         %r69
+-----------
+REG: %r10
+source: Undef type: Local root: %r10
+Aliases: 
+-----------
+REG: %r79
+source: Gep type: Local root: %r10
+Aliases: 
+         %r79
+-----------
+REG: %r1
+source: Undef type: Param root: %r1
+Aliases: 
+-----------
+REG: %r75
+source: Gep type: Local root: %r12
+Aliases: 
+         %r75
+-----------
+REG: %r137
+source: Gep type: Local root: %r8
+Aliases: 
+         %r137
+-----------
+REG: %r196
+source: Gep type: Local root: %r8
+Aliases: 
+         %r196
+-----------
+REG: %r194
+source: Gep type: Param root: %r1
+Aliases: 
+         %r194
+-----------
+REG: %r49
+source: Gep type: Local root: %r8
+Aliases: 
+         %r49
+-----------
+REG: %r12
+source: Undef type: Local root: %r12
+Aliases: 
+-----------
+REG: %r189
+source: Gep type: Local root: %r10
+Aliases: 
+         %r189
+-----------
+REG: %r160
+source: Gep type: Local root: %r12
+Aliases: 
+         %r160
+-----------
+REG: %r57
+source: Gep type: Local root: %r10
+Aliases: 
+         %r57
+-----------
+REG: %r176
+source: Gep type: Local root: %r10
+Aliases: 
+         %r176
+-----------
+REG: %r89
+source: Gep type: Local root: %r8
+Aliases: 
+         %r89
+-----------
+REG: %r92
+source: Gep type: Local root: %r10
+Aliases: 
+         %r92
+-----------
+REG: %r33
+source: Gep type: Local root: %r12
+Aliases: 
+         %r33
+-----------
+REG: %r29
+source: Gep type: Param root: %r1
+Aliases: 
+         %r29
+-----------
+define i32 @main()
+REG: %r1
+source: Gep type: Global root: @a
+Aliases: 
+         %r1
+-----------
+REG: %r16
+source: Gep type: Global root: @a
+Aliases: 
+         %r16
+-----------
+ ----------- RWInfo -------------- 
+define i32 @getMaxNum(i32 %r0,ptr %r1)
+read :   %r1 
+write :   
+
+define void @radixSort(i32 %r0,ptr %r1,i32 %r2,i32 %r3)
+read :   %r1 
+write :   %r1 
+
+define i32 @main()
+read :   @a 
+write :   @a 
+
+ ----------- Leafs -------------- 
+radixSort
+getMaxNum
+ ----------- Globalvar Info -------------- 
+define i32 @getMaxNum(i32 %r0,ptr %r1)
+read :   
+write :   
+define void @radixSort(i32 %r0,ptr %r1,i32 %r2,i32 %r3)
+read :   
+write :   
+define i32 @main()
+read :   @ans 
+write :   @ans 

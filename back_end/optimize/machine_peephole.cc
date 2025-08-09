@@ -1,8 +1,11 @@
 #include "machine_peephole.h"
 
+
 void MachinePeepholePass::Execute() {
     EliminateRedundantInstructions();
-    // FloatCompFusion();
+#if USE_FMA
+    FloatCompFusion();
+#endif
     ConstantReplacement();
 }
 

@@ -1,12 +1,37 @@
 #include "AliasAnalysis.h"
 
+std::unordered_map<std::string,ModRefStatus> lib_function_status ;
+
+void DefineLibFuncStatus(){
+    lib_function_status["getint"]=Mod;
+    lib_function_status["getch"]=Mod;
+    lib_function_status["getfloat"]=Mod;
+    lib_function_status["getarray"]=Mod;
+    lib_function_status["getfarray"]=Mod;
+
+    lib_function_status["putint"]=Ref;
+    lib_function_status["putch"]=Ref;
+    lib_function_status["putfloat"]=Ref;
+    lib_function_status["putarray"]=Ref;
+    lib_function_status["putfarray"]=Ref;
+
+    lib_function_status["_sysy_starttime"]=NoModRef;
+    lib_function_status["_sysy_stoptime"]=NoModRef;
+    lib_function_status["llvm.memset.p0.i32"]=NoModRef;
+    lib_function_status["llvm.umax.i32"]=NoModRef;
+    lib_function_status["llvm.umin.i32"]=NoModRef;
+    lib_function_status["llvm.smax.i32"]=NoModRef;
+    lib_function_status["llvm.smin.i32"]=NoModRef;
+}   
+
+
 //取指针操作数对应的PtrInfo结构体
 PtrInfo AliasAnalysisPass::GetPtrInfo(Operand op, CFG* cfg){
     if(op->GetOperandType()==BasicOperand::REG){
         int regno=((RegOperand*)op)->GetRegNo();
         return ptrmap[cfg][regno];
     }else if(op->GetOperandType()==BasicOperand::GLOBAL){
-        PtrInfo global_info(PtrInfo::types::Global,op);
+        PtrInfo global_info(PtrInfo::types::Global);
         global_info.root=op;
         return global_info;
     }else{
@@ -35,12 +60,12 @@ bool AliasAnalysisPass::IsSameArraySameConstIndex(GetElementptrInstruction* inst
  过程内别名分析
 1.GroundTruth：
     - 同数组不同静态索引的指针一定不存在别名冲突
-    - SysY中产生指针的指令只有Getelementptr（源）和phi；第一代（源）ptr的别名集中仅它自己
+    - SysY中产生指针的指令只有Getelementptr（源）和phi；产生数组基址的只有Global/Param/Alloc
 2.Analysis:
-    - case 1. 别名集中同源 --> MustAlias （衍生自同一个GEP指令产生的源ptr)
-    - case 2. 根对应的GEP指令同ptr、同ConstIndex --> MustAlias（衍生自位置不同但内容相同的GEP指令各自产生的源ptr)
-		- case 2.1. 根为全局指针 （globalOprand）
-		- case 2.2. 根为局部指针或者参数指针 （regOperand）
+    - case 1. 不属于同一array，一定不存在别名冲突
+    - case 2. Global / Param / Local 彼此属于不同内存，不存在别名冲突
+    - case 3. 整个array与内部元素一定存在别名冲突
+    - case 4. 根对应的GEP指令同ptr、同ConstIndex --> MustAlias（衍生自位置不同但内容相同的GEP指令各自产生的源ptr)
     - 其它情况 --> NoAlias
 */
 AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
@@ -51,32 +76,31 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
     PtrInfo info1=GetPtrInfo(op1,cfg);
     PtrInfo info2=GetPtrInfo(op2,cfg); 
 
-    // 情况0.5 （我们认为不会这样访问，不过提供查询结果）
-    // if(info1.root==op2||info2.root==op1){// a 与 a[3]的别名存在冲突
-    //     return MustAlias;
-    // }
-
-    //不同全局变量之间、全局变量和局部变量之间 不会发生别名冲突
-    if(info1.type==PtrInfo::types::Global||info2.type==PtrInfo::types::Global){
-        if(info1.type==PtrInfo::types::Global&&info2.type==PtrInfo::types::Global){
-            if(info1.root!=info2.root){
-                return NoAlias;
-            } else { // case 2.2 a, a <=> a[0], a[0]
-				return MustAlias;
-			}
-        }else{
-            return NoAlias;
-        }
+    // case 1. 不属于同一array，一定不存在别名冲突
+    if(info1.root!=info2.root){
+        return NoAlias;
     }
 
-    //情况1
+    // case 2. Global / Param / Local 彼此属于不同内存，不存在别名冲突
+    if(info1.type!=PtrInfo::types::Undefed && info2.type!=PtrInfo::types::Undefed && info1.type!=info2.type){
+        return NoAlias;
+    }
+
+    // case 3. 整个array与内部元素一定存在别名冲突
+    if(info1.AliasOps.empty()||info2.AliasOps.empty()){
+        if(info1.root==info2.root){
+            return MustAlias;
+        }
+    }
+    // case 4. 同类型同Array
+    // case 4.1 若二者的别名集中存在重叠，则必由同一个指针别名而来
     for(auto &op:info1.AliasOps){
         if(info2.AliasOps.count(op)){
             return MustAlias;
         }
     }
 
-    //情况2.2
+    // case 4.2 ：寻找别名集中由定义原始ptr的那个GEP指令，并比较数组关系
     Instruction inst1 = nullptr, inst2 = nullptr;
     for(auto &op:info1.AliasOps){
         if(op->GetOperandType() != BasicOperand::REG) continue;
@@ -111,7 +135,8 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
 		auto typ = BasicInstruction::LLVMType::I32;  
         inst2 = new GetElementptrInstruction(typ, op2, op2, dim, idxs, idx_typ);
     }
-    // Assert(inst1!=nullptr&&inst2!=nullptr);  // 即 info1.source!=Undef &&  info1.source!=Undef
+
+    //assert(inst1!=nullptr&&inst2!=nullptr);
 	auto gep1 = dynamic_cast<GetElementptrInstruction*>(inst1);
 	auto gep2 = dynamic_cast<GetElementptrInstruction*>(inst2);
     if(IsSameArraySameConstIndex(gep1, gep2)){
@@ -124,7 +149,8 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
 
 Operand AliasAnalysisPass::CalleeParamToCallerArgu(Operand op, CFG* callee_cfg, CallInstruction* CallI){
     if(op->GetOperandType()==BasicOperand::REG){
-        auto callee_info = ReCallGraph[callee_cfg];
+        auto callee_name = callee_cfg->function_def->GetFunctionName();
+        auto callee_info = ReCallGraph[callee_name];
         if(callee_info.param_order.count(op)){//是形参，转换为caller的实参返回
             int order=callee_info.param_order[op];
             Operand argu=CallI->GetParameterList()[order].second;
@@ -219,14 +245,14 @@ void AliasAnalysisPass::PtrPropagationAnalysis(){
         for(int i=0;i<params.size();i++){
             if(param_types[i]==BasicInstruction::LLVMType::PTR){
                 int regno = ((RegOperand*)params[i])->GetRegNo();
-                PtrInfo info(PtrInfo::sources::Undef,PtrInfo::types::Param,params[i]);
+                PtrInfo info(PtrInfo::types::Param);
                 info.root=params[i];
                 ptrmap[cfg][regno]=info;//维护ptrmap
 
                 callinfo.param_order[params[i]]=i;//记录函数形参与序号的映射
             }
         }
-        ReCallGraph[cfg]=callinfo;
+        ReCallGraph[defI->GetFunctionName()]=callinfo;
         //（2）函数内定义
         for(auto &[id,block]:*(cfg->block_map)){
             for(auto &inst: block->Instruction_list){
@@ -234,7 +260,7 @@ void AliasAnalysisPass::PtrPropagationAnalysis(){
                     assert(((AllocaInstruction*)inst)->GetDims().size()>0);
                     Operand PtrOp = inst->GetResult();
                     int regno = ((RegOperand*)PtrOp)->GetRegNo();
-                    PtrInfo info(PtrInfo::sources::Undef,PtrInfo::types::Local,PtrOp);
+                    PtrInfo info(PtrInfo::types::Local);
                     info.root=PtrOp;
                     ptrmap[cfg][regno]=info;
                 }
@@ -248,7 +274,7 @@ void AliasAnalysisPass::PtrPropagationAnalysis(){
                 PtrInfo ptr_info = GetPtrInfo(ptr,cfg);
                 //类型传递
                 PtrInfo info(PtrInfo::sources::Gep, ptr_info.type ,inst->GetResult());
-                info.root=ptr;
+                info.root=ptr_info.root;
                 ptrmap[cfg][regno]=info;
             }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::PHI){
                 if(((PhiInstruction*)inst)->GetResultType()==BasicInstruction::LLVMType::PTR){
@@ -267,106 +293,134 @@ void AliasAnalysisPass::PtrPropagationAnalysis(){
 }
 
 //分析每个CFG的读写情况；并通过调用流汇总
-/* 1. 库函数B conservatively 认为有副作用。
-   2. 如果A直接调用了库函数B，A 的 mod/ref 信息应该被标记为“modref”，即 conservatively 认为 A 也有副作用。
-   3. 如果A间接调用了库函数B（比如A调用C，C调用B），只要分析能追踪到，A 也应该被认为是“modref”。
-*/
 void AliasAnalysisPass::RWInfoAnalysis(){
     //【1】收集每个CFG的读写信息，同时建立反向CallGraph
     for(auto &[defI,cfg]:llvmIR->llvm_cfg){
+        LeafFuncs.insert(defI->GetFunctionName());
         RWInfo rwinfo;
-        LeafFuncs.insert(cfg);
         rwinfo.has_lib_func_call = false;
+        auto globalinfo = new GlobalValInfo;
         for(auto &[id,block]:*(cfg->block_map)){
             for(auto &inst:block->Instruction_list){
                 if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::LOAD){
                     Operand ptr=((LoadInstruction*)inst)->GetPointer();
-                    PtrInfo info=GetPtrInfo(ptr,cfg);
-                    if(info.type==PtrInfo::types::Global||info.type==PtrInfo::types::Param){
-                        rwinfo.AddRead(info.root);
+                    if(ptr->GetOperandType()==BasicOperand::GLOBAL){
+                        globalinfo->ref_ops.insert(ptr);
+                    }else{
+                        PtrInfo info=GetPtrInfo(ptr,cfg);
+                        if(info.type==PtrInfo::types::Global||info.type==PtrInfo::types::Param){
+                            rwinfo.AddRead(info.root);
+                        }
                     }
                 }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::STORE){
                     Operand ptr=((StoreInstruction*)inst)->GetPointer();
-                    PtrInfo info=GetPtrInfo(ptr,cfg);
-                    if(info.type==PtrInfo::types::Global||info.type==PtrInfo::types::Param){
-                        rwinfo.AddWrite(info.root);
-                    }
-                }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::CALL){
-                    auto func_name=((CallInstruction*)inst)->GetFunctionName();
-                    if(lib_function_names.count(func_name)){
-                        rwinfo.has_lib_func_call = true;
-                    } else {
-                        auto func_def=llvmIR->FunctionNameTable[func_name];
-                        auto son_cfg=llvmIR->llvm_cfg[func_def];
-                        if(son_cfg!=cfg){//递归函数只记一次
-                            ReCallGraph[son_cfg].callers[cfg]=(*(CallInstruction*)inst);//构建反向CallGraph
-                            LeafFuncs.erase(cfg);//调用了其他函数的函数不能作为leaf
+                    if(ptr->GetOperandType()==BasicOperand::GLOBAL){
+                        globalinfo->mod_ops.insert(ptr);
+                    }else{
+                        PtrInfo info=GetPtrInfo(ptr,cfg);
+                        if(info.type==PtrInfo::types::Global||info.type==PtrInfo::types::Param){
+                            rwinfo.AddWrite(info.root);
                         }
                     }
-                }
-            }
-        }
-        // 如果有库函数调用，保守地认为所有全局和参数都被读写
-        if(rwinfo.has_lib_func_call == true){
-            for(auto &[regno, info] : ptrmap[cfg]){
-                if(info.type == PtrInfo::types::Global || info.type == PtrInfo::types::Param){
-                    rwinfo.AddRead(info.root);
-                    rwinfo.AddWrite(info.root);
+                }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::CALL){//call指令暂时不记录，在汇总时分析
+                    auto func_name=((CallInstruction*)inst)->GetFunctionName();
+                    if(lib_function_names.count(func_name)){//库函数，必为leaf
+                        ReCallGraph[func_name].callers[cfg]=(*(CallInstruction*)inst);//构建反向CallGraph
+                        rwinfo.has_lib_func_call = true;
+                    } else if(func_name!=defI->GetFunctionName()){//递归函数只记一次
+                            ReCallGraph[func_name].callers[cfg]=(*(CallInstruction*)inst);//构建反向CallGraph
+                            LeafFuncs.erase(defI->GetFunctionName());//调用了其他函数的函数不能作为leaf
+                    }
                 }
             }
         }
         rwmap[cfg]=rwinfo;
+        globalmap[cfg]=globalinfo;
     }
 
     //【2】将子函数的读写信息汇聚到父函数中
-    for(auto &cfg:LeafFuncs){
-        GatherRWInfos(cfg);
+    for(auto &func_name:LeafFuncs){
+        GatherRWInfos(func_name);
     }
 }
 
 //将子函数的读写情况汇总到父函数中，作为call指令mod/ref的依据
-void AliasAnalysisPass::GatherRWInfos(CFG*cfg){
-    RWInfo rwinfo=rwmap[cfg];
-    CallInfo* callinfo=&ReCallGraph[cfg];
-
-    for(auto &[caller_cfg,callI]:callinfo->callers){
-        RWInfo* caller_rwinfo=&rwmap[caller_cfg];
-        auto arguments=callI.GetParameterList();
-        //read   只要全局变量和函数参数中的PTR
-        for(auto &rop:rwinfo.ReadRoots){
-            if(rop->GetOperandType()==BasicOperand::GLOBAL){
-                caller_rwinfo->AddRead(rop);
-            }else if(rop->GetOperandType()==BasicOperand::REG){
-                PtrInfo ptrinfo=GetPtrInfo(rop,cfg);
-                if(ptrinfo.type==PtrInfo::types::Param){
-                    assert(arguments[callinfo->param_order[rop]].first==BasicInstruction::LLVMType::PTR);
-                    Operand arguOp=arguments[callinfo->param_order[rop]].second;//形参映射到实参
-
+void AliasAnalysisPass::GatherRWInfos(std::string func_name){
+    //【1】库函数，无cfg，直接考虑参数
+    if(lib_function_names.count(func_name)){
+        CallInfo* callinfo=&ReCallGraph[func_name];
+        for(auto &[caller_cfg,callI]:callinfo->callers){
+            RWInfo* caller_rwinfo=&rwmap[caller_cfg];
+            auto arguments=callI.GetParameterList();
+            if(lib_function_status[func_name]==Ref){
+                if(func_name=="putarray"||func_name=="putfarray"){
+                    Operand arguOp=arguments[1].second;//取实参
                     PtrInfo caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
                     caller_rwinfo->AddRead(caller_ptrinfo.root);
                 }
-            }
-        }
-        //write
-        for(auto &wop:rwinfo.WriteRoots){
-            if(wop->GetOperandType()==BasicOperand::GLOBAL){
-                caller_rwinfo->AddWrite(wop);
-            }else if(wop->GetOperandType()==BasicOperand::REG){
-                PtrInfo ptrinfo=GetPtrInfo(wop,cfg);
-                if(ptrinfo.type==PtrInfo::types::Param){
-                    assert(arguments[callinfo->param_order[wop]].first==BasicInstruction::LLVMType::PTR);
-                    Operand arguOp=arguments[callinfo->param_order[wop]].second;//形参映射到实参
-
+            }else if(lib_function_status[func_name]==Mod){
+                if(func_name=="getarray"||func_name=="getfarray"){
+                    Operand arguOp=arguments[1].second;//取实参
                     PtrInfo caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
                     caller_rwinfo->AddWrite(caller_ptrinfo.root);
                 }
             }
-        }
 
-        //沿调用链反向传播汇总
-        GatherRWInfos(caller_cfg);
+            //沿调用链反向传播汇总
+            GatherRWInfos(caller_cfg->function_def->GetFunctionName());
+        }
+        return ;
     }
-    return ;
+    //【2】非库函数
+    else{
+        auto callee_cfg=llvmIR->llvm_cfg[llvmIR->FunctionNameTable[func_name]];
+        RWInfo rwinfo=rwmap[callee_cfg];
+        CallInfo* callinfo=&ReCallGraph[func_name];
+
+        for(auto &[caller_cfg,callI]:callinfo->callers){
+
+            //【2.1】不含global var的rw信息汇总
+            RWInfo* caller_rwinfo=&rwmap[caller_cfg];
+            auto arguments=callI.GetParameterList();
+            //read   只要全局变量和函数参数中的PTR
+            for(auto &rop:rwinfo.ReadRoots){
+                if(rop->GetOperandType()==BasicOperand::GLOBAL){
+                    caller_rwinfo->AddRead(rop);
+                }else if(rop->GetOperandType()==BasicOperand::REG){
+                    PtrInfo ptrinfo=GetPtrInfo(rop,callee_cfg);
+                    if(ptrinfo.type==PtrInfo::types::Param){
+                        assert(arguments[callinfo->param_order[rop]].first==BasicInstruction::LLVMType::PTR);
+                        Operand arguOp=arguments[callinfo->param_order[rop]].second;//形参映射到实参
+
+                        PtrInfo caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
+                        caller_rwinfo->AddRead(caller_ptrinfo.root);
+                    }
+                }
+            }
+            //write
+            for(auto &wop:rwinfo.WriteRoots){
+                if(wop->GetOperandType()==BasicOperand::GLOBAL){
+                    caller_rwinfo->AddWrite(wop);
+                }else if(wop->GetOperandType()==BasicOperand::REG){
+                    PtrInfo ptrinfo=GetPtrInfo(wop,callee_cfg);
+                    if(ptrinfo.type==PtrInfo::types::Param){
+                        assert(arguments[callinfo->param_order[wop]].first==BasicInstruction::LLVMType::PTR);
+                        Operand arguOp=arguments[callinfo->param_order[wop]].second;//形参映射到实参
+
+                        PtrInfo caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
+                        caller_rwinfo->AddWrite(caller_ptrinfo.root);
+                    }
+                }
+            }
+
+            //【2.2】global var的信息汇总
+            globalmap[caller_cfg]->AddInfo(globalmap[callee_cfg]);
+
+            //沿调用链反向传播汇总
+            GatherRWInfos(caller_cfg->function_def->GetFunctionName());
+        }
+        return ;
+    }
 }
 
 
@@ -393,6 +447,7 @@ void AliasAnalysisPass::FindPhi(){
 
 
 void AliasAnalysisPass::Execute(){
+    DefineLibFuncStatus();
     PtrPropagationAnalysis();
     RWInfoAnalysis();
 
@@ -423,7 +478,7 @@ void AliasAnalysisPass::PrintAAResult() {
     std::cout<<" ----------- CallInfo ------------- "<<std::endl;
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         defI->PrintIR(std::cout);
-        auto callinfo=ReCallGraph[cfg];
+        auto callinfo=ReCallGraph[defI->GetFunctionName()];
 
         std::cout<<"para_order:  "<<std::endl;
         for(auto&[op,order]:callinfo.param_order){
@@ -467,8 +522,24 @@ void AliasAnalysisPass::PrintAAResult() {
     }
 
     std::cout<<" ----------- Leafs -------------- "<<std::endl;
-    for(auto cfg:LeafFuncs){
-        std::cout << cfg->function_def->GetFunctionName()<<std::endl;
+    for(auto func_name:LeafFuncs){
+        std::cout << func_name<<std::endl;
+    }
+
+    std::cout<<" ----------- Globalvar Info -------------- "<<std::endl;
+    for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+        defI->PrintIR(std::cout);
+
+        auto globalinfo=globalmap[cfg];
+        std::cout << "read :   ";
+        for(auto op:globalinfo->ref_ops){
+            std::cout<<op<<" ";
+        }std::cout << "\n";
+
+        std::cout << "write :   ";
+        for(auto op:globalinfo->mod_ops){
+            std::cout<<op<<" ";
+        }std::cout << "\n";
     }
 }
 
@@ -488,12 +559,11 @@ void AliasAnalysisPass::Test() {
             for (auto I : bb->Instruction_list) {
                 if (I->GetOpcode() == BasicInstruction::LLVMIROpcode::GETELEMENTPTR) {
                     ptrset.insert(I->GetResult());
+                } else if (I->GetOpcode() == BasicInstruction::LLVMIROpcode::LOAD) {
+                    ptrset.insert(((LoadInstruction *)I)->GetPointer());
+                } else if (I->GetOpcode() == BasicInstruction::LLVMIROpcode::STORE) {
+                    ptrset.insert(((StoreInstruction *)I)->GetPointer());
                 }
-                // } else if (I->GetOpcode() == BasicInstruction::LLVMIROpcode::LOAD) {
-                //     ptrset.insert(((LoadInstruction *)I)->GetPointer());
-                // } else if (I->GetOpcode() == BasicInstruction::LLVMIROpcode::STORE) {
-                //     ptrset.insert(((StoreInstruction *)I)->GetPointer());
-                // }
             }
         }
         for (auto ptr1 : ptrset) {

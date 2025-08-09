@@ -303,7 +303,6 @@ void MachineStrengthReducePass::GepStrengthReduction() {
 }
 
 //访存地址强度削弱
-//规律：往往是t0自增
 /*
 sw xx, 0(t0)                 sw xx, 0(t0)
 ...
@@ -314,6 +313,10 @@ sw xx, 0(t0)         ==>     sw xx, 4(t0)
 addi t0, t0,4
 ...
 sw xx, 0(t0)                 sw xx, 8(t0) 
+*/
+/*
+1. 目前实现了栈上内存访问的指令合并，（sp的值在函数开始即设置好，不会更改，不存在连锁效应）
+2. 大多数自增访问存在连锁反应
 */
 void MachineStrengthReducePass::LSOffsetCompute(){
     // for (auto &func : unit->functions) {
@@ -364,7 +367,7 @@ void MachineStrengthReducePass::LSOffsetCompute(){
                     continue;
                 }
                 auto inst = (RiscV64Instruction*)(*it); 
-                std::cout<<OpTable.at(inst->getOpcode()).name<<std::endl;
+                //std::cout<<OpTable.at(inst->getOpcode()).name<<std::endl;
 
                 if(inst->getOpcode() == RISCV_SW && !inst->getUseLabel() ){
                     int basic_address = inst->getRs2().reg_no;
@@ -382,7 +385,7 @@ void MachineStrengthReducePass::LSOffsetCompute(){
                     auto next_inst = (RiscV64Instruction*)(*next_it);
                     //std::cout<<OpTable.at(next_inst->getOpcode()).name<<std::endl;
                     if((next_inst->getOpcode()==RISCV_ADDI || next_inst->getOpcode()==RISCV_ADDIW)&&
-                        next_inst->getRs1().reg_no != next_inst->getRd().reg_no){
+                        next_inst->getRs1().reg_no == RISCV_sp ){
                         inst->setRs2(next_inst->getRs1());
                         inst->setImm(inst->getImm()+next_inst->getImm());
                         auto base = next_it.base();
@@ -406,7 +409,7 @@ void MachineStrengthReducePass::LSOffsetCompute(){
                     auto next_inst = (RiscV64Instruction*)(*next_it);
                     //std::cout<<OpTable.at(next_inst->getOpcode()).name<<std::endl;
                     if((next_inst->getOpcode()==RISCV_ADDI || next_inst->getOpcode()==RISCV_ADDIW)&&
-                        next_inst->getRs1().reg_no != next_inst->getRd().reg_no){
+                        next_inst->getRs1().reg_no == RISCV_sp){
                         inst->setRs1(next_inst->getRs1());
                         inst->setImm(inst->getImm()+next_inst->getImm());
                         auto base = next_it.base();
