@@ -1891,10 +1891,7 @@ template <> void RiscV64Unit::ConvertAndAppend<ZextInstruction *>(ZextInstructio
 }
 
 template <> void RiscV64Unit::ConvertAndAppend<GetElementptrInstruction *>(GetElementptrInstruction *inst) {
-    // TODO("Implement this if you need");
-	// for (auto arg_reg : cur_func->GetParameters()){
-	// 	std::cerr << arg_reg.get_reg_no() << std::endl;
-	// }
+	
     auto base_op = inst->GetPtrVal();
     // 1. 计算getelementptr的地址偏移
     auto dims = inst->GetDims();

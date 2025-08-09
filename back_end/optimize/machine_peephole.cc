@@ -189,7 +189,8 @@ void MachinePeepholePass::ConstantReplacement() {
                 //     add, ty, xx, tx ---> 直接用k替换tx
                 if(inst ->getOpcode() == RISCV_LI) {
                     int imm = inst->getImm();
-                    if(imm>=-2048&&imm<2047){ // addi的立即数不能超过12位
+                    // addi 的 12 位有符号立即数范围为 [-2048, 2047]
+                    if (imm >= -2048 && imm <= 2047) {
                         auto next_it = std::next(it);
                         if (next_it != block->instructions.end()) {
                             auto next_inst = (RiscV64Instruction*)(*next_it);

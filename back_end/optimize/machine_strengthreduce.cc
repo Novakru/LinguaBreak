@@ -193,7 +193,8 @@ void MachineStrengthReducePass::GepStrengthReduction() {
                         int index = 4 * op1 * op2;
                         int offset = index + inst5->getImm();
 
-                        if (offset > 2047) {
+                        // ADDI 立即数需在 [-2048, 2047] 范围内
+                        if (offset < -2048 || offset > 2047) {
                             // 需要先li立即数到寄存器，再 add
                             RiscV64Instruction* li_inst = new RiscV64Instruction();
                             li_inst->setOpcode(RISCV_LI, false);
@@ -233,7 +234,8 @@ void MachineStrengthReducePass::GepStrengthReduction() {
                         int op2 = inst2->getImm();
                         int index = 4 * op1 * op2;
 
-                        if (index > 2047) {
+                        // ADDI 立即数需在 [-2048, 2047] 范围内
+                        if (index < -2048 || index > 2047) {
                             // 需要先li立即数到寄存器，再 add
                             RiscV64Instruction* li_inst = new RiscV64Instruction();
                             li_inst->setOpcode(RISCV_LI, false);
