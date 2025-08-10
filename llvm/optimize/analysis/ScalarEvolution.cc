@@ -771,6 +771,8 @@ ScalarEvolution::GepParams ScalarEvolution::extractGepParams(SCEV* array_scev, L
     Operand offset_op = nullptr;
     
     // 处理加法表达式：base + index1*stride1 + index2*stride2 + ... + induction_var
+	auto br_inst = preheader->Instruction_list.back();
+	preheader->Instruction_list.pop_back();
     if (auto* add_expr = dynamic_cast<SCEVAddExpr*>(array_scev)) {
         for (SCEV* operand : add_expr->getOperands()) {
             if (auto* unknown = dynamic_cast<SCEVUnknown*>(operand)) {
@@ -810,6 +812,6 @@ ScalarEvolution::GepParams ScalarEvolution::extractGepParams(SCEV* array_scev, L
             }
         }
     }
-    
+    preheader->Instruction_list.push_back(br_inst);
     return {base_ptr, offset_op};
 }

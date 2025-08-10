@@ -39,47 +39,48 @@ void LoopIdiomRecognizePass::processFunction(CFG* C) {
 }
 
 void LoopIdiomRecognizePass::processLoop(Loop* loop, CFG* C, ScalarEvolution* SE) {
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "处理循环，header block_id=" << loop->getHeader()->block_id << std::endl);
+    
     for (auto sub_loop : loop->getSubLoops()) {
         processLoop(sub_loop, C, SE);
     }
     
     if (!loop->verifySimplifyForm(C) && loop->getExits().size() != 1) {
+        LOOP_IDIOM_DEBUG_PRINT(std::cerr << "不是简单循环，跳过" << std::endl);
         return;
     }
     
-    // 首先尝试循环外提优化（独立执行）
-    std::set<Operand> hoistedVariables;
-    bool hasHoisted = recognizeLoopHoisting(loop, C, SE, hoistedVariables);
+    // 分析循环的外提信息
+    LoopHoistingInfo info = analyzeLoopHoisting(loop, C, SE);
     
-    // 如果外提成功，检查是否所有外部使用的变量都已经外提
-    if (hasHoisted) {
-        // 检查是否还有未外提的外部使用变量（除了induction variable）
-        std::vector<HoistingCandidate> remainingCandidates = findHoistingCandidates(loop, C, SE);
-        bool allHoisted = true;
-        
-        for (const auto& candidate : remainingCandidates) {
-            // 如果不是induction variable且未外提，说明还有变量无法外提
-            if (!isInductionVariable(candidate.operand, loop) && 
-                hoistedVariables.find(candidate.operand) == hoistedVariables.end()) {
-                allHoisted = false;
-                break;
-            }
-        }
-        
-        // 如果除了induction variable之外的所有变量都外提了，就不需要memset优化
-        if (allHoisted) {
-            return;
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "分析结果：总共 " << info.all_candidates.size() 
+                                  << " 个可外提变量，可以识别memset: " 
+                                  << (info.can_recognize_memset ? "是" : "否") << std::endl);
+    
+    // 根据分析结果决定优化策略
+    // 第一步：先对非induction变量进行外提
+    // if (!info.other_candidates.empty()) {
+    //     LOOP_IDIOM_DEBUG_PRINT(std::cerr << "先外提非induction变量" << std::endl);
+    //     executePartialHoisting(loop, C, SE, info.other_candidates);
+    // }
+    
+    // 第二步：检查是否可以识别memset
+    if (info.can_recognize_memset && info.all_hoistable) {
+        LOOP_IDIOM_DEBUG_PRINT(std::cerr << "可以识别memset习语，执行memset优化" << std::endl);
+        if (executeMemsetWithHoisting(loop, C, SE, info)) {
+            LOOP_IDIOM_DEBUG_PRINT(std::cerr << "memset优化成功" << std::endl);
+        return;
         }
     }
     
-    // 然后检查是否可以进行memset优化
-    if (canRecognizeMemsetIdiom(loop, C, SE)) {
-        // 检查是否所有外部使用的变量都已经外提
-        if (recognizeMemsetIdiom(loop, C, SE, hoistedVariables)) {
-            LOOP_IDIOM_DEBUG_PRINT(std::cerr << "识别到memset习语" << std::endl);
-            return;
-        }
-    }
+    // 第三步：如果不能识别memset，尝试外提induction变量
+    // if (!info.induction_candidates.empty()) {
+    //     LOOP_IDIOM_DEBUG_PRINT(std::cerr << "执行induction变量外提" << std::endl);
+    //     executePartialHoisting(loop, C, SE, info.induction_candidates);
+    //     return;
+    // }
+    
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "无法进行任何优化" << std::endl);
 }
 
 
@@ -87,66 +88,51 @@ void LoopIdiomRecognizePass::processLoop(Loop* loop, CFG* C, ScalarEvolution* SE
  * 检查循环是否能被memset优化（只检查可行性，不实际执行）
  */
 bool LoopIdiomRecognizePass::canRecognizeMemsetIdiom(Loop* loop, CFG* C, ScalarEvolution* SE) {
-    auto blocks = loop->getBlocks();
-    if (blocks.size() != 2) return false;
-    
-    LLVMBlock body = (blocks[0] == loop->getHeader()) ? blocks[1] : blocks[0];
-    
-    StoreInstruction* store = nullptr;
-    for (auto inst : body->Instruction_list) {
-        if (inst->GetOpcode() == BasicInstruction::STORE) {
-            store = (StoreInstruction*)inst;
-            break;
-        }
-    }
-    if (!store || store->GetValue()->GetOperandType() != BasicOperand::IMMI32) return false;
-
-    // 使用extractLoopParams获取循环参数
-    LoopParams params = SE->extractLoopParams(loop, C);
-    // 暂时只支持步长为1的memset；trip count 可为动态（上下界循环不变量）
-    if (params.step_val != 1) return false;
-    
-    // 检查数组访问模式
-    SCEV* array_scev = SE->getSimpleSCEV(store->GetPointer(), loop);
-    LLVMBlock header = loop->getHeader();
-    BrCondInstruction* br_cond = (BrCondInstruction*)header->Instruction_list.back();
-    IcmpInstruction* icmp = (IcmpInstruction*)SE->getDef(br_cond->GetCond());
-
-    // 确定归纳变量
-    Operand induction_var = (icmp->GetOp1()->GetOperandType() == BasicOperand::REG) ? icmp->GetOp1() : icmp->GetOp2();
-    
-    if (!isLinearArrayAccess(array_scev, induction_var, loop, SE)) {
-        return false;
-    }
-
-    // 提取GEP参数
-    LLVMBlock preheader = loop->getPreheader();
-    GepParams gep_params = SE->extractGepParams(array_scev, loop, preheader, C);
-    if (!gep_params.base_ptr) {
+    // 只对最内层循环进行memset优化
+    if (!loop->getSubLoops().empty()) {
         return false;
     }
     
-    return true;
-}
-
-/**
- * 识别memset习语：for(int i = 0; i <= n; i++) a[i] = const;
- * 注意：除了store的寄存器外，如果有循环外使用的变量不能外提，则不能进行整个循环的删除
- */
-bool LoopIdiomRecognizePass::recognizeMemsetIdiom(Loop* loop, CFG* C, ScalarEvolution* SE, const std::set<Operand>& hoistedVariables) {
     auto blocks = loop->getBlocks();
-    if (blocks.size() != 2) return false;
     
-    LLVMBlock body = (blocks[0] == loop->getHeader()) ? blocks[1] : blocks[0];
-    
+    // 查找包含store指令的基本块，并统计store指令数量
+    LLVMBlock body = nullptr;
     StoreInstruction* store = nullptr;
-    for (auto inst : body->Instruction_list) {
+    int store_count = 0;
+    
+    for (auto block : blocks) {
+        if (block == loop->getHeader()) continue;
+        
+        for (auto inst : block->Instruction_list) {
         if (inst->GetOpcode() == BasicInstruction::STORE) {
+                store_count++;
+                if (!body) {
+                    body = block;
             store = (StoreInstruction*)inst;
-            break;
+                }
+            }
         }
     }
-    if (!store || store->GetValue()->GetOperandType() != BasicOperand::IMMI32) return false;
+    
+    // 只对包含单个store指令的循环进行memset优化
+    if (store_count != 1) {
+        LOOP_IDIOM_DEBUG_PRINT(std::cerr << "循环包含 " << store_count << " 个store指令，不是单个store，跳过memset优化" << std::endl);
+        return false;
+    }
+    
+    // 只对整数常量支持memset优化
+    Operand store_value = store->GetValue();
+    if (store_value->GetOperandType() != BasicOperand::IMMI32) {
+        LOOP_IDIOM_DEBUG_PRINT(std::cerr << "store指令的值不是常量，跳过memset优化" << std::endl);
+        return false;
+    }
+    
+    // 检查常量值是否在memset支持的范围内（0x00 ~ 0xFF）
+	// 八字节填充的适用范围非常有限
+    int const_val = ((ImmI32Operand*)store_value)->GetIntImmVal();
+    if (const_val != 0 && const_val != -1) {
+        return false;
+    }
 
     // 使用extractLoopParams获取循环参数
     LoopParams params = SE->extractLoopParams(loop, C);
@@ -156,8 +142,6 @@ bool LoopIdiomRecognizePass::recognizeMemsetIdiom(Loop* loop, CFG* C, ScalarEvol
     // 检查数组访问模式
     SCEV* array_scev = SE->getSimpleSCEV(store->GetPointer(), loop);
     LLVMBlock header = loop->getHeader();
-    LLVMBlock preheader = loop->getPreheader();
-    LLVMBlock exit = *loop->getExits().begin();
     BrCondInstruction* br_cond = (BrCondInstruction*)header->Instruction_list.back();
     IcmpInstruction* icmp = (IcmpInstruction*)SE->getDef(br_cond->GetCond());
 
@@ -169,66 +153,20 @@ bool LoopIdiomRecognizePass::recognizeMemsetIdiom(Loop* loop, CFG* C, ScalarEvol
     }
 
     // 提取GEP参数
+    LLVMBlock preheader = loop->getPreheader();
     GepParams gep_params = SE->extractGepParams(array_scev, loop, preheader, C);
     if (!gep_params.base_ptr) {
         return false;
     }
     
-    // 检查是否有循环外使用的变量不能外提（排除store指令本身使用的寄存器和已外提的变量）
-    std::vector<HoistingCandidate> candidates = findHoistingCandidates(loop, C, SE);
-    
-    // 获取store指令使用的寄存器，这些不需要外提
-    std::set<Operand> store_operands;
-    if (store->GetPointer()->GetOperandType() == BasicOperand::REG) {
-        store_operands.insert(store->GetPointer());
-    }
-    
-    // 收集需要外提的induction variable
-    std::vector<HoistingCandidate> induction_candidates;
-    
-    for (const auto& candidate : candidates) {
-        // 跳过store指令本身使用的寄存器
-        if (store_operands.find(candidate.operand) != store_operands.end()) {
-            continue;
-        }
-        
-        // 跳过已经成功外提的变量
-        if (hoistedVariables.find(candidate.operand) != hoistedVariables.end()) {
-            continue;
-        }
-        
-        // 检查是否为induction variable
-        if (isInductionVariable(candidate.operand, loop)) {
-            // induction variable 先跳过检查，但收集起来
-            induction_candidates.push_back(candidate);
-            continue;
-        }
-        
-        // 检查该变量是否可以被外提
-        if (!canCalculateFinalValue(candidate, loop, C, SE)) {
-            return false;
-        }
-    }
-    
-
-    replaceWithMemset(loop, C, store->GetPointer(), store->GetValue(), gep_params);
-    
-    // memset优化成功后，外提induction variable
-    params = SE->extractLoopParams(loop, C);
-    for (const auto& candidate : induction_candidates) {
-        if (canCalculateFinalValue(candidate, loop, C, SE)) {
-            int finalValue = calculateFinalValue(candidate, params, loop, C, SE);
-            hoistVariable(loop, C, candidate, finalValue);
-        }
-    }
-    
     return true;
 }
+
+
 
 bool LoopIdiomRecognizePass::isLinearArrayAccess(SCEV* array_scev, Operand induction_var, Loop* loop, ScalarEvolution* SE) {
     // 检查数组访问是否为线性模式：base + induction_var
 
-    
     if (auto* add_expr = dynamic_cast<SCEVAddExpr*>(array_scev)) {
         bool has_induction = false;
         bool has_base = false;
@@ -276,10 +214,8 @@ void LoopIdiomRecognizePass::replaceWithMemset(Loop* loop, CFG* C, Operand array
     ScalarEvolution* SE = C->getSCEVInfo();
     LoopParams params = SE->extractLoopParams(loop, C);
 
-    // 删除原 preheader 末尾到循环头的无条件跳转，准备插入新指令
-    if (!preheader->Instruction_list.empty()) {
         preheader->Instruction_list.pop_back();
-    }
+	LOOP_IDIOM_DEBUG_PRINT(std::cerr << "弹出br指令" << std::endl);
 
     // 计算动态/静态的memset字节数参数：trip_count * 4
     // 从header的icmp提取 start 与 bound（均允许为循环不变量表达式）
@@ -351,6 +287,9 @@ void LoopIdiomRecognizePass::replaceWithMemset(Loop* loop, CFG* C, Operand array
             gep_params.offset_op,
             BasicInstruction::I32
         );
+        LOOP_IDIOM_DEBUG_PRINT(std::cerr << "生成GEP指令（带偏移量）: " << gep->GetResult()->GetFullName() 
+                                      << " = getelementptr i32, ptr " << gep_params.base_ptr->GetFullName() 
+                                      << ", i32 " << gep_params.offset_op->GetFullName() << std::endl);
     
     } else {
         // 如果没有偏移量，直接使用基址
@@ -361,9 +300,15 @@ void LoopIdiomRecognizePass::replaceWithMemset(Loop* loop, CFG* C, Operand array
             new ImmI32Operand(0),
             BasicInstruction::I32
         );
+        LOOP_IDIOM_DEBUG_PRINT(std::cerr << "生成GEP指令（无偏移量）: " << gep->GetResult()->GetFullName() 
+                                      << " = getelementptr i32, ptr " << gep_params.base_ptr->GetFullName() 
+                                      << ", i32 0" << std::endl);
     
     }
     preheader->Instruction_list.push_back(gep);
+    
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "GEP指令已插入到preheader block_id=" << preheader->block_id 
+                                  << "，当前指令数量: " << preheader->Instruction_list.size() << std::endl);
 
     // 生成memset调用
     std::vector<std::pair<BasicInstruction::LLVMType, Operand>> args;
@@ -379,68 +324,139 @@ void LoopIdiomRecognizePass::replaceWithMemset(Loop* loop, CFG* C, Operand array
 
     CallInstruction* memset_call = new CallInstruction(BasicInstruction::VOID, nullptr, "llvm.memset.p0.i32", args);
     preheader->Instruction_list.push_back(memset_call);
+    
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "memset指令已插入到preheader block_id=" << preheader->block_id 
+                                  << "，当前指令数量: " << preheader->Instruction_list.size() << std::endl);
+    
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "生成memset指令: call void @llvm.memset.p0.i32(ptr " << gep->GetResult()->GetFullName() 
+                                  << ", i8 " << value->GetFullName() 
+                                  << ", i32 " << (trip_bytes_op ? trip_bytes_op->GetFullName() : "static_size") 
+                                  << ", i1 0)" << std::endl);
 
 
     // preheader -> exit
     BrUncondInstruction* br = new BrUncondInstruction(GetNewLabelOperand(exit->block_id));
     preheader->Instruction_list.push_back(br);
+    
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "重新插入br指令到preheader，跳转到block_id=" << exit->block_id 
+                                  << "，当前指令数量: " << preheader->Instruction_list.size() << std::endl);
 
 }
 
-void LoopIdiomRecognizePass::replaceWithConstant(Loop* loop, CFG* C, Operand target, int value) {
 
-    
-    // 在循环前插入常数赋值
-    // 简化实现：直接移除循环
 
-}
-
-/**
- * 识别循环外提优化：识别循环内计算的值在循环外被使用，并且可以根据循环迭代次数计算出最终值
- * 例如：i在循环内按照{0,+,1}递增，循环外使用i，可以计算出i的最终值为50
- */
-bool LoopIdiomRecognizePass::recognizeLoopHoisting(Loop* loop, CFG* C, ScalarEvolution* SE, std::set<Operand>& hoistedVariables) {
-    // 获取循环参数
-    LoopParams params = SE->extractLoopParams(loop, C);
-    if (params.count <= 0) {
-        return false;
-    }
+LoopIdiomRecognizePass::LoopHoistingInfo LoopIdiomRecognizePass::analyzeLoopHoisting(Loop* loop, CFG* C, ScalarEvolution* SE) {
+    LoopHoistingInfo info;
     
-    // 查找在循环外被使用的变量
-    std::vector<HoistingCandidate> candidates = findHoistingCandidates(loop, C, SE);
-    if (candidates.empty()) {
-        return false;
-    }
+    // 第一步：收集所有在循环外使用的变量
+    std::vector<HoistingCandidate> allCandidates = findHoistingCandidates(loop, C, SE);
     
-    // 分离induction variable和其他变量
-    auto [induction_candidates, other_candidates] = separateInductionVariables(candidates, loop);
-    
-    // 先处理非induction variable
-    bool hasHoisted = false;
-    bool allOthersHoisted = true;
-    
-    for (const auto& candidate : other_candidates) {
+    // 第二步：检查哪些变量可以外提
+    for (const auto& candidate : allCandidates) {
         if (canCalculateFinalValue(candidate, loop, C, SE)) {
-            int finalValue = calculateFinalValue(candidate, params, loop, C, SE);
-            hoistVariable(loop, C, candidate, finalValue);
-            hasHoisted = true;
-        } else {
-            allOthersHoisted = false;
-        }
-    }
-    
-    // 如果除了induction variable之外的所有变量都外提成功了，也外提induction variable
-    if (allOthersHoisted) {
-        for (const auto& candidate : induction_candidates) {
-            if (canCalculateFinalValue(candidate, loop, C, SE)) {
-                int finalValue = calculateFinalValue(candidate, params, loop, C, SE);
-                hoistVariable(loop, C, candidate, finalValue);
-                hasHoisted = true;
+            info.all_candidates.push_back(candidate);
+            
+            // 分类变量
+            if (isInductionVariable(candidate.operand, loop)) {
+                info.induction_candidates.push_back(candidate);
+            } else {
+                info.other_candidates.push_back(candidate);
             }
         }
     }
     
-    return hasHoisted;
+    // 第三步：检查是否可以识别为memset习语
+    info.can_recognize_memset = canRecognizeMemsetIdiom(loop, C, SE);
+    
+    // 第四步：判断是否所有变量都能外提
+    info.all_hoistable = (info.all_candidates.size() == allCandidates.size());
+    
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "分析完成：总共 " << allCandidates.size() 
+                                  << " 个变量，可外提 " << info.all_candidates.size() << " 个" << std::endl);
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "induction变量 " << info.induction_candidates.size() 
+                                  << " 个，其他变量 " << info.other_candidates.size() 
+                                  << " 个" << std::endl);
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "可以识别memset: " << (info.can_recognize_memset ? "是" : "否") << std::endl);
+    
+    return info;
+}
+
+
+
+void LoopIdiomRecognizePass::executePartialHoisting(Loop* loop, CFG* C, ScalarEvolution* SE, const std::vector<HoistingCandidate>& candidates) {
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "执行部分外提优化，候选变量数量: " << candidates.size() << std::endl);
+    
+    LoopParams params = SE->extractLoopParams(loop, C);
+    
+    // 外提指定的候选变量
+    for (const auto& candidate : candidates) {
+        int finalValue = calculateFinalValue(candidate, params, loop, C, SE);
+        LOOP_IDIOM_DEBUG_PRINT(std::cerr << "外提变量: " << candidate.operand->GetFullName() 
+                                      << "，最终值: " << finalValue << std::endl);
+        hoistVariable(loop, C, candidate, finalValue);
+    }
+    
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "部分外提优化完成" << std::endl);
+}
+
+bool LoopIdiomRecognizePass::executeMemsetWithHoisting(Loop* loop, CFG* C, ScalarEvolution* SE, const LoopHoistingInfo& info) {
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "执行memset优化并外提变量" << std::endl);
+    
+    // 由于在processLoop中已经确认了canRecognizeMemsetIdiom为true，
+    // 这里可以直接查找store指令，不需要重复检查条件
+    auto blocks = loop->getBlocks();
+    
+    // 查找包含store指令的基本块
+    LLVMBlock body = nullptr;
+    StoreInstruction* store = nullptr;
+    
+    for (auto block : blocks) {
+        if (block == loop->getHeader()) continue;
+        
+        for (auto inst : block->Instruction_list) {
+            if (inst->GetOpcode() == BasicInstruction::STORE) {
+                body = block;
+                store = (StoreInstruction*)inst;
+                break;
+            }
+        }
+        if (store) break;
+    }
+    
+    // 由于canRecognizeMemsetIdiom已经确认了store指令存在且条件满足，
+    assert(store && "store指令应该在canRecognizeMemsetIdiom中已经确认存在");
+    
+    // 提取GEP参数
+    SCEV* array_scev = SE->getSimpleSCEV(store->GetPointer(), loop);
+    LLVMBlock preheader = loop->getPreheader();
+    GepParams gep_params = SE->extractGepParams(array_scev, loop, preheader, C);
+    
+    if (!gep_params.base_ptr) {
+        LOOP_IDIOM_DEBUG_PRINT(std::cerr << "无法提取GEP参数" << std::endl);
+        return false;
+    }
+    
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "提取GEP参数: base_ptr=" << gep_params.base_ptr->GetFullName() 
+                                  << ", offset_op=" << (gep_params.offset_op ? gep_params.offset_op->GetFullName() : "null") << std::endl);
+    
+    // 执行memset优化
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "执行memset优化" << std::endl);
+    replaceWithMemset(loop, C, store->GetPointer(), store->GetValue(), gep_params);
+    
+    // 外提induction变量
+    if (!info.induction_candidates.empty()) {
+        LOOP_IDIOM_DEBUG_PRINT(std::cerr << "外提induction变量" << std::endl);
+        LoopParams params = SE->extractLoopParams(loop, C);
+        for (const auto& candidate : info.induction_candidates) {
+            int finalValue = calculateFinalValue(candidate, params, loop, C, SE);
+            LOOP_IDIOM_DEBUG_PRINT(std::cerr << "外提induction变量: " << candidate.operand->GetFullName() 
+                                          << "，最终值: " << finalValue << std::endl);
+            hoistVariable(loop, C, candidate, finalValue);
+        }
+    }
+    
+    LOOP_IDIOM_DEBUG_PRINT(std::cerr << "memset优化并外提变量完成" << std::endl);
+    return true;
 }
 
 bool LoopIdiomRecognizePass::isInductionVariable(Operand op, Loop* loop) {
@@ -456,21 +472,7 @@ bool LoopIdiomRecognizePass::isInductionVariable(Operand op, Loop* loop) {
     return false;
 }
 
-std::pair<std::vector<HoistingCandidate>, std::vector<HoistingCandidate>> 
-LoopIdiomRecognizePass::separateInductionVariables(const std::vector<HoistingCandidate>& candidates, Loop* loop) {
-    std::vector<HoistingCandidate> induction_candidates;
-    std::vector<HoistingCandidate> other_candidates;
-    
-    for (const auto& candidate : candidates) {
-        if (isInductionVariable(candidate.operand, loop)) {
-            induction_candidates.push_back(candidate);
-        } else {
-            other_candidates.push_back(candidate);
-        }
-    }
-    
-    return {induction_candidates, other_candidates};
-}
+
 
 /**
  * 查找在循环外被使用的变量
@@ -502,14 +504,20 @@ LoopIdiomRecognizePass::findHoistingCandidates(Loop* loop, CFG* C, ScalarEvoluti
     
     // 为每个在循环外使用的变量创建候选，并检查循环内使用情况
     for (auto op : loopExternUses) {
+        LOOP_IDIOM_DEBUG_PRINT(std::cerr << "检查循环外使用变量: " << op->GetFullName() << std::endl);
+        
         // 检查该变量在循环内是否除了自身迭代外不被使用
         if (!isVariableOnlyUsedForSelfIteration(op, loop, C)) {
+            LOOP_IDIOM_DEBUG_PRINT(std::cerr << "变量 " << op->GetFullName() << " 在循环内被其他指令使用，跳过" << std::endl);
             continue;
         }
         
-        SCEV* scev = SE->getSCEV(op, loop);
+        SCEV* scev = SE->getSimpleSCEV(op, loop);
         if (scev) {
+            LOOP_IDIOM_DEBUG_PRINT(std::cerr << "添加候选变量: " << op->GetFullName() << std::endl);
             candidates.push_back({op, scev});
+        } else {
+            LOOP_IDIOM_DEBUG_PRINT(std::cerr << "变量 " << op->GetFullName() << " 无法获取SCEV表达式，跳过" << std::endl);
         }
     }
     
@@ -521,14 +529,14 @@ LoopIdiomRecognizePass::findHoistingCandidates(Loop* loop, CFG* C, ScalarEvoluti
  * 对于归纳变量，只有在其他外部使用的变量都外提之后才能外提
  * 允许的使用：
  * 1. 不被循环内的其他指令使用，除了自己的phi指令
- * 2. 非induction变量, 因为induction变量需要确保整个循环无效了才能外提
+ * 2. induction变量, 虽然induction变量需要确保整个循环无效了才能外提
  */
 bool LoopIdiomRecognizePass::isVariableOnlyUsedForSelfIteration(Operand op, Loop* loop, CFG* C) {
     LLVMBlock header = loop->getHeader();
     
     // 检查该变量是否为归纳变量
     if (isInductionVariable(op, loop)) {
-        return false;
+        return true;
     } else {
         // 非归纳变量的检查逻辑保持不变
         for (auto block : loop->getBlocks()) {

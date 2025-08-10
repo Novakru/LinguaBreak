@@ -32,16 +32,32 @@ public:
     void Execute() override;
 
 private:
+    struct LoopHoistingInfo {
+        std::vector<HoistingCandidate> all_candidates;        // 所有可以外提的变量
+        std::vector<HoistingCandidate> induction_candidates;  // 可以外提的induction变量
+        std::vector<HoistingCandidate> other_candidates;      // 可以外提的其他变量
+        
+        bool can_recognize_memset;     // 是否可以识别为memset习语
+        bool all_hoistable;            // 是否所有变量都能外提
+    };
+    
+    // 分析循环的外提信息
+    LoopHoistingInfo analyzeLoopHoisting(Loop* loop, CFG* C, ScalarEvolution* SE);
+    
+    // 执行部分外提优化（指定候选变量）
+    void executePartialHoisting(Loop* loop, CFG* C, ScalarEvolution* SE, const std::vector<HoistingCandidate>& candidates);
+    
+    // 执行memset优化并外提变量
+    bool executeMemsetWithHoisting(Loop* loop, CFG* C, ScalarEvolution* SE, const LoopHoistingInfo& info);
+    
+    // 检查是否可以识别memset习语
+    bool canRecognizeMemsetIdiom(Loop* loop, CFG* C, ScalarEvolution* SE);
+
+private:
     void processFunction(CFG* C);
     void processLoop(Loop* loop, CFG* C, ScalarEvolution* SE);
     
-    // recognize idiom
-    bool canRecognizeMemsetIdiom(Loop* loop, CFG* C, ScalarEvolution* SE);
-    bool recognizeMemsetIdiom(Loop* loop, CFG* C, ScalarEvolution* SE, const std::set<Operand>& hoistedVariables);
-    
-    // hoist like sum = 0; for(int i = 1; i <= n; i++) { sum += i; } -> sum = n*(n+1)/2
-	// scev: {0,+,{0,+,1}}
-    bool recognizeLoopHoisting(Loop* loop, CFG* C, ScalarEvolution* SE, std::set<Operand>& hoistedVariables);
+
     std::vector<HoistingCandidate> findHoistingCandidates(Loop* loop, CFG* C, ScalarEvolution* SE);
     bool canCalculateFinalValue(const HoistingCandidate& candidate, Loop* loop, CFG* C, ScalarEvolution* SE);
     bool canCalculateNestedRecursion(SCEVAddRecExpr* addrec, Loop* loop, CFG* C, ScalarEvolution* SE);
@@ -53,16 +69,11 @@ private:
     // 检查是否为induction variable
     bool isInductionVariable(Operand op, Loop* loop);
     
-    // 分离induction variable和其他变量
-    std::pair<std::vector<HoistingCandidate>, std::vector<HoistingCandidate>> 
-    separateInductionVariables(const std::vector<HoistingCandidate>& candidates, Loop* loop);
-    
     bool isLinearArrayAccess(SCEV* array_scev, Operand induction_var, Loop* loop, ScalarEvolution* SE);
     bool isArithmeticOperation(Instruction inst, BasicInstruction::LLVMIROpcode op, Operand& lhs, Operand& rhs);
     
     // transform function
     void replaceWithMemset(Loop* loop, CFG* C, Operand array, Operand value, GepParams gep_params);
-    void replaceWithConstant(Loop* loop, CFG* C, Operand target, int value);
 };
 
 #endif // LOOP_IDIOM_RECOGNIZE_PASS_H
