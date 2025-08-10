@@ -637,3 +637,179 @@ SCEV* ScalarEvolution::fixLoopInvariantUnknowns(SCEV* scev, Loop* L) {
 	}
     return scev;
 }
+
+Operand ScalarEvolution::buildExpression(SCEV* expr, LLVMBlock preheader, CFG* cfg) const {    
+    if (!expr) return nullptr;
+    
+    if (auto* const_val = dynamic_cast<SCEVConstant*>(expr)) {
+        return const_val->getValue();
+    } else if (auto* unknown = dynamic_cast<SCEVUnknown*>(expr)) {
+        return unknown->getValue();
+    } else if (auto* addrec = dynamic_cast<SCEVAddRecExpr*>(expr)) {
+        // 处理归纳变量，提取起始值
+        if (auto* start_const = dynamic_cast<SCEVConstant*>(addrec->getStart())) {
+            return start_const->getValue();
+        } else if (auto* start_unknown = dynamic_cast<SCEVUnknown*>(addrec->getStart())) {
+            return start_unknown->getValue();
+        } else if (auto* start_add = dynamic_cast<SCEVAddExpr*>(addrec->getStart())) {
+            return buildExpression(start_add, preheader, cfg);
+        } else if (auto* start_mul = dynamic_cast<SCEVMulExpr*>(addrec->getStart())) {
+            return buildExpression(start_mul, preheader, cfg);
+        } else {
+            SCEV_DEBUG_PRINT(std::cerr << "SCEV buildExpression: 复杂的AddRec起始值，跳过处理" << std::endl);
+            return nullptr;
+        }
+    } else if (auto* add_expr = dynamic_cast<SCEVAddExpr*>(expr)) {
+        // 处理加法表达式
+        Operand result = nullptr;
+        for (SCEV* operand : add_expr->getOperands()) {
+            Operand op = buildExpression(operand, preheader, cfg);
+            if (op == nullptr) {
+                SCEV_DEBUG_PRINT(std::cerr << "SCEV buildExpression: 加法操作数构建失败" << std::endl);
+                return nullptr;
+            }
+            if (result == nullptr) {
+                result = op;
+            } else {
+                // 生成加法指令
+                Operand res = GetNewRegOperand(++cfg->max_reg);
+                auto* addInst = new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::ADD, BasicInstruction::I32, result, op, res);
+                preheader->Instruction_list.push_back(addInst);
+                result = res;
+            }
+        }
+        return result;
+    } else if (auto* mul_expr = dynamic_cast<SCEVMulExpr*>(expr)) {
+        // 处理乘法表达式
+        Operand result = nullptr;
+        for (SCEV* operand : mul_expr->getOperands()) {
+            Operand op = buildExpression(operand, preheader, cfg);
+            if (op == nullptr) {
+                SCEV_DEBUG_PRINT(std::cerr << "SCEV buildExpression: 乘法操作数构建失败" << std::endl);
+                return nullptr;
+            }
+            if (result == nullptr) {
+                result = op;
+            } else {
+                // 生成乘法指令
+                Operand res = GetNewRegOperand(++cfg->max_reg);
+                auto* mulInst = new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::MUL, BasicInstruction::I32, result, op, res);
+                preheader->Instruction_list.push_back(mulInst);
+                result = res;
+            }
+        }
+        return result;
+    }
+    
+    SCEV_DEBUG_PRINT(std::cerr << "SCEV buildExpression: 未知的SCEV表达式类型，跳过处理" << std::endl);
+    return nullptr;
+}
+
+ScalarEvolution::LoopParams ScalarEvolution::extractLoopParams(Loop* L, CFG* cfg) const {
+    LoopParams params = {0, 0, 0, 0};
+    
+    // 从循环头部的icmp指令提取循环参数
+    LLVMBlock header = L->getHeader();
+    for (auto inst : header->Instruction_list) {
+        if (inst->GetOpcode() == BasicInstruction::ICMP) {
+            auto* icmp = dynamic_cast<IcmpInstruction*>(inst);
+            if (icmp) {
+                SCEV* scev1 = const_cast<ScalarEvolution*>(this)->getSimpleSCEV(icmp->GetOp1(), L);
+                SCEV* scev2 = const_cast<ScalarEvolution*>(this)->getSimpleSCEV(icmp->GetOp2(), L);
+                
+                // 找到归纳变量和边界值
+                SCEVAddRecExpr* induction_addrec = nullptr;
+                SCEV* bound_scev = nullptr;
+                
+                if (auto* addrec = dynamic_cast<SCEVAddRecExpr*>(scev1); addrec && addrec->getLoop() == L) {
+                    induction_addrec = addrec;
+                    bound_scev = scev2;
+                } else if (auto* addrec = dynamic_cast<SCEVAddRecExpr*>(scev2); addrec && addrec->getLoop() == L) {
+                    induction_addrec = addrec;
+                    bound_scev = scev1;
+                }
+                
+                if (induction_addrec && bound_scev) {
+                    // 提取起始值
+                    if (auto* start_const = dynamic_cast<SCEVConstant*>(induction_addrec->getStart())) {
+                        params.start_val = start_const->getValue()->GetIntImmVal();
+                    }
+                    
+                    // 提取步长值
+                    if (auto* step_const = dynamic_cast<SCEVConstant*>(induction_addrec->getStep())) {
+                        params.step_val = step_const->getValue()->GetIntImmVal();
+                    }
+                    
+                    // 提取边界值
+                    if (auto* bound_const = dynamic_cast<SCEVConstant*>(bound_scev)) {
+                        params.bound_val = bound_const->getValue()->GetIntImmVal();
+                    }
+                    
+                    // 计算迭代次数
+                    if (params.step_val != 0) {
+                        int diff = params.bound_val - params.start_val;
+                        params.count = diff / params.step_val;
+                        
+                        // 根据比较条件调整
+                        auto cmp_op = icmp->GetCond();
+                        if (cmp_op == BasicInstruction::IcmpCond::sle || cmp_op == BasicInstruction::IcmpCond::ule) {
+                            params.count += 1;
+                        }
+                    }
+                    
+                    break;
+                }
+            }
+        }
+    }
+    
+    return params;
+}
+
+ScalarEvolution::GepParams ScalarEvolution::extractGepParams(SCEV* array_scev, Loop* L, LLVMBlock preheader, CFG* cfg) const {
+    Operand base_ptr = nullptr;
+    Operand offset_op = nullptr;
+    
+    // 处理加法表达式：base + index1*stride1 + index2*stride2 + ... + induction_var
+    if (auto* add_expr = dynamic_cast<SCEVAddExpr*>(array_scev)) {
+        for (SCEV* operand : add_expr->getOperands()) {
+            if (auto* unknown = dynamic_cast<SCEVUnknown*>(operand)) {
+                Operand val = unknown->getValue();
+                // 仅当是指针类型时作为base_ptr；否则视为偏移量的一部分
+                if (val && (val->GetOperandType() == BasicOperand::REG || val->GetOperandType() == BasicOperand::GLOBAL) && base_ptr == nullptr) {
+                    base_ptr = val;
+                    continue;
+                }
+                // 非指针unknown归入offset
+                Operand operand_op = buildExpression(operand, preheader, cfg);
+                if (operand_op == nullptr) {
+                    continue;
+                }
+                if (offset_op == nullptr) {
+                    offset_op = operand_op;
+                } else {
+                    Operand res = GetNewRegOperand(++cfg->max_reg);
+                    auto* addInst = new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::ADD, BasicInstruction::I32, offset_op, operand_op, res);
+                    preheader->Instruction_list.push_back(addInst);
+                    offset_op = res;
+                }
+            } else {
+                // 常量、AddRec、Mul 等均加入offset表达式（AddRec将取其start，表示起始地址）
+                Operand operand_op = buildExpression(operand, preheader, cfg);
+                if (operand_op == nullptr) {
+                    continue;
+                }
+                if (offset_op == nullptr) {
+                    offset_op = operand_op;
+                } else {
+                    Operand res = GetNewRegOperand(++cfg->max_reg);
+                    auto* addInst = new ArithmeticInstruction(BasicInstruction::LLVMIROpcode::ADD, BasicInstruction::I32, offset_op, operand_op, res);
+                    preheader->Instruction_list.push_back(addInst);
+                    offset_op = res;
+                }
+            }
+        }
+    }
+    
+    return {base_ptr, offset_op};
+}

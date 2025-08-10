@@ -499,3 +499,26 @@ bool LoopInfo::verifySimplifyForm(CFG* cfg) {
 
 	return true;
 }
+
+void Loop::replaceLoopExternUses(CFG* C, Operand old_op, Operand new_op) const {
+    for (auto [block_id, block] : *C->block_map) {
+        if (this->contains(block)) continue; // 跳过循环内的块
+        
+        for (auto inst : block->Instruction_list) {
+            auto operands = inst->GetNonResultOperands();
+            bool changed = false;
+            
+            for (auto& op : operands) {
+                if (op->GetOperandType() == BasicOperand::REG && 
+                    ((RegOperand*)op)->GetRegNo() == ((RegOperand*)old_op)->GetRegNo()) {
+                    op = new_op;
+                    changed = true;
+                }
+            }
+            
+            if (changed) {
+                inst->SetNonResultOperands(operands);
+            }
+        }
+    }
+}

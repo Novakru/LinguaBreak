@@ -77,6 +77,9 @@ public:
 
     bool verifySimplifyForm(CFG* cfg) const;
 	void dispLoop(int depth, bool is_last) const;
+	
+	// 替换循环外对变量的使用
+	void replaceLoopExternUses(CFG* C, Operand old_op, Operand new_op) const;
 };
 #endif
 

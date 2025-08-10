@@ -135,6 +135,35 @@ public:
     static bool SCEVStructurallyEqual(const SCEV* A, const SCEV* B);
     bool isLoopInvariant(Operand V, Loop *L) const;
     void print(std::ostream &OS) const;
+    
+    // 将SCEV表达式转换为LLVM IR指令
+    Operand buildExpression(SCEV* expr, LLVMBlock preheader, CFG* cfg) const;
+    
+    // 循环参数结构体
+    struct LoopParams {
+        int start_val;
+        int bound_val;
+        int count;
+        int step_val;
+    };
+    
+    // GEP参数结构体
+    struct GepParams {
+        Operand base_ptr;
+        Operand offset_op;             // 计算出的总偏移量操作数
+    };
+    
+    // 循环外提候选变量
+    struct HoistingCandidate {
+        Operand operand;               // 候选变量
+        SCEV* scev;                    // 该变量的SCEV表达式
+    };
+    
+    // 提取循环参数
+    LoopParams extractLoopParams(Loop* L, CFG* cfg) const;
+    
+    // 提取GEP参数
+    GepParams extractGepParams(SCEV* array_scev, Loop* L, LLVMBlock preheader, CFG* cfg) const;
 
     friend class SCEVPass;
 };
