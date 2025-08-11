@@ -120,6 +120,9 @@ bool ScalarEvolution::isLoopInvariant(Operand V, Loop *L) const {
             return invariantCache[key] = false;
         }
     }
+	if(Def->GetOpcode() == BasicInstruction::CALL || Def->GetOpcode() == BasicInstruction::LOAD){
+		return invariantCache[key] = false;
+	}
     return invariantCache[key] = true;
 }
 
@@ -706,7 +709,7 @@ Operand ScalarEvolution::buildExpression(SCEV* expr, LLVMBlock preheader, CFG* c
 }
 
 ScalarEvolution::LoopParams ScalarEvolution::extractLoopParams(Loop* L, CFG* cfg) const {
-    LoopParams params = {0, 0, 0, 0};
+    LoopParams params = {0, 0, 0, 0, false};
     
     // 从循环头部的icmp指令提取循环参数
     LLVMBlock header = L->getHeader();
@@ -730,23 +733,55 @@ ScalarEvolution::LoopParams ScalarEvolution::extractLoopParams(Loop* L, CFG* cfg
                 }
                 
                 if (induction_addrec && bound_scev) {
-                    // 提取起始值
+                    // 判断是否为简单循环：检查起始值、步长值和边界值是否都是常量或循环不变量
+                    bool is_start_simple = false;
+                    bool is_step_simple = false;
+                    bool is_bound_simple = false;
+                    
+                    // 检查起始值
                     if (auto* start_const = dynamic_cast<SCEVConstant*>(induction_addrec->getStart())) {
                         params.start_val = start_const->getValue()->GetIntImmVal();
+                        is_start_simple = true;
+                    } else if (auto* start_unknown = dynamic_cast<SCEVUnknown*>(induction_addrec->getStart())) {
+                        // 检查是否为循环不变量
+                        if (start_unknown->isLoopInvariant) {
+                            is_start_simple = true;
+                            // 对于循环不变量，暂时设置为0，实际值需要进一步分析
+                            params.start_val = 0;
+                        }
                     }
                     
-                    // 提取步长值
+                    // 检查步长值
                     if (auto* step_const = dynamic_cast<SCEVConstant*>(induction_addrec->getStep())) {
                         params.step_val = step_const->getValue()->GetIntImmVal();
+                        is_step_simple = true;
+                    } else if (auto* step_unknown = dynamic_cast<SCEVUnknown*>(induction_addrec->getStep())) {
+                        // 检查是否为循环不变量
+                        if (step_unknown->isLoopInvariant) {
+                            is_step_simple = true;
+                            // 对于循环不变量，暂时设置为0，实际值需要进一步分析
+                            params.step_val = 0;
+                        }
                     }
                     
-                    // 提取边界值
+                    // 检查边界值
                     if (auto* bound_const = dynamic_cast<SCEVConstant*>(bound_scev)) {
                         params.bound_val = bound_const->getValue()->GetIntImmVal();
+                        is_bound_simple = true;
+                    } else if (auto* bound_unknown = dynamic_cast<SCEVUnknown*>(bound_scev)) {
+                        // 检查是否为循环不变量
+                        if (bound_unknown->isLoopInvariant) {
+                            is_bound_simple = true;
+                            // 对于循环不变量，暂时设置为0，实际值需要进一步分析
+                            params.bound_val = 0;
+                        }
                     }
                     
-                    // 计算迭代次数
-                    if (params.step_val != 0) {
+                    // 判断是否为简单循环
+                    params.is_simple_loop = is_start_simple && is_step_simple && is_bound_simple;
+                    
+                    // 计算迭代次数（仅当所有值都是常量时）
+                    if (params.is_simple_loop && params.step_val != 0) {
                         int diff = params.bound_val - params.start_val;
                         params.count = diff / params.step_val;
                         

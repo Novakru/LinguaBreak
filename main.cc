@@ -261,7 +261,7 @@ int main(int argc, char** argv) {
 		// SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
 		LoopStrengthReducePass(&llvmIR).Execute();
-		LoopIdiomRecognizePass(&llvmIR).Execute();
+		LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
 
 		llvmIR.SyncMaxInfo();
         inv_dom.invExecute();

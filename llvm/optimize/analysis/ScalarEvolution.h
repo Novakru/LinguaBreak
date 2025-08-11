@@ -145,6 +145,7 @@ public:
         int bound_val;
         int count;
         int step_val;
+        bool is_simple_loop;  // 是否为简单循环（上下界都是常量或循环不变量）
     };
     
     // GEP参数结构体

@@ -45,7 +45,8 @@ void LoopIdiomRecognizePass::processLoop(Loop* loop, CFG* C, ScalarEvolution* SE
         processLoop(sub_loop, C, SE);
     }
     
-    if (!loop->verifySimplifyForm(C) && loop->getExits().size() != 1) {
+	// loop->getExitings().size() != 1，防止ret,break,continue等指令, 难以求出上下界
+    if (!loop->verifySimplifyForm(C) || loop->getExits().size() != 1 || loop->getExitings().size() != 1) {
         LOOP_IDIOM_DEBUG_PRINT(std::cerr << "不是简单循环，跳过" << std::endl);
         return;
     }
@@ -59,10 +60,15 @@ void LoopIdiomRecognizePass::processLoop(Loop* loop, CFG* C, ScalarEvolution* SE
     
     // 根据分析结果决定优化策略
     // 第一步：先对非induction变量进行外提
-    // if (!info.other_candidates.empty()) {
-    //     LOOP_IDIOM_DEBUG_PRINT(std::cerr << "先外提非induction变量" << std::endl);
-    //     executePartialHoisting(loop, C, SE, info.other_candidates);
-    // }
+    if (!info.other_candidates.empty()) {
+        LOOP_IDIOM_DEBUG_PRINT(std::cerr << "先外提非induction变量" << std::endl);
+        executePartialHoisting(loop, C, SE, info.other_candidates);
+		if(info.all_hoistable){
+			// 外提所有归纳变量
+			LOOP_IDIOM_DEBUG_PRINT(std::cerr << "所有变量均可外提，尝试外提归纳变量" << std::endl);
+			executePartialHoisting(loop, C, SE, info.induction_candidates);
+		}
+    }
     
     // 第二步：检查是否可以识别memset
     if (info.can_recognize_memset && info.all_hoistable) {
@@ -72,13 +78,6 @@ void LoopIdiomRecognizePass::processLoop(Loop* loop, CFG* C, ScalarEvolution* SE
         return;
         }
     }
-    
-    // 第三步：如果不能识别memset，尝试外提induction变量
-    // if (!info.induction_candidates.empty()) {
-    //     LOOP_IDIOM_DEBUG_PRINT(std::cerr << "执行induction变量外提" << std::endl);
-    //     executePartialHoisting(loop, C, SE, info.induction_candidates);
-    //     return;
-    // }
     
     LOOP_IDIOM_DEBUG_PRINT(std::cerr << "无法进行任何优化" << std::endl);
 }
@@ -350,6 +349,7 @@ LoopIdiomRecognizePass::LoopHoistingInfo LoopIdiomRecognizePass::analyzeLoopHois
     
     // 第一步：收集所有在循环外使用的变量
     std::vector<HoistingCandidate> allCandidates = findHoistingCandidates(loop, C, SE);
+	LoopParams params = SE->extractLoopParams(loop, C);
     
     // 第二步：检查哪些变量可以外提
     for (const auto& candidate : allCandidates) {
@@ -366,10 +366,10 @@ LoopIdiomRecognizePass::LoopHoistingInfo LoopIdiomRecognizePass::analyzeLoopHois
     }
     
     // 第三步：检查是否可以识别为memset习语
-    info.can_recognize_memset = canRecognizeMemsetIdiom(loop, C, SE);
+    info.can_recognize_memset = canRecognizeMemsetIdiom(loop, C, SE) && params.is_simple_loop;
     
     // 第四步：判断是否所有变量都能外提
-    info.all_hoistable = (info.all_candidates.size() == allCandidates.size());
+    info.all_hoistable = (info.all_candidates.size() == allCandidates.size()) && params.is_simple_loop;
     
     LOOP_IDIOM_DEBUG_PRINT(std::cerr << "分析完成：总共 " << allCandidates.size() 
                                   << " 个变量，可外提 " << info.all_candidates.size() << " 个" << std::endl);
@@ -390,10 +390,14 @@ void LoopIdiomRecognizePass::executePartialHoisting(Loop* loop, CFG* C, ScalarEv
     
     // 外提指定的候选变量
     for (const auto& candidate : candidates) {
-        int finalValue = calculateFinalValue(candidate, params, loop, C, SE);
-        LOOP_IDIOM_DEBUG_PRINT(std::cerr << "外提变量: " << candidate.operand->GetFullName() 
-                                      << "，最终值: " << finalValue << std::endl);
-        hoistVariable(loop, C, candidate, finalValue);
+		if(params.is_simple_loop){
+			int finalValue = calculateFinalValue(candidate, params, loop, C, SE);
+			LOOP_IDIOM_DEBUG_PRINT(std::cerr << "外提变量: " << candidate.operand->GetFullName() 
+										  << "，最终值: " << finalValue << std::endl);
+			hoistVariable(loop, C, candidate, finalValue);
+		} else {
+			LOOP_IDIOM_DEBUG_PRINT(std::cerr << "非简单循环，跳过外提" << std::endl);
+		}
     }
     
     LOOP_IDIOM_DEBUG_PRINT(std::cerr << "部分外提优化完成" << std::endl);
@@ -532,45 +536,48 @@ LoopIdiomRecognizePass::findHoistingCandidates(Loop* loop, CFG* C, ScalarEvoluti
  * 2. induction变量, 虽然induction变量需要确保整个循环无效了才能外提
  */
 bool LoopIdiomRecognizePass::isVariableOnlyUsedForSelfIteration(Operand op, Loop* loop, CFG* C) {
-    LLVMBlock header = loop->getHeader();
     
     // 检查该变量是否为归纳变量
     if (isInductionVariable(op, loop)) {
         return true;
     } else {
-        // 非归纳变量的检查逻辑保持不变
+        // 对于非归纳变量，检查是否只在自身的Phi指令集合中循环调用
+        // 而不被Phi指令集合之外的其他循环内变量调用
+		LOOP_IDIOM_DEBUG_PRINT(std::cerr << "检查变量: " << op->GetFullName() << " 是否只用于自身迭代和循环控制" << std::endl);
+        
+        // 首先，找到该变量所属的Phi指令集合，并将所有op和phi指令的结果op都加入集合
+        std::set<Operand> phi_set;
+        // phi指令都在header中，将header中的所有phi指令的结果op也加入phi_set
+        LLVMBlock header = loop->getHeader();
+        for (auto inst : header->Instruction_list) {
+            if (inst->GetOpcode() == BasicInstruction::PHI) {
+                auto phi_inst = (PhiInstruction*)inst;
+                for (auto operand : phi_inst->GetNonResultOperands()) {
+                    phi_set.insert(operand);
+                }
+                phi_set.insert(phi_inst->GetResult());
+            }
+			if(phi_set.find(op) != phi_set.end()){
+				break;
+			}
+        }
+        
+        // 检查变量在循环内的所有使用
         for (auto block : loop->getBlocks()) {
             for (auto inst : block->Instruction_list) {
-                if (inst->GetOpcode() == BasicInstruction::PHI) {
-                    continue;
-                }
-                
-                // 跳过循环控制指令
-                if (block == header) {
-                    if (inst->GetOpcode() == BasicInstruction::ICMP || 
-                        inst->GetOpcode() == BasicInstruction::BR_COND ||
-                        inst->GetOpcode() == BasicInstruction::BR_UNCOND) {
-                        continue;
-                    }
-                }
-                
-                // 跳过增量指令（i = i + 1 或 i = i - 1）
-                if (inst->GetOpcode() == BasicInstruction::ADD || 
-                    inst->GetOpcode() == BasicInstruction::SUB) {
-                    auto operands = inst->GetNonResultOperands();
-                    if (operands.size() == 2) {
-                        if ((operands[0] == op && operands[1]->GetOperandType() == BasicOperand::IMMI32 && 
-                             ((ImmI32Operand*)operands[1])->GetIntImmVal() == 1) ||
-                            (operands[1] == op && operands[0]->GetOperandType() == BasicOperand::IMMI32 && 
-                             ((ImmI32Operand*)operands[0])->GetIntImmVal() == 1)) {
-                            continue;
-                        }
-                    }
-                }
-                
                 for (auto operand : inst->GetNonResultOperands()) {
                     if (operand == op) {
-                        return false;
+                        // 如果变量被使用，检查这个使用是否在Phi指令集合中
+                        if (inst->GetOpcode() != BasicInstruction::PHI) {
+                            // 检查使用该变量的指令的结果是否在Phi指令集合中
+                            if (phi_set.find(inst->GetResult()) != phi_set.end()) {
+                                // 如果结果在Phi指令集合中，这是允许的
+                                continue;
+                            } else {
+                                // 如果结果不在Phi指令集合中，说明被其他计算使用
+                                return false;
+                            }
+                        }
                     }
                 }
             }
@@ -598,47 +605,22 @@ bool LoopIdiomRecognizePass::canCalculateFinalValue(const HoistingCandidate& can
             }
         }
         
-        // 检查是否为复杂的递推表达式，如 {0,+,{0,+,1}}（sum变量）
+		// 检查是否为复杂的递推表达式，如 {0,+,{0,+,1}}（sum变量）只处理两层嵌套的情况
         SCEV* start = addrec->getStart();
         SCEV* step = addrec->getStep();
         
-        if (auto* start_addrec = dynamic_cast<SCEVAddRecExpr*>(start)) {
-            if (start_addrec->getLoop() == loop) {
-                // 这是一个嵌套的递推表达式，可能是sum变量
-                return canCalculateNestedRecursion(addrec, loop, C, SE);
-            }
-        }
-    }
-    
-    return false;
-}
-
-/**
- * 检查嵌套递推表达式是否可以计算最终值
- * 例如：{0,+,{0,+,1}} 表示 sum += i，其中 i 是 {0,+,1}
- */
-bool LoopIdiomRecognizePass::canCalculateNestedRecursion(SCEVAddRecExpr* addrec, 
-                                                        Loop* loop, CFG* C, ScalarEvolution* SE) {
-    SCEV* start = addrec->getStart();
-    SCEV* step = addrec->getStep();
-    
-    // 检查起始值是否为嵌套的AddRecExpr
-    if (auto* start_addrec = dynamic_cast<SCEVAddRecExpr*>(start)) {
-        if (start_addrec->getLoop() != loop) return false;
-        
-        // 检查步长是否为AddRecExpr（表示每次增加i）
         if (auto* step_addrec = dynamic_cast<SCEVAddRecExpr*>(step)) {
-            if (step_addrec->getLoop() != loop) return false;
-            
-            // 检查起始值的起始值和步长是否为常数
-            if (!dynamic_cast<SCEVConstant*>(start_addrec->getStart())) return false;
-            if (!dynamic_cast<SCEVConstant*>(start_addrec->getStep())) return false;
-            
-            // 检查步长的起始值和步长是否为常数
-            if (!dynamic_cast<SCEVConstant*>(step_addrec->getStart())) return false;
-            if (!dynamic_cast<SCEVConstant*>(step_addrec->getStep())) return false;
-            
-            return true;
+            if (step_addrec->getLoop() == loop) {
+                // 检查起始值是否为常数
+                if (!dynamic_cast<SCEVConstant*>(start)) return false;
+                
+                // 检查步长的起始值和步长是否为常数
+                if (!dynamic_cast<SCEVConstant*>(step_addrec->getStart())) return false;
+                if (!dynamic_cast<SCEVConstant*>(step_addrec->getStep())) return false;
+                
+                // 对于嵌套的递推表达式，只要所有参数都是常数，就可以计算最终值
+                return true;
+            }
         }
     }
     
@@ -677,26 +659,30 @@ int LoopIdiomRecognizePass::calculateFinalValue(const HoistingCandidate& candida
             SCEV* start = addrec->getStart();
             SCEV* step = addrec->getStep();
             
-            // 算术级数求和：{0,+,{0,+,1}}
-            if (auto* start_addrec = dynamic_cast<SCEVAddRecExpr*>(start)) {
+            // 算术级数求和：{start,+,{step_start,+,step_step}}
+            if (auto* start_const = dynamic_cast<SCEVConstant*>(start)) {
                 if (auto* step_addrec = dynamic_cast<SCEVAddRecExpr*>(step)) {
-                    if (start_addrec->getLoop() == loop && step_addrec->getLoop() == loop) {
-                        // 检查是否为标准的算术级数求和模式
-                        if (auto* start_start_const = dynamic_cast<SCEVConstant*>(start_addrec->getStart())) {
-                            if (auto* start_step_const = dynamic_cast<SCEVConstant*>(start_addrec->getStep())) {
-                                if (auto* step_start_const = dynamic_cast<SCEVConstant*>(step_addrec->getStart())) {
-                                    if (auto* step_step_const = dynamic_cast<SCEVConstant*>(step_addrec->getStep())) {
-                                        int start_start = start_start_const->getValue()->GetIntImmVal();
-                                        int start_step = start_step_const->getValue()->GetIntImmVal();
-                                        int step_start = step_start_const->getValue()->GetIntImmVal();
-                                        int step_step = step_step_const->getValue()->GetIntImmVal();
-                                        
-                                        // 标准算术级数求和：sum = 0; for(i=1; i<=n; i++) sum += i;
-                                        if (start_start == 0 && start_step == 0 && step_start == 0 && step_step == 1) {
-                                            return params.count * (params.count - 1) / 2;
-                                        }
-                                    }
-                                }
+                    if (step_addrec->getLoop() == loop) {
+                        if (auto* step_start_const = dynamic_cast<SCEVConstant*>(step_addrec->getStart())) {
+                            if (auto* step_step_const = dynamic_cast<SCEVConstant*>(step_addrec->getStep())) {
+                                int start_val = start_const->getValue()->GetIntImmVal();
+                                int step_start = step_start_const->getValue()->GetIntImmVal();
+                                int step_step = step_step_const->getValue()->GetIntImmVal();
+                                
+                                // 计算等差数组求和
+                                // 外层：sum从start_val开始
+                                // 内层：每次增加i，其中i从step_start开始，步长为step_step
+                                // 使用等差数组求和公式：Sn = n * (a1 + an) / 2
+                                // 其中：a1 = step_start, an = step_start + (count-1) * step_step, n = count
+                                // 等差数组和 = count * (step_start + (step_start + (count-1) * step_step)) / 2
+                                //            = count * (2 * step_start + (count-1) * step_step) / 2
+                                //            = count * step_start + count * (count-1) * step_step / 2
+                                
+                                int a1 = step_start;
+                                int an = step_start + (params.count - 1) * step_step;
+                                int arithmetic_sum = params.count * (a1 + an) / 2;
+                                
+                                return start_val + arithmetic_sum;
                             }
                         }
                     }

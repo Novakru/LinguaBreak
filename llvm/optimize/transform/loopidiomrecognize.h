@@ -60,7 +60,6 @@ private:
 
     std::vector<HoistingCandidate> findHoistingCandidates(Loop* loop, CFG* C, ScalarEvolution* SE);
     bool canCalculateFinalValue(const HoistingCandidate& candidate, Loop* loop, CFG* C, ScalarEvolution* SE);
-    bool canCalculateNestedRecursion(SCEVAddRecExpr* addrec, Loop* loop, CFG* C, ScalarEvolution* SE);
     int calculateFinalValue(const HoistingCandidate& candidate, const LoopParams& params, Loop* loop, CFG* C, ScalarEvolution* SE);
     void hoistVariable(Loop* loop, CFG* C, const HoistingCandidate& candidate, int finalValue);
 
