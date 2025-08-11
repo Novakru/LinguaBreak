@@ -347,18 +347,18 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
 			if (!curLoop->getLatches().empty()) latch = *curLoop->getLatches().begin();
 			
             for (Instruction headerInst : header->Instruction_list) {
-                if (auto *PN = dynamic_cast<PhiInstruction *>(headerInst)) {
-                    // PHI的结果寄存器不需要削弱
-                    noReduceSet.insert(PN->GetResult());
-                    LSR_DEBUG_PRINT(std::cerr << "[LSR] 收集PHI结果寄存器: " << PN->GetResult()->GetFullName() << std::endl);
-                    // PHI内部使用的所有寄存器也不需要削弱
-                    for (auto &[label, val] : PN->GetPhiList()) {
-                        noReduceSet.insert(val);
-                        LSR_DEBUG_PRINT(std::cerr << "[LSR] 收集PHI内部寄存器: " << val->GetFullName() << std::endl);
-                    }
-                }
+                // if (auto *PN = dynamic_cast<PhiInstruction *>(headerInst)) {
+                //     // PHI的结果寄存器不需要削弱
+                //     noReduceSet.insert(PN->GetResult());
+                //     LSR_DEBUG_PRINT(std::cerr << "[LSR] 收集PHI结果寄存器: " << PN->GetResult()->GetFullName() << std::endl);
+                //     // PHI内部使用的所有寄存器也不需要削弱
+                //     for (auto &[label, val] : PN->GetPhiList()) {
+                //         noReduceSet.insert(val);
+                //         LSR_DEBUG_PRINT(std::cerr << "[LSR] 收集PHI内部寄存器: " << val->GetFullName() << std::endl);
+                //     }
+                // }
                 //  Load和Call的结果也视为循环变量
-                else if (dynamic_cast<LoadInstruction *>(headerInst) || dynamic_cast<CallInstruction *>(headerInst)) {
+                if (dynamic_cast<LoadInstruction *>(headerInst) || dynamic_cast<CallInstruction *>(headerInst)) {
                     Operand res = headerInst->GetResult();
                     if (res) {
                         noReduceSet.insert(res);
