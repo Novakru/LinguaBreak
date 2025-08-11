@@ -18,6 +18,13 @@ void LLVMIR::CFGInit() {
     }
 }
 
+void LLVMIR::SyncMaxInfo() {
+    for (auto &[defI, cfg] : llvm_cfg) {
+        // 从CFG对象同步到LLVMIR
+        function_max_label[defI] = cfg->max_label;
+        function_max_reg[defI] = cfg->max_reg;
+    }
+}
 
 void CFG::SearchB(LLVMBlock B){
     if(B->dfs_id!=0)return;

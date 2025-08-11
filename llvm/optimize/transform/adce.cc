@@ -283,9 +283,12 @@ void ADCEPass::ESI(){
             GetElementptrInstruction* &inst=it->first;
             int regno=inst->GetDefRegno();
             auto same_block=cfg->GetBlockWithId(it->second);
+            if (!same_block) continue; // 跳过无效的基本块
             for(auto other=std::next(it);other!=gep_id_map.end();other++){
                 if(other->first->isSame(inst)){
-                    auto Dominators=((DominatorTree*)(cfg->DomTree))->getDominators(cfg->GetBlockWithId(other->second));
+                    auto other_block = cfg->GetBlockWithId(other->second);
+                    if (!other_block) continue; // 跳过无效的基本块
+                    auto Dominators=((DominatorTree*)(cfg->DomTree))->getDominators(other_block);
                     if(!Dominators.count(same_block)){continue;}// 不被支配，无法删除替代
                     insts.insert(other->first);
                     blockids.insert(other->second);
@@ -312,6 +315,7 @@ void ADCEPass::ESI(){
         // 删除块间相同GEP指令
         for(auto &id:blockids){
             auto block=cfg->GetBlockWithId(id);
+            if (!block) continue; // 跳过无效的基本块
             auto old_list=block->Instruction_list;
             block->Instruction_list.clear();
             for(auto &inst:old_list){
@@ -322,126 +326,4 @@ void ADCEPass::ESI(){
         }
     }
 
-}
-
-// // 块间冗余消除
-// void ADCEPass::EliminateRedundantLS(CFG* cfg,LLVMBlock block, std::unordered_map<std::string,LSInfo*> load_store_map){
-//     if(block->dfs_id>1){return;}//有环的遍历两遍
-//     block->dfs_id+=1;
-//     int blockid=block->block_id;
-//     //std::cout<<" this block id is : "<<block->block_id<<std::endl;
-//    for(auto it=block->Instruction_list.begin();it!=block->Instruction_list.end();){
-//         auto &inst=*it;
-//         if(inst->GetOpcode()==BasicInstruction::STORE){
-//             std::string ptr=((StoreInstruction*)inst)->GetPointer()->GetFullName();
-//             load_store_map[ptr]=new LSInfo(blockid);
-//         }else if(inst->GetOpcode()==BasicInstruction::LOAD){
-//             std::string ptr=((LoadInstruction*)inst)->GetPointer()->GetFullName();
-//             if(load_store_map.count(ptr)){
-//                 if(!load_store_map[ptr]->defed){//已经load过，不必再重复load（需保证此load是支配冗余load的，否则可能在另一来源处store过）
-//                     int last_load_bbid=load_store_map[ptr]->block_id;
-//                     if(((DominatorTree*)cfg->DomTree)->dominates(cfg->GetBlockWithId(last_load_bbid),block)){
-//                         assert(load_store_map[ptr]->load_res!=nullptr);
-//                         //用上一次load的结果替代后续使用它的指令操作数
-//                         int regno_real=((RegOperand*)load_store_map[ptr]->load_res)->GetRegNo();
-//                         int regno_todlt=inst->GetDefRegno();
-
-//                         auto use_insts=cfg->use_map[regno_todlt];
-//                         for(auto &use_inst:use_insts){
-//                             if(use_inst==nullptr){continue;}
-//                             auto operands=use_inst->GetNonResultOperands();
-//                             for(auto &operand:operands){
-//                                 if(operand->GetOperandType()==BasicOperand::REG && 
-//                                     ((RegOperand*)operand)->GetRegNo()==regno_todlt){
-//                                     operand = GetNewRegOperand(regno_real);
-//                                     cfg->use_map[regno_real].push_back(use_inst);
-//                                 }
-//                             } 
-//                             use_inst->SetNonResultOperands(operands);
-//                         }
-//                         cfg->use_map.erase(regno_todlt);
-//                         it=block->Instruction_list.erase(it);
-//                         continue;
-//                     }
-//                 }
-//                 delete load_store_map[ptr];
-//             }
-//             load_store_map[ptr]=new LSInfo(blockid,false,((LoadInstruction*)inst)->GetResult());
-//         }else if(inst->GetOpcode()==BasicInstruction::CALL){//为了方便起见，我们认为call指令对所有ptr都起到def作用
-//             for(auto &[str,info]:load_store_map){
-//                 info->defed=true;
-//             }
-//         }
-//         ++it;
-//    }
-//    auto succs=cfg->GetSuccessor(block);
-//    for(auto &succ:succs){
-//         EliminateRedundantLS(cfg,succ,load_store_map);
-//    }
-//    return ;
-// }
-
-// 块内冗余消除
-void ADCEPass::EliminateRedundantLS(CFG* cfg,LLVMBlock block){
-    std::unordered_map<std::string,LSInfo*> load_store_map;// ptr全名 ~ < 上一次是否为store, 上一次load的结果reg>
-    //std::cout<<" this block id is : "<<block->block_id<<std::endl;
-   for(auto it=block->Instruction_list.begin();it!=block->Instruction_list.end();){
-        auto &inst=*it;
-        if(inst->GetOpcode()==BasicInstruction::STORE){
-            std::string ptr=((StoreInstruction*)inst)->GetPointer()->GetFullName();
-            auto value = ((StoreInstruction*)inst)->GetValue();
-            load_store_map[ptr]=new LSInfo(true,value);
-        }else if(inst->GetOpcode()==BasicInstruction::LOAD){
-            std::string ptr=((LoadInstruction*)inst)->GetPointer()->GetFullName();
-            if(load_store_map.count(ptr)){
-                if(!load_store_map[ptr]->defed || //(1)已经load过，删去重复的load
-                   (load_store_map[ptr]->defed && load_store_map[ptr]->load_res!=nullptr)) { //（2）刚刚store过，可直接使用其value
-                    //用上一次load的结果替代后续使用它的指令操作数
-                    Operand value = load_store_map[ptr]->load_res;
-                    int regno_todlt=inst->GetDefRegno();
-
-                    auto use_insts=cfg->use_map[regno_todlt];
-                    for(auto &use_inst:use_insts){
-                        if(use_inst==nullptr){continue;}
-                        auto operands=use_inst->GetNonResultOperands();
-                        for(auto &operand:operands){
-                            if(operand->GetOperandType()==BasicOperand::REG && 
-                                ((RegOperand*)operand)->GetRegNo()==regno_todlt){
-                                operand = value->Clone();
-                                if(value->GetOperandType()==BasicOperand::REG){
-                                    cfg->use_map[((RegOperand*)value)->GetRegNo()].push_back(use_inst);
-                                }
-                            }
-                        } 
-                        use_inst->SetNonResultOperands(operands);
-                    }
-                    cfg->use_map.erase(regno_todlt);
-                    it=block->Instruction_list.erase(it);
-                    continue;
-                }
-                delete load_store_map[ptr];
-            }
-            load_store_map[ptr]=new LSInfo(false,((LoadInstruction*)inst)->GetResult());
-        }else if(inst->GetOpcode()==BasicInstruction::CALL){//为了方便起见，我们认为call指令对所有ptr都起到def作用
-            for(auto &[str,info]:load_store_map){
-                info->defed=true;
-                info->load_res=nullptr;
-            }
-        }
-        ++it;
-   }
-
-   return ;
-}
-
-
-
-// 全局变量、数组指针存在冗余的load，删除 -->保证两次store之间最多有一次load
-void ADCEPass::ERLS(){
-    for(auto [defI, cfg] : llvmIR->llvm_cfg){
-        for(auto &[id,block]:*(cfg->block_map)){
-            EliminateRedundantLS(cfg,block);
-        }
-    }
-    return ;
 }

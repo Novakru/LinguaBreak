@@ -904,7 +904,7 @@ BasicInstruction* BrUncondInstruction::Clone() const {
 BasicInstruction* GlobalVarDefineInstruction::Clone() const {
     if(init_val != nullptr) {
         Operand new_init_val = init_val->Clone();
-        return new GlobalVarDefineInstruction(name, type, new_init_val,is_const);
+        return new GlobalVarDefineInstruction(name, type, new_init_val,is_const,has_initval);
     } else {
         return new GlobalVarDefineInstruction(name, type, arrayval,is_const);
     }

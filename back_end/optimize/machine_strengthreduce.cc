@@ -238,7 +238,7 @@ void MachineStrengthReducePass::GepStrengthReduction() {
                         int op2 = inst2->getImm();
                         int index = 4 * op1 * op2;
 
-                        if (index > 2047) {
+                        if (index > 2047||index < -2048) {
                             // 需要先li立即数到寄存器，再 add
                             RiscV64Instruction* li_inst = new RiscV64Instruction();
                             li_inst->setOpcode(RISCV_LI, false);

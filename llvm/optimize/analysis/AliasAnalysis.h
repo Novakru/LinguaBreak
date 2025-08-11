@@ -61,26 +61,12 @@ struct CallInfo{
 };
 
 struct GlobalValInfo{//每个函数读/写的global val（不含global array)
-    std::unordered_set<Operand> ref_ops;
-    std::unordered_set<Operand> mod_ops;
+    std::unordered_set<std::string> ref_ops;
+    std::unordered_set<std::string> mod_ops;
     GlobalValInfo(){}
     void AddInfo(GlobalValInfo* info){
         ref_ops.insert(info->ref_ops.begin(),info->ref_ops.end());
         mod_ops.insert(info->mod_ops.begin(),info->mod_ops.end());
-    }
-    ModRefStatus TypeDef(){
-        if(ref_ops.empty()){
-            if(mod_ops.empty()){
-                return NoModRef;
-            }
-            return Mod;
-        }else{
-            if(mod_ops.empty()){
-                return Ref;
-            }
-            return ModRef;
-        }
-        return NoModRef;
     }
 };
 
@@ -88,11 +74,11 @@ class AliasAnalysisPass : public IRPass {
 private:
     std::unordered_map<CFG*,std::unordered_map<int,PtrInfo>>ptrmap;//regno-->PtrInfo (only for RegOperand)
     std::unordered_map<CFG*,RWInfo>rwmap;//ref_operands,mod_operands
-    std::unordered_map<CFG*,GlobalValInfo*> globalmap;
     std::unordered_map<std::string,CallInfo>ReCallGraph;
     std::unordered_set<std::string>LeafFuncs;
 
     void FindPhi();
+    void DefineLibFuncStatus();
 
     PtrInfo GetPtrInfo(Operand op, CFG* cfg);
     Operand CalleeParamToCallerArgu(Operand op, CFG* callee_cfg, CallInstruction* CallI);
@@ -104,7 +90,9 @@ private:
     bool IsSameArraySameConstIndex(GetElementptrInstruction* inst1,GetElementptrInstruction* inst2);
     
 public:
-    AliasAnalysisPass(LLVMIR *IR) : IRPass(IR) {}
+    std::unordered_map<CFG*,GlobalValInfo*> globalmap;
+
+    AliasAnalysisPass(LLVMIR *IR) : IRPass(IR) {DefineLibFuncStatus();}
     AliasStatus QueryAlias(Operand op1,Operand op2, CFG* cfg);
     ModRefStatus QueryInstModRef(Instruction inst, Operand op, CFG* cfg);
     void Execute();
@@ -112,6 +100,7 @@ public:
     std::unordered_map<CFG*,std::unordered_map<int,PtrInfo>>& GetPtrMap() { return ptrmap; }
 	std::unordered_map<CFG*,RWInfo>& GetRWMap() { return rwmap; }
     std::unordered_map<std::string,CallInfo>& GetReCallGraph() { return ReCallGraph; }
+    ModRefStatus QueryCallGlobalModRef(CallInstruction* callI, std::string global_name);//基于globalmap，查询call指令是否mod/ref某全局非Array变量
 
     void Test();
     void PrintAAResult();

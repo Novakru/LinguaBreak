@@ -8,6 +8,7 @@ void PeepholePass::Execute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         // add all implemented pass
 		SrcEqResultInstEliminate(cfg);
+        IdentitiesEliminate(cfg);
 		ImmResultReplace(cfg);
     }
 }
@@ -24,6 +25,14 @@ void PeepholePass::ImmResultReplaceExecute(){
     }
 }
 
+void PeepholePass::IdentitiesEliminateExecute(){
+    for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+        IdentitiesEliminate(cfg);
+    }
+}
+
+
+//常量折叠
 void ImmResultReplace(CFG *C){
     std::set<Instruction> EraseSet;
     std::map<Operand, Operand> replacemap;
@@ -486,4 +495,107 @@ void PeepholePass::DeadArgElim() {
 			}
 		}
 	}
+}
+
+
+/*
+%rx = %ry - %ry   ---> %rx = 0
+%rx = %ry / %ry   ---> %rx = 1
+%rx = %ry % %ry   ---> %rx = 0
+*/
+bool Op1EqOp2(ArithmeticInstruction* inst){
+    auto op1=inst->GetOperand1();
+    auto op2=inst->GetOperand2();
+    auto op1_type=op1->GetOperandType();
+    auto op2_type=op2->GetOperandType();
+    if(op1_type!=op2_type){ return false; }
+
+    if(op1_type==BasicOperand::REG){
+        int regno1=((RegOperand*)op1)->GetRegNo();
+        int regno2=((RegOperand*)op2)->GetRegNo();
+        if(regno1==regno2){return true;}
+
+    }else if(op1_type==BasicOperand::IMMI32){
+        int value1=((ImmI32Operand*)op1)->GetIntImmVal();
+        int value2=((ImmI32Operand*)op2)->GetIntImmVal();
+        if(value1==value2){return true;}
+
+    }else if(op1_type==BasicOperand::IMMF32){
+        float value1=((ImmF32Operand*)op1)->GetFloatVal();
+        float value2=((ImmF32Operand*)op2)->GetFloatVal();
+        if(value1==value2){return true;}
+    }
+    return false;
+}
+
+void PeepholePass::IdentitiesEliminate(CFG* C){
+    std::unordered_map<int,Operand> regno_map; // rx_regno -> result_operand
+    //冗余指令删除与信息记录
+    for(auto &[id,block]:*(C->block_map)){
+        for(auto it=block->Instruction_list.begin(); it!=block->Instruction_list.end();){
+            auto inst=*it;
+            if(inst->GetOpcode() == BasicInstruction::SUB){
+                if(Op1EqOp2((ArithmeticInstruction*)inst)){
+                    int res_regno=inst->GetDefRegno();
+                    regno_map[res_regno]=new ImmI32Operand(0);
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }
+            }else if(inst->GetOpcode() == BasicInstruction::DIV){
+                if(Op1EqOp2((ArithmeticInstruction*)inst)){
+                    int res_regno=inst->GetDefRegno();
+                    regno_map[res_regno]=new ImmI32Operand(1);
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }
+            }else if(inst->GetOpcode() == BasicInstruction::MOD){
+                if(Op1EqOp2((ArithmeticInstruction*)inst)){
+                    int res_regno=inst->GetDefRegno();
+                    regno_map[res_regno]=new ImmI32Operand(0);
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }
+            }else if(inst->GetOpcode() == BasicInstruction::FSUB){
+                if(Op1EqOp2((ArithmeticInstruction*)inst)){
+                    int res_regno=inst->GetDefRegno();
+                    regno_map[res_regno]=new ImmF32Operand(0);
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }
+            }else if(inst->GetOpcode() == BasicInstruction::FDIV){
+                if(Op1EqOp2((ArithmeticInstruction*)inst)){
+                    int res_regno=inst->GetDefRegno();
+                    regno_map[res_regno]=new ImmF32Operand(1);
+                    it = block->Instruction_list.erase(it);
+                    continue;
+                }
+            }
+            ++it;
+        }
+    }
+
+    //后续指令的reg替换
+    for(auto &[id, block]:*(C->block_map)){
+        for(auto &inst : block->Instruction_list){
+            auto operands = inst->GetNonResultOperands();
+            for(auto &op : operands){
+                if(op->GetOperandType() == BasicOperand::REG){
+                    int regno = ((RegOperand*)op)->GetRegNo();
+                    if(regno_map.count(regno)){
+                        Operand op_torpl = regno_map[regno];
+                        while(op_torpl->GetOperandType()==BasicOperand::REG) {
+                            int new_regno=((RegOperand*)op_torpl)->GetRegNo();
+                            if(regno_map.count(new_regno)){
+                                op_torpl = regno_map[new_regno];
+                            }else{
+                                break;
+                            }
+                        }
+                        op = op_torpl->Clone();
+                    }
+                }
+            }
+            inst->SetNonResultOperands(operands);
+        }
+    }
 }

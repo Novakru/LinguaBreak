@@ -7,7 +7,7 @@
 #include <algorithm>
 std::unordered_map<std::string, CFG*> cfgTable;
 //extern DomAnalysis *domtrees;
-//新增：获取ret_block
+
 LLVMBlock GetRetBlock(CFG* C)
 {
     int size=C->block_map->size();
@@ -21,6 +21,7 @@ LLVMBlock GetRetBlock(CFG* C)
             }
         }
     }
+    return nullptr;
 }
 
 //获取LOAD指令的最近存储依赖->确定load读取的值由哪个store指令写入

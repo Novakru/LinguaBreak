@@ -124,6 +124,7 @@ void LoopRotate::doRotate(Loop* loop, CFG* cfg) {
 void LoopRotate::fixPhi(Loop* loop, CFG* cfg, LLVMBlock exit_bb) {
 	LLVMBlock header = loop->getHeader();
 	std::map<Operand, Operand> phi_replacements; // 原始寄存器 -> 新PHI结果寄存器
+	std::map<Operand, Operand> condinst_replacements; // condInsts 寄存器 -> 新PHI结果寄存器
 	
 	// 第一遍：处理 header 中的 phi 指令
 	std::vector<Instruction> header_phi_instructions;
@@ -156,9 +157,11 @@ void LoopRotate::fixPhi(Loop* loop, CFG* cfg, LLVMBlock exit_bb) {
 		header->Instruction_list.push_back(other_inst);
 	}
 	
+	// 不需要重命名 condInsts 的结果寄存器，只需要在 exit 中创建 phi
+	
 	// 第二遍：将 header 的 phi 指令移动到 exit
 	std::vector<Instruction> exit_phi_instructions;
-	std::vector<Instruction> exit_other_instructions;
+	std::deque<Instruction> exit_other_instructions;
 	
 	// 先收集 exit 中现有的 phi 指令
 	for (auto inst : exit_bb->Instruction_list) {
@@ -216,16 +219,318 @@ void LoopRotate::fixPhi(Loop* loop, CFG* cfg, LLVMBlock exit_bb) {
 		exit_phi_instructions.push_back(new_phi_inst);
 	}
 	
-	// 重新构建 exit 的指令列表
-	exit_bb->Instruction_list.clear();
-	for (auto phi_inst : exit_phi_instructions) {
-		exit_bb->Instruction_list.push_back(phi_inst);
-	}
-	for (auto other_inst : exit_other_instructions) {
-		exit_bb->Instruction_list.push_back(other_inst);
-	}
+	// // 检查整个函数中是否有使用 condInsts 结果寄存器的指令
+	// std::set<int> used_condinst_reg_nos;
+	// for (auto& [id, bb] : *cfg->block_map) {
+	// 	if(loop->contains(bb)) continue;
+	// 	for (auto inst : bb->Instruction_list) {
+	// 		auto operands = inst->GetNonResultOperands();
+	// 		for (auto op : operands) {
+	// 			if (op->GetOperandType() == BasicOperand::REG) {
+	// 				auto reg_op = (RegOperand*)op;
+	// 				// 检查这个寄存器是否是 condInsts 中的结果寄存器
+	// 				for (auto cond_inst : condInsts) {
+	// 					auto cond_result = cond_inst->GetResult();
+	// 					if (cond_result != nullptr && reg_op->GetRegNo() == ((RegOperand*)cond_result)->GetRegNo()) {
+	// 						used_condinst_reg_nos.insert(reg_op->GetRegNo());
+	// 					}
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
 	
-	// 第三遍：替换循环内所有使用原 phi 结果寄存器的指令
+	// // 只为在 exit block 中被使用的 condInsts 创建 phi 指令
+	// for (auto cond_inst : condInsts) {
+	// 	auto result = cond_inst->GetResult();
+	// 	if (result != nullptr && used_condinst_reg_nos.find(((RegOperand*)result)->GetRegNo()) != used_condinst_reg_nos.end()) {
+	// 		// 创建新的结果寄存器
+	// 		auto new_result = GetNewRegOperand(++cfg->max_reg);
+			
+	// 		// 创建 phi 指令，从 latch 和 preheader 两个来源
+	// 		std::vector<std::pair<Operand, Operand>> phi_list;
+	// 		auto latch_label = GetNewLabelOperand((*loop->getLatches().begin())->block_id);
+	// 		auto preheader_label = GetNewLabelOperand(loop->getPreheader()->block_id);
+			
+	// 		// 从 latch 来的值是 latch 中重命名后的寄存器（从 replaceUncondByCond 中克隆的）
+	// 		// 从 preheader 来的值是 preheader 中重命名后的寄存器
+	// 		int original_reg_no = ((RegOperand*)result)->GetRegNo();
+			
+	// 		// 在 latch 中查找对应的重命名后的寄存器
+	// 		LLVMBlock latch = *loop->getLatches().begin();
+	// 		Operand latch_result = nullptr;
+	// 		for (auto inst : latch->Instruction_list) {
+	// 			if (!inst->isPhi() && inst->GetResult() != nullptr) {
+	// 				auto inst_result = (RegOperand*)inst->GetResult();
+	// 				// 检查这个指令是否是 condInst 的克隆
+	// 				if (inst->GetOpcode() == cond_inst->GetOpcode()) {
+	// 					latch_result = inst->GetResult();
+	// 					break;
+	// 				}
+	// 			}
+	// 		}
+			
+	// 		// 在 preheader 中查找对应的重命名后的寄存器
+	// 		LLVMBlock preheader = loop->getPreheader();
+	// 		Operand preheader_result = nullptr;
+	// 		for (auto inst : preheader->Instruction_list) {
+	// 			if (!inst->isPhi() && inst->GetResult() != nullptr) {
+	// 				auto inst_result = (RegOperand*)inst->GetResult();
+	// 				// 检查这个指令是否是 condInst 的克隆
+	// 				if (inst->GetOpcode() == cond_inst->GetOpcode()) {
+	// 					preheader_result = inst->GetResult();
+	// 					break;
+	// 				}
+	// 			}
+	// 		}
+			
+	// 		// 添加 latch 路径的值（使用原始的 header 结果寄存器）
+	// 		// phi_list.push_back({latch_label, result});
+	// 		// 添加 latch 路径的值（使用 latch 中的结果寄存器）
+	// 		if (latch_result != nullptr) {
+	// 			phi_list.push_back({latch_label, latch_result});
+	// 		} else {
+	// 			// 如果找不到对应的寄存器，使用原始寄存器
+	// 			phi_list.push_back({latch_label, result});
+	// 		}
+
+	// 		// 添加 preheader 路径的值
+	// 		if (preheader_result != nullptr) {
+	// 			phi_list.push_back({preheader_label, preheader_result});
+	// 		} else {
+	// 			// 如果找不到对应的寄存器，使用原始寄存器
+	// 			phi_list.push_back({preheader_label, result});
+	// 		}
+			
+	// 		auto phi_inst = new PhiInstruction(cond_inst->GetType(), new_result, phi_list);
+	// 		exit_phi_instructions.push_back(phi_inst);
+			
+	// 		// 只替换循环外的基本块中使用原始寄存器的指令
+	// 		for (auto& [id, bb] : *cfg->block_map) {
+	// 			// 检查这个基本块是否在循环内
+	// 			bool in_loop = false;
+	// 			for (auto loop_bb : loop->getBlocks()) {
+	// 				if (bb == loop_bb) {
+	// 					in_loop = true;
+	// 					break;
+	// 				}
+	// 			}
+				
+	// 			// 如果不在循环内，才进行替换
+	// 			if (!in_loop) {
+	// 				for (auto& inst : bb->Instruction_list) {
+	// 					auto operands = inst->GetNonResultOperands();
+	// 					std::vector<Operand> new_operands;
+	// 					bool need_update = false;
+						
+	// 					for (auto op : operands) {
+	// 						if (op->GetOperandType() == BasicOperand::REG) {
+	// 							auto reg_op = (RegOperand*)op;
+	// 							if (reg_op->GetRegNo() == ((RegOperand*)result)->GetRegNo()) {
+	// 								new_operands.push_back(new_result);
+	// 								need_update = true;
+	// 							} else {
+	// 								new_operands.push_back(op);
+	// 							}
+	// 						} else {
+	// 							new_operands.push_back(op);
+	// 						}
+	// 					}
+						
+	// 					if (need_update) {
+	// 						inst->SetNonResultOperands(new_operands);
+	// 					}
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
+	
+	// // 第三遍：处理循环外使用header结果寄存器的指令
+	// // 迭代处理依赖关系，确保所有相关指令都被复制
+	// std::map<int, int> header_result_replacements; // old_reg -> new_reg
+	// std::set<int> processed_regs; // 已经处理过的寄存器
+	// std::set<int> pending_regs; // 待处理的寄存器
+	
+	// LLVMBlock current_header = loop->getHeader();
+	
+	// // 初始：收集循环外使用的header寄存器
+	// for (auto& [id, bb] : *cfg->block_map) {
+	// 	if (loop->contains(bb)) continue; // 跳过循环内的块
+		
+	// 	for (auto& inst : bb->Instruction_list) {
+	// 		auto operands = inst->GetNonResultOperands();
+			
+	// 		// 检查是否使用了header的结果寄存器
+	// 		for (auto op : operands) {
+	// 			if (op->GetOperandType() == BasicOperand::REG) {
+	// 				auto reg_op = (RegOperand*)op;
+	// 				// 检查是否是header中非phi指令的结果寄存器
+	// 				for (auto header_inst : current_header->Instruction_list) {
+	// 					if (!header_inst->isPhi() && header_inst->GetResult() != nullptr) {
+	// 						int header_reg = ((RegOperand*)header_inst->GetResult())->GetRegNo();
+	// 						if (header_reg == reg_op->GetRegNo()) {
+	// 							pending_regs.insert(header_reg);
+	// 							std::cout << "[LoopRotate] 发现循环外使用header寄存器 %r" << header_reg 
+	// 									  << " 在块 " << bb->block_id << std::endl;
+	// 							break;
+	// 						}
+	// 					}
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
+	
+	// // 迭代处理依赖关系
+	// while (!pending_regs.empty()) {
+	// 	std::set<int> current_pending = pending_regs;
+	// 	pending_regs.clear();
+		
+	// 	for (int reg_no : current_pending) {
+	// 		if (processed_regs.count(reg_no)) continue; // 已经处理过
+			
+	// 		// 在header中查找对应的指令
+	// 		Instruction target_inst = nullptr;
+	// 		for (auto header_inst : current_header->Instruction_list) {
+	// 			if (!header_inst->isPhi() && header_inst->GetResult() != nullptr) {
+	// 				int header_reg = ((RegOperand*)header_inst->GetResult())->GetRegNo();
+	// 				if (header_reg == reg_no) {
+	// 					target_inst = header_inst;
+	// 					break;
+	// 				}
+	// 			}
+	// 		}
+			
+	// 		if (target_inst == nullptr) continue;
+			
+	// 		// 检查该指令的操作数是否依赖其他header指令
+	// 		auto operands = target_inst->GetNonResultOperands();
+	// 		for (auto op : operands) {
+	// 			if (op->GetOperandType() == BasicOperand::REG) {
+	// 				auto reg_op = (RegOperand*)op;
+	// 				// 检查是否是header中其他非phi指令的结果寄存器
+	// 				for (auto header_inst : current_header->Instruction_list) {
+	// 					if (!header_inst->isPhi() && header_inst->GetResult() != nullptr) {
+	// 						int header_reg = ((RegOperand*)header_inst->GetResult())->GetRegNo();
+	// 						if (header_reg == reg_op->GetRegNo() && header_reg != reg_no) {
+	// 							// 发现依赖关系，加入待处理列表
+	// 							if (!processed_regs.count(header_reg)) {
+	// 								pending_regs.insert(header_reg);
+	// 								std::cout << "[LoopRotate] 发现依赖关系: %r" << reg_no 
+	// 										  << " 依赖 %r" << header_reg << std::endl;
+	// 							}
+	// 						}
+	// 					}
+	// 				}
+	// 			}
+	// 		}
+			
+	// 		// 如果该指令的所有依赖都已处理，则处理该指令
+	// 		bool all_deps_processed = true;
+	// 		for (auto op : operands) {
+	// 			if (op->GetOperandType() == BasicOperand::REG) {
+	// 				auto reg_op = (RegOperand*)op;
+	// 				for (auto header_inst : current_header->Instruction_list) {
+	// 					if (!header_inst->isPhi() && header_inst->GetResult() != nullptr) {
+	// 						int header_reg = ((RegOperand*)header_inst->GetResult())->GetRegNo();
+	// 						if (header_reg == reg_op->GetRegNo() && header_reg != reg_no) {
+	// 							if (!processed_regs.count(header_reg)) {
+	// 								all_deps_processed = false;
+	// 								break;
+	// 							}
+	// 						}
+	// 					}
+	// 				}
+	// 				if (!all_deps_processed) break;
+	// 			}
+	// 		}
+			
+	// 		if (all_deps_processed) {
+	// 			// 创建新的结果寄存器
+	// 			int new_reg = ++cfg->max_reg;
+	// 			header_result_replacements[reg_no] = new_reg;
+				
+	// 			// 克隆指令并更新结果寄存器
+	// 			Instruction cloned_inst = target_inst->Clone();
+	// 			cloned_inst->SetResult(GetNewRegOperand(new_reg));
+				
+	// 			// 更新克隆指令中的操作数，使用新的寄存器号
+	// 			auto cloned_operands = cloned_inst->GetNonResultOperands();
+	// 			std::vector<Operand> new_operands;
+	// 			for (auto op : cloned_operands) {
+	// 				if (op->GetOperandType() == BasicOperand::REG) {
+	// 					auto reg_op = (RegOperand*)op;
+	// 					auto replace_it = header_result_replacements.find(reg_op->GetRegNo());
+	// 					if (replace_it != header_result_replacements.end()) {
+	// 						new_operands.push_back(GetNewRegOperand(replace_it->second));
+	// 					} else {
+	// 						new_operands.push_back(op);
+	// 					}
+	// 				} else {
+	// 					new_operands.push_back(op);
+	// 				}
+	// 			}
+	// 			cloned_inst->SetNonResultOperands(new_operands);
+				
+	// 			// 添加到exit块
+	// 			exit_other_instructions.push_front(cloned_inst);
+				
+	// 			// 标记为已处理
+	// 			processed_regs.insert(reg_no);
+				
+	// 			// 输出插入信息
+	// 			std::cout << "[LoopRotate] 在exit块中插入指令: %r" << new_reg << " = " ;
+	// 			cloned_inst->PrintIR(std::cout);
+	// 			std::cout << " (原寄存器: %r" << reg_no << ")" << std::endl;
+	// 		} else {
+	// 			// 依赖未处理完，重新加入待处理列表
+	// 			pending_regs.insert(reg_no);
+	// 		}
+	// 	}
+	// }
+	
+	// // 重新构建 exit 的指令列表
+	// exit_bb->Instruction_list.clear();
+	// for (auto phi_inst : exit_phi_instructions) {
+	// 	exit_bb->Instruction_list.push_back(phi_inst);
+	// }
+	// for (auto other_inst : exit_other_instructions) {
+	// 	exit_bb->Instruction_list.push_back(other_inst);
+	// }
+	
+	// // 第四遍：替换循环外所有使用header结果寄存器的指令
+	// for (auto& [id, bb] : *cfg->block_map) {
+	// 	if (loop->contains(bb)) continue; // 跳过循环内的块
+		
+	// 	for (auto& inst : bb->Instruction_list) {
+	// 		auto operands = inst->GetNonResultOperands();
+	// 		std::vector<Operand> new_operands;
+	// 		bool need_update = false;
+			
+	// 		for (auto op : operands) {
+	// 			if (op->GetOperandType() == BasicOperand::REG) {
+	// 				auto reg_op = (RegOperand*)op;
+	// 				auto replace_it = header_result_replacements.find(reg_op->GetRegNo());
+	// 				if (replace_it != header_result_replacements.end()) {
+	// 					// 替换为新的寄存器
+	// 					new_operands.push_back(GetNewRegOperand(replace_it->second));
+	// 					need_update = true;
+	// 				} else {
+	// 					new_operands.push_back(op);
+	// 				}
+	// 			} else {
+	// 				new_operands.push_back(op);
+	// 			}
+	// 		}
+			
+	// 		if (need_update) {
+	// 			inst->SetNonResultOperands(new_operands);
+	// 		}
+	// 	}
+	// }
+	
+	// 第五遍：替换循环内所有使用原 phi 结果寄存器的指令
 	for (auto bb : loop->getBlocks()) {
 		for (auto inst : bb->Instruction_list) {
 			auto operands = inst->GetNonResultOperands();
@@ -235,9 +540,11 @@ void LoopRotate::fixPhi(Loop* loop, CFG* cfg, LLVMBlock exit_bb) {
 			for (auto op : operands) {
 				if (op->GetOperandType() == BasicOperand::REG) {
 					auto reg_op = (RegOperand*)op;
-					auto replace_it = phi_replacements.find(reg_op);
-					if (replace_it != phi_replacements.end()) {
-						new_operands.push_back(replace_it->second);
+					
+					// 检查是否是 phi 替换
+					auto phi_replace_it = phi_replacements.find(reg_op);
+					if (phi_replace_it != phi_replacements.end()) {
+						new_operands.push_back(phi_replace_it->second);
 						need_update = true;
 					} else {
 						new_operands.push_back(op);

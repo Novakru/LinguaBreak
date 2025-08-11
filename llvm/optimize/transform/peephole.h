@@ -7,11 +7,13 @@
 class PeepholePass : public IRPass {
 private:
     void SrcEqResultInstEliminate(CFG* C);
+    void IdentitiesEliminate(CFG* C);
 public:
     PeepholePass(LLVMIR *IR) : IRPass(IR) {}
 	void Execute();
     void SrcEqResultInstEliminateExecute();
     void ImmResultReplaceExecute();
+    void IdentitiesEliminateExecute();
 	void DeadArgElim();
 };
 

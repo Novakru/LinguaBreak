@@ -19,7 +19,6 @@ public:
 
 private:
     int ins_number; // 指令编号, 用于活跃区间计算
-    //新增
 	bool no_schedule;
 
 public:
@@ -30,7 +29,6 @@ public:
     virtual std::vector<Register *> GetWriteReg() = 0;    // 获得该指令所有写的寄存器
     virtual int GetLatency() = 0;    // 如果你不打算实现指令调度优化，可以忽略该函数
 
-    //新增
     void SetNoSchedule(bool no_schedule) { this->no_schedule = no_schedule; }
     bool CanSchedule() { return !no_schedule; }
 };

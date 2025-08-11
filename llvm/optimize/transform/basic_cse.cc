@@ -208,7 +208,7 @@ bool BranchCSENotConsider(Instruction I) {
     return true;
 }
 
-bool BasicBlockCSEOptimizer::NoMemoptimize() {
+void BasicBlockCSEOptimizer::NoMemoptimize() {
     hasMemOp=false;
     optimize();
     hasMemOp=true;
@@ -528,6 +528,13 @@ void SimpleCSEPass::SimpleBlockCSE(CFG* cfg,LLVMIR *IR) {
 // 检查基本块是否满足"无定义使用"条件
 static bool BlockDefNoUseCheck(CFG *C, int bb_id, int st_id) {
     //std::cout<<"begin BlockDefNoUseCheck\n";
+    
+    // 安全地获取基本块
+    if (C->block_map->find(bb_id) == C->block_map->end() || 
+        C->block_map->find(st_id) == C->block_map->end()) {
+        return false;
+    }
+    
     auto bb = (*C->block_map)[bb_id];
     std::set<Operand> defs;  // 存储bb中定义的操作数
     
@@ -567,6 +574,11 @@ static bool BlockDefNoUseCheck(CFG *C, int bb_id, int st_id) {
         if (vis[x]) continue;
         vis[x] = true;
         if (x == bb_id) continue;  // 跳过定义块本身
+        
+        // 安全地获取基本块
+        if (C->block_map->find(x) == C->block_map->end()) {
+            continue;
+        }
         
         auto bbx = (*C->block_map)[x];
         // 检查操作数是否使用bb中的定义
@@ -875,17 +887,56 @@ static bool CanReach(int bb1_id, int bb2_id, CFG *C) {
 static bool CanJump(bool isleft, int x1_id, int x2_id, CFG *C) {
     // 前置条件：x1支配x2
     //assert(C->dominates(x1_id, x2_id));
+    
+    // 安全地获取基本块
+    if (C->block_map->find(x1_id) == C->block_map->end() || 
+        C->block_map->find(x2_id) == C->block_map->end()) {
+        return false;
+    }
+    
     auto x1 = (*C->block_map)[x1_id];
     auto x2 = (*C->block_map)[x2_id];
+    
+    // 检查x1是否有指令
+    if (x1->Instruction_list.empty()) {
+        return false;
+    }
+    
     auto BrI1 = (BrCondInstruction *)(*(x1->Instruction_list.end() - 1)); // 获取分支指令
     
-    // 解析真假目标块
-    auto xT = (*C->block_map)[((LabelOperand *)BrI1->GetTrueLabel())->GetLabelNo()];
-    auto xF = (*C->block_map)[((LabelOperand *)BrI1->GetFalseLabel())->GetLabelNo()];
+    // 检查分支指令的有效性
+    if (!BrI1 || BrI1->GetOpcode() != BasicInstruction::BR_COND) {
+        return false;
+    }
+    
+    // 安全地获取标签操作数
+    auto trueLabel = BrI1->GetTrueLabel();
+    auto falseLabel = BrI1->GetFalseLabel();
+    if (!trueLabel || !falseLabel || 
+        trueLabel->GetOperandType() != BasicOperand::LABEL ||
+        falseLabel->GetOperandType() != BasicOperand::LABEL) {
+        return false;
+    }
+    
+    int trueLabelNo = ((LabelOperand *)trueLabel)->GetLabelNo();
+    int falseLabelNo = ((LabelOperand *)falseLabel)->GetLabelNo();
+    
+    // 安全地获取目标块
+    if (C->block_map->find(trueLabelNo) == C->block_map->end() || 
+        C->block_map->find(falseLabelNo) == C->block_map->end()) {
+        return false;
+    }
+    
+    auto xT = (*C->block_map)[trueLabelNo];
+    auto xF = (*C->block_map)[falseLabelNo];
 
     if (isleft) {  // 处理True分支情况
         // 检查路径存在性
         if (!CanReach(xT->block_id, x2->block_id, C) && CanReach(xF->block_id, x2->block_id, C)) {
+            // 检查x2是否有足够的指令
+            if (x2->Instruction_list.size() < 2) {
+                return false;
+            }
             // 修改x2的指令：用常量比较替换原比较
             auto tmpI1 = *(x2->Instruction_list.end() - 1);
             auto tmpI2 = *(x2->Instruction_list.end() - 2);
@@ -899,6 +950,10 @@ static bool CanJump(bool isleft, int x1_id, int x2_id, CFG *C) {
         }
     } else {  // 处理False分支情况
         if (CanReach(xT->block_id, x2->block_id, C) && !CanReach(xF->block_id, x2->block_id, C)) {
+            // 检查x2是否有足够的指令
+            if (x2->Instruction_list.size() < 2) {
+                return false;
+            }
             // 创建恒真比较 (1==1)
             auto tmpI1 = *(x2->Instruction_list.end() - 1);
             auto tmpI2 = *(x2->Instruction_list.end() - 2);
@@ -1104,6 +1159,11 @@ void DomTreeCSEOptimizer::dfs(int bbid) {
 }
 void DomTreeCSEOptimizer::branch_dfs(int bbid)
 {
+    // 安全地获取基本块
+    if (C->block_map->find(bbid) == C->block_map->end()) {
+        return;
+    }
+    
     LLVMBlock now = (*C->block_map)[bbid];
     std::set<InstCSEInfo> cmpCseSet;  // 临时存储当前块的CSE信息
     

@@ -129,6 +129,7 @@ public:
 	SCEV* fixLoopInvariantUnknowns(SCEV* scev, Loop* L);
 
     SCEV *getSCEV(Operand V, Loop *L);
+    SCEV *getSimpleSCEV(Operand V, Loop *L);
     SCEV *simplify(SCEV *S) const;
     SCEV *simplifyOnce(SCEV *S) const;
     static bool SCEVStructurallyEqual(const SCEV* A, const SCEV* B);

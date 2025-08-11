@@ -2,7 +2,7 @@
 
 std::unordered_map<std::string,ModRefStatus> lib_function_status ;
 
-void DefineLibFuncStatus(){
+void AliasAnalysisPass::DefineLibFuncStatus(){
     lib_function_status["getint"]=Mod;
     lib_function_status["getch"]=Mod;
     lib_function_status["getfloat"]=Mod;
@@ -305,7 +305,7 @@ void AliasAnalysisPass::RWInfoAnalysis(){
                 if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::LOAD){
                     Operand ptr=((LoadInstruction*)inst)->GetPointer();
                     if(ptr->GetOperandType()==BasicOperand::GLOBAL){
-                        globalinfo->ref_ops.insert(ptr);
+                        globalinfo->ref_ops.insert(ptr->GetFullName());
                     }else{
                         PtrInfo info=GetPtrInfo(ptr,cfg);
                         if(info.type==PtrInfo::types::Global||info.type==PtrInfo::types::Param){
@@ -315,7 +315,7 @@ void AliasAnalysisPass::RWInfoAnalysis(){
                 }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::STORE){
                     Operand ptr=((StoreInstruction*)inst)->GetPointer();
                     if(ptr->GetOperandType()==BasicOperand::GLOBAL){
-                        globalinfo->mod_ops.insert(ptr);
+                        globalinfo->mod_ops.insert(ptr->GetFullName());
                     }else{
                         PtrInfo info=GetPtrInfo(ptr,cfg);
                         if(info.type==PtrInfo::types::Global||info.type==PtrInfo::types::Param){
@@ -414,6 +414,8 @@ void AliasAnalysisPass::GatherRWInfos(std::string func_name){
             }
 
             //【2.2】global var的信息汇总
+            assert(globalmap[callee_cfg]!=nullptr);
+            assert(globalmap[caller_cfg]!=nullptr);
             globalmap[caller_cfg]->AddInfo(globalmap[callee_cfg]);
 
             //沿调用链反向传播汇总
@@ -447,13 +449,33 @@ void AliasAnalysisPass::FindPhi(){
 
 
 void AliasAnalysisPass::Execute(){
-    DefineLibFuncStatus();
+    ptrmap.clear();
+    rwmap.clear();
+    globalmap.clear();
+    ReCallGraph.clear();
+    LeafFuncs.clear();
     PtrPropagationAnalysis();
     RWInfoAnalysis();
 
     // test
     // PrintAAResult();
     // Test();
+}
+
+
+ModRefStatus AliasAnalysisPass::QueryCallGlobalModRef(CallInstruction* callI, std::string global_name){
+    int res=0;
+    auto func_name=callI->GetFunctionName();
+    if(lib_function_names.count(func_name)){return NoModRef; } //库函数不对全局变量进行Mod/Ref 【传参/函数返回值方式的ModRef属于父函数】
+    auto son_cfg=llvmIR->llvm_cfg[llvmIR->FunctionNameTable[func_name]];
+    auto global_info=globalmap[son_cfg];
+    if(global_info->ref_ops.count(global_name)){
+        res+=1;
+    }
+    if(global_info->mod_ops.count(global_name)){
+        res+=2;
+    }
+    return static_cast<ModRefStatus>(res);
 }
 
 /* -------------------------------  TEST ----------------------------------*/
@@ -541,6 +563,7 @@ void AliasAnalysisPass::PrintAAResult() {
             std::cout<<op<<" ";
         }std::cout << "\n";
     }
+    std::cout<<" ----------------------------------------- "<<std::endl;
 }
 
 

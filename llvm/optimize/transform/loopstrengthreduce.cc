@@ -6,7 +6,7 @@
 // 2. while(i < n) i *= 2
 // 3. while(i > n) i /= 2 ...
 
-// #define lsr_debug
+#define lsr_debug 
 
 #ifdef lsr_debug
 #define LSR_DEBUG_PRINT(x) do { x; } while(0)
@@ -14,7 +14,7 @@
 #define LSR_DEBUG_PRINT(x) do {} while(0)
 #endif
 
-// 新增：检查操作数是否可以被安全地移动到preheader
+//  检查操作数是否可以被安全地移动到preheader
 bool canMoveToPreheader(Operand op, LLVMBlock preheader, Loop* curLoop, std::unordered_set<Instruction>& toDelete) {
     // 如果是常量或立即数，可以直接使用
     if (dynamic_cast<ImmI32Operand*>(op)) {
@@ -93,7 +93,7 @@ bool canMoveToPreheader(Operand op, LLVMBlock preheader, Loop* curLoop, std::uno
     return false;
 }
 
-// 新增：递归检查SCEV表达式中所有操作数是否可以被安全移动
+//  递归检查SCEV表达式中所有操作数是否可以被安全移动
 bool canMoveSCEVToPreheader(SCEV* expr, LLVMBlock preheader, Loop* curLoop, std::unordered_set<Instruction>& toDelete) {
     if (!expr) return true;
     
@@ -121,7 +121,7 @@ bool canMoveSCEVToPreheader(SCEV* expr, LLVMBlock preheader, Loop* curLoop, std:
     return false;
 }
 
-// 新增：将操作数的定义指令移动到preheader
+//  将操作数的定义指令移动到preheader
 void moveOperandDefToPreheader(Operand op, LLVMBlock preheader, Loop* curLoop, std::unordered_set<Instruction>& toDelete) {
     // 查找定义该操作数的指令
     Instruction defInst = nullptr;
@@ -157,7 +157,7 @@ void moveOperandDefToPreheader(Operand op, LLVMBlock preheader, Loop* curLoop, s
     }
 }
 
-// 新增：递归移动SCEV表达式中所有操作数的定义到preheader
+//  递归移动SCEV表达式中所有操作数的定义到preheader
 void moveSCEVDefsToPreheader(SCEV* expr, LLVMBlock preheader, Loop* curLoop, std::unordered_set<Instruction>& toDelete) {
     if (!expr) return;
     
@@ -174,7 +174,7 @@ void moveSCEVDefsToPreheader(SCEV* expr, LLVMBlock preheader, Loop* curLoop, std
     }
 }
 
-// 新增：检查复杂递增量是否可以被安全移动到preheader
+//  检查复杂递增量是否可以被安全移动到preheader
 bool canMoveComplexStepToPreheader(SCEV* stepExpr, LLVMBlock preheader, Loop* curLoop, std::unordered_set<Instruction>& toDelete) {
     return canMoveSCEVToPreheader(stepExpr, preheader, curLoop, toDelete);
 }
@@ -213,7 +213,7 @@ Operand buildOffsetExpr(SCEV* expr, LLVMBlock preheader, CFG* cfg, Loop* curLoop
     return offsetReg;
 }
 
-// 新增：将复杂递增量移动到preheader并返回计算结果的寄存器
+//  将复杂递增量移动到preheader并返回计算结果的寄存器
 Operand buildComplexStepExpr(SCEV* stepExpr, LLVMBlock preheader, CFG* cfg, Loop* curLoop, std::unordered_set<Instruction>& toDelete) {
     // 先移动所有操作数定义到preheader
     moveSCEVDefsToPreheader(stepExpr, preheader, curLoop, toDelete);
@@ -221,7 +221,7 @@ Operand buildComplexStepExpr(SCEV* stepExpr, LLVMBlock preheader, CFG* cfg, Loop
     return buildOffsetExpr(stepExpr, preheader, cfg, curLoop, toDelete);
 }
 
-// 新增：处理复杂递推式的循环强度削弱
+//  处理复杂递推式的循环强度削弱
 bool handleComplexAddRecExpr(SCEVAddRecExpr* addRec, Operand res, LLVMBlock preheader, LLVMBlock header, LLVMBlock latch, CFG* cfg, Loop* curLoop, std::unordered_set<Instruction>& toDelete) {
     LSR_DEBUG_PRINT(std::cerr << "[LSR] 处理复杂递推式: "; addRec->print(std::cerr); std::cerr << std::endl);
     
@@ -236,11 +236,18 @@ bool handleComplexAddRecExpr(SCEVAddRecExpr* addRec, Operand res, LLVMBlock preh
         return false;
     }
     
+    // 先弹出跳转指令
+    Instruction br = preheader->Instruction_list.back();
+    preheader->Instruction_list.pop_back();
+    
     // 1. 在preheader中计算start值
     Operand startReg = buildOffsetExpr(addRec->getStart(), preheader, cfg, curLoop, toDelete);
     
     // 2. 在preheader中计算step值
     Operand stepReg = buildComplexStepExpr(addRec->getStep(), preheader, cfg, curLoop, toDelete);
+    
+    // 重新插入跳转指令
+    preheader->Instruction_list.push_back(br);
     
     // 3. 在latch中计算递增量（使用stepReg）
     Operand addStepRes = GetNewRegOperand(++cfg->max_reg);
@@ -272,7 +279,7 @@ void LoopStrengthReducePass::Execute() {
     LSR_DEBUG_PRINT(std::cerr << "[LSR] 循环强度削弱优化完成" << std::endl);
 }
 
-// 新增：递归判断SCEV是否完全loop invariant
+//  递归判断SCEV是否完全loop invariant
 bool isSCEVLoopInvariant(SCEV* expr) {
     if (auto *u = dynamic_cast<SCEVUnknown*>(expr)) {
         return u->isLoopInvariant;
@@ -350,7 +357,7 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                         LSR_DEBUG_PRINT(std::cerr << "[LSR] 收集PHI内部寄存器: " << val->GetFullName() << std::endl);
                     }
                 }
-                // 新增：Load和Call的结果也视为循环变量
+                //  Load和Call的结果也视为循环变量
                 else if (dynamic_cast<LoadInstruction *>(headerInst) || dynamic_cast<CallInstruction *>(headerInst)) {
                     Operand res = headerInst->GetResult();
                     if (res) {
@@ -417,13 +424,13 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
 								    std::cerr << std::endl;
 								);
                                 
-                                // 新增：检查baseOffsetExpr中的所有操作数是否可以被安全移动到preheader
+                                //  检查baseOffsetExpr中的所有操作数是否可以被安全移动到preheader
                                 if (!canMoveSCEVToPreheader(baseOffsetExpr, preheader, curLoop, toDelete)) {
                                     LSR_DEBUG_PRINT(std::cerr << "[LSR] 警告: baseOffsetExpr中的操作数不能被安全移动到preheader，跳过GEP优化" << std::endl);
                                     continue;
                                 }
                                 
-                                // 新增：将baseOffsetExpr中的操作数定义移动到preheader
+                                //  将baseOffsetExpr中的操作数定义移动到preheader
                                 moveSCEVDefsToPreheader(baseOffsetExpr, preheader, curLoop, toDelete);
                                 
                                 // 检查是否为简单递推式（step是常量）
@@ -547,13 +554,13 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                                     LSR_DEBUG_PRINT(std::cerr << "[LSR] 使用未知start: " << startVal->GetFullName() << std::endl);
                                 }
                                 if (startVal) {
-                                    // 新增：检查startVal是否可以被安全移动到preheader
+                                    //  检查startVal是否可以被安全移动到preheader
                                     if (!canMoveToPreheader(startVal, preheader, curLoop, toDelete)) {
                                         LSR_DEBUG_PRINT(std::cerr << "[LSR] 警告: startVal " << startVal->GetFullName() << " 不能被安全移动到preheader，跳过归纳变量优化" << std::endl);
                                         continue;
                                     }
                                     
-                                    // 新增：将startVal的定义移动到preheader
+                                    //  将startVal的定义移动到preheader
                                     moveOperandDefToPreheader(startVal, preheader, curLoop, toDelete);
                                     
                                     // 1. preheader插入初值（新reg）

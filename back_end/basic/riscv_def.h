@@ -318,8 +318,5 @@ enum {
     RISCV_ft11 = RISCV_f31,
 };
 
-// 事实上, 这种初始化方法只有C支持, C++并不支持这种初始化方法。
-// 但是clang++依旧可以正确编译该语法, 如果你换用g++编译，会直接得到编译失败的结果
-// 你可以选择换用等价写法来避免使用该C语言特性
 extern std::unordered_map<int, RvOpInfo> OpTable;
 #endif

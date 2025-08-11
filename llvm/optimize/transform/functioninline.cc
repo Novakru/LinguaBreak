@@ -259,6 +259,12 @@ void FunctionInlinePass::inlineFunction(int callerBlockId, LLVMBlock callerBlock
             }
         }
     }
+    
+    // 同步max_label和max_reg信息到CFG对象
+    if (llvmIR->llvm_cfg.find(caller) != llvmIR->llvm_cfg.end()) {
+        llvmIR->llvm_cfg[caller]->max_label = llvmIR->function_max_label[caller];
+        llvmIR->llvm_cfg[caller]->max_reg = llvmIR->function_max_reg[caller];
+    }
 }
 
 void FunctionInlinePass::recombineGEP(){
@@ -387,4 +393,6 @@ void FunctionInlinePass::Execute() {
     //【4】重组GEP
     recombineGEP();
     
+    //【5】同步max_label和max_reg信息到CFG对象
+    llvmIR->SyncMaxInfo();
 }
