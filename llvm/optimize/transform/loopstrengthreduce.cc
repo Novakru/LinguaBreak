@@ -1,6 +1,10 @@
 #include "loopstrengthreduce.h"
 #include <unordered_set>
 
+
+bool isInductionVariable(Operand op, Loop* loop);
+
+
 // TODO check: 
 // 1. while(i > 0) i--
 // 2. while(i < n) i *= 2
@@ -339,7 +343,7 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
             
             LSR_DEBUG_PRINT(std::cerr << "[LSR] 处理循环，header block_id=" << curLoop->getHeader()->block_id << std::endl);
             
-            // 1. 收集header中PHI指令相关的寄存器（不需要削弱）
+            // 1. 收集header中归纳变量的Phi指令相关的寄存器（不需要削弱）
             std::set<Operand> noReduceSet;
             LLVMBlock header = curLoop->getHeader();
 			LLVMBlock preheader = curLoop->getPreheader();
@@ -347,16 +351,21 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
 			if (!curLoop->getLatches().empty()) latch = *curLoop->getLatches().begin();
 			
             for (Instruction headerInst : header->Instruction_list) {
-                // if (auto *PN = dynamic_cast<PhiInstruction *>(headerInst)) {
-                //     // PHI的结果寄存器不需要削弱
-                //     noReduceSet.insert(PN->GetResult());
-                //     LSR_DEBUG_PRINT(std::cerr << "[LSR] 收集PHI结果寄存器: " << PN->GetResult()->GetFullName() << std::endl);
-                //     // PHI内部使用的所有寄存器也不需要削弱
-                //     for (auto &[label, val] : PN->GetPhiList()) {
-                //         noReduceSet.insert(val);
-                //         LSR_DEBUG_PRINT(std::cerr << "[LSR] 收集PHI内部寄存器: " << val->GetFullName() << std::endl);
-                //     }
-                // }
+                if (auto *PN = dynamic_cast<PhiInstruction *>(headerInst)) {
+                    // 只保护归纳变量的Phi指令
+                    if (isInductionVariable(PN->GetResult(), curLoop)) {
+                        // 归纳变量的Phi指令结果寄存器不需要削弱
+                        noReduceSet.insert(PN->GetResult());
+                        LSR_DEBUG_PRINT(std::cerr << "[LSR] 收集归纳变量Phi结果寄存器: " << PN->GetResult()->GetFullName() << std::endl);
+                        // 归纳变量的Phi指令内部使用的所有寄存器也不需要削弱
+                        for (auto &[label, val] : PN->GetPhiList()) {
+                            noReduceSet.insert(val);
+                            LSR_DEBUG_PRINT(std::cerr << "[LSR] 收集归纳变量Phi内部寄存器: " << val->GetFullName() << std::endl);
+                        }
+                    } else {
+                        LSR_DEBUG_PRINT(std::cerr << "[LSR] 非归纳变量Phi指令: " << PN->GetResult()->GetFullName() << "，可以进行强度削弱" << std::endl);
+                    }
+                }
                 //  Load和Call的结果也视为循环变量
                 if (dynamic_cast<LoadInstruction *>(headerInst) || dynamic_cast<CallInstruction *>(headerInst)) {
                     Operand res = headerInst->GetResult();
@@ -374,11 +383,23 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
             for (LLVMBlock BB : curLoop->getBlocks()) {
                 LSR_DEBUG_PRINT(std::cerr << "[LSR] 分析基本块 block_id=" << BB->block_id << std::endl);
                 for (Instruction Inst : BB->Instruction_list) {
-                    // 跳过PHI指令
+                    // 跳过归纳变量的Phi指令
                     if (auto *PN = dynamic_cast<PhiInstruction *>(Inst)) {
-                        LSR_DEBUG_PRINT(std::cerr << "[LSR] 跳过PHI指令: " << PN->GetResult()->GetFullName() << std::endl);
-                        continue;
+                        if (noReduceSet.find(PN->GetResult()) != noReduceSet.end()) {
+                            LSR_DEBUG_PRINT(std::cerr << "[LSR] 跳过归纳变量Phi指令: " << PN->GetResult()->GetFullName() << std::endl);
+                            continue;
+                        } else {
+                            LSR_DEBUG_PRINT(std::cerr << "[LSR] 处理非归纳变量Phi指令: " << PN->GetResult()->GetFullName() << std::endl);
+                        }
                     }
+
+                    // 跳过加法指令 (本身就不需要强度削弱)
+                    // if (dynamic_cast<ArithmeticInstruction *>(Inst)) {
+                    //     if (Inst->GetOpcode() == BasicInstruction::ADD || Inst->GetOpcode() == BasicInstruction::SUB) {
+                    //         LSR_DEBUG_PRINT(std::cerr << "[LSR] 跳过加法/减法指令: " << Inst->GetResult()->GetFullName() << std::endl);
+                    //         continue;
+                    //     }
+                    // }
                     
                     // 处理GEP指令
                     if (auto *GEP = dynamic_cast<GetElementptrInstruction *>(Inst)) {
@@ -623,6 +644,19 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
             }
         }
     }
+}
+
+bool isInductionVariable(Operand op, Loop* loop) {
+    LLVMBlock header = loop->getHeader();
+    for (auto inst : header->Instruction_list) {
+        if (inst->GetOpcode() == BasicInstruction::ICMP) {
+            auto icmp = (IcmpInstruction*)inst;
+            if (icmp->GetOp1() == op || icmp->GetOp2() == op) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 /*
