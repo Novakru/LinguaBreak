@@ -48,6 +48,16 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
         return MustAlias;
     }
 
+    // 对于立即数类型（IMMI32, IMMF32, IMMI64），它们不是指针，返回 NoAlias
+    if(op1->GetOperandType() == BasicOperand::IMMI32 || 
+       op1->GetOperandType() == BasicOperand::IMMF32 || 
+       op1->GetOperandType() == BasicOperand::IMMI64 ||
+       op2->GetOperandType() == BasicOperand::IMMI32 || 
+       op2->GetOperandType() == BasicOperand::IMMF32 || 
+       op2->GetOperandType() == BasicOperand::IMMI64){
+        return NoAlias;
+    }
+
     PtrInfo info1=GetPtrInfo(op1,cfg);
     PtrInfo info2=GetPtrInfo(op2,cfg); 
 
@@ -339,11 +349,18 @@ void AliasAnalysisPass::GatherRWInfos(CFG*cfg){
             }else if(rop->GetOperandType()==BasicOperand::REG){
                 PtrInfo ptrinfo=GetPtrInfo(rop,cfg);
                 if(ptrinfo.type==PtrInfo::types::Param){
-                    assert(arguments[callinfo->param_order[rop]].first==BasicInstruction::LLVMType::PTR);
                     Operand arguOp=arguments[callinfo->param_order[rop]].second;//形参映射到实参
-
-                    PtrInfo caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
-                    caller_rwinfo->AddRead(caller_ptrinfo.root);
+                    
+                    // 只处理指针类型参数，i32 类型直接跳过（返回 NoAlias）
+                    if(arguments[callinfo->param_order[rop]].first==BasicInstruction::LLVMType::PTR){
+                        PtrInfo caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
+                        caller_rwinfo->AddRead(caller_ptrinfo.root);
+                    } 
+                    // 对于非指针类型参数（如 i32），直接跳过，不进行别名分析
+                    else {
+                        // i32 类型不是指针，不需要进行别名分析
+                        // 直接返回 NoAlias，跳过处理
+                    }
                 }
             }
         }
@@ -354,11 +371,18 @@ void AliasAnalysisPass::GatherRWInfos(CFG*cfg){
             }else if(wop->GetOperandType()==BasicOperand::REG){
                 PtrInfo ptrinfo=GetPtrInfo(wop,cfg);
                 if(ptrinfo.type==PtrInfo::types::Param){
-                    assert(arguments[callinfo->param_order[wop]].first==BasicInstruction::LLVMType::PTR);
                     Operand arguOp=arguments[callinfo->param_order[wop]].second;//形参映射到实参
-
-                    PtrInfo caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
-                    caller_rwinfo->AddWrite(caller_ptrinfo.root);
+                    
+                    // 只处理指针类型参数，i32 类型直接跳过（返回 NoAlias）
+                    if(arguments[callinfo->param_order[wop]].first==BasicInstruction::LLVMType::PTR){
+                        PtrInfo caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
+                        caller_rwinfo->AddWrite(caller_ptrinfo.root);
+                    } 
+                    // 对于非指针类型参数（如 i32），直接跳过，不进行别名分析
+                    else {
+                        // i32 类型不是指针，不需要进行别名分析
+                        // 直接返回 NoAlias，跳过处理
+                    }
                 }
             }
         }
