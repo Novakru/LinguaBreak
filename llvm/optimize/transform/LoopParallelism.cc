@@ -204,113 +204,237 @@ void LoopParallelismPass::CreateParallelFunction(Loop* loop, CFG* cfg, const std
     // 添加函数参数：void* args
     func_def->InsertFormal(BasicInstruction::LLVMType::PTR);
     
-    // 创建新的CFG
-    auto new_cfg = new CFG();
-	new_cfg->function_def = func_def;
-    llvmIR->llvm_cfg[func_def] = new_cfg;
+    // 使用IR的NewFunction方法
+    llvmIR->NewFunction(func_def);
+	llvmIR->function_max_reg[func_def] = 0;  // ptr arg is %r0
+	llvmIR->function_max_label[func_def] = -1;
     
-    // 创建函数体基本块
-    LLVMBlock func_block = new BasicBlock(0);
-    (*new_cfg->block_map)[0] = func_block;
+    // 全局维护寄存器映射
+    std::map<int, int> reg_mapping;
     
     // 添加函数参数处理
-    AddFunctionParameters(func_block, new_cfg);
-    
+    AddFunctionParameters(func_def, reg_mapping);
+    std::cout << "AddFunctionParameters" << std::endl;
     // 添加线程范围计算
-    AddThreadRangeCalculation(func_block, new_cfg);
-    
-    // 复制循环体指令
-    std::map<int, int> reg_mapping;
-    CopyLoopBodyInstructions(loop, new_cfg, func_block, reg_mapping);
-    
-    // 添加返回指令
-    auto ret_inst = new RetInstruction(BasicInstruction::LLVMType::VOID, nullptr);
-    func_block->Instruction_list.push_back(ret_inst);
+    AddThreadRangeCalculation(func_def, reg_mapping);
+	std::cout << "AddThreadRangeCalculation" << std::endl;
+
+	// 复制循环体指令到基本块中，后续再根据基本块构建 new_cfg
+	CopyLoopBodyInstructions(loop, func_def, reg_mapping);
+	std::cout << "CopyLoopBodyInstructions" << std::endl;
     
     PARALLEL_DEBUG(std::cout << "创建并行化函数: " << func_name << std::endl);
 }
 
-void LoopParallelismPass::AddFunctionParameters(LLVMBlock& func_block, CFG* cfg) {
+void LoopParallelismPass::AddFunctionParameters(FunctionDefineInstruction* func_def, std::map<int, int>& reg_mapping) {
     // 解析void* args参数
     // args[0] = thread_id, args[1] = start, args[2] = end
     
     // 创建寄存器来存储解析的参数
-    auto thread_id_reg = GetNewRegOperand(++cfg->max_reg);
-    auto start_reg = GetNewRegOperand(++cfg->max_reg);
-    auto end_reg = GetNewRegOperand(++cfg->max_reg);
+	int& max_reg = llvmIR->function_max_reg[func_def];
+	int& max_label = llvmIR->function_max_label[func_def];
+    auto thread_id_gep_reg = GetNewRegOperand(++max_reg);
+	auto thread_id_reg = GetNewRegOperand(++max_reg);
+	thread_id_regNo = max_reg;
+	auto start_gep_reg = GetNewRegOperand(++max_reg);
+    auto start_reg = GetNewRegOperand(++max_reg);
+	start_regNo = max_reg;
+	auto end_gep_reg = GetNewRegOperand(++max_reg);
+    auto end_reg = GetNewRegOperand(++max_reg);
+	end_regNo = max_reg;
+	
+	auto func_block = llvmIR->NewBlock(func_def, ++max_label);
     
     // 获取函数参数
-    auto args_param = cfg->function_def->GetNonResultOperands()[0];
+    auto args_param = func_def->GetNonResultOperands()[0];
     
     // 创建参数解析指令
     // thread_id = ((int*)args)[0]
     auto thread_id_gep = new GetElementptrInstruction(
-        BasicInstruction::LLVMType::I32, thread_id_reg, args_param, 
-        std::vector<int>{}, std::vector<Operand>{new ImmI32Operand(0)}, BasicInstruction::LLVMType::I32);
+        BasicInstruction::LLVMType::I32, thread_id_gep_reg, args_param, BasicInstruction::LLVMType::I32);
+    thread_id_gep->push_idx_imm32(0);
     func_block->Instruction_list.push_back(thread_id_gep);
     
-    auto thread_id_load = new LoadInstruction(BasicInstruction::LLVMType::I32, thread_id_gep->GetResult(), thread_id_reg);
+    auto thread_id_load = new LoadInstruction(BasicInstruction::LLVMType::I32, thread_id_gep_reg, thread_id_reg);
     func_block->Instruction_list.push_back(thread_id_load);
     
     // start = ((int*)args)[1]
     auto start_gep = new GetElementptrInstruction(
-        BasicInstruction::LLVMType::I32, start_reg, args_param,
-        std::vector<int>{}, std::vector<Operand>{new ImmI32Operand(1)}, BasicInstruction::LLVMType::I32);
+        BasicInstruction::LLVMType::I32, start_gep_reg, args_param, BasicInstruction::LLVMType::I32);
+    start_gep->push_idx_imm32(1);
     func_block->Instruction_list.push_back(start_gep);
     
-    auto start_load = new LoadInstruction(BasicInstruction::LLVMType::I32, start_gep->GetResult(), start_reg);
+    auto start_load = new LoadInstruction(BasicInstruction::LLVMType::I32, start_gep_reg, start_reg);
     func_block->Instruction_list.push_back(start_load);
     
     // end = ((int*)args)[2]
     auto end_gep = new GetElementptrInstruction(
-        BasicInstruction::LLVMType::I32, end_reg, args_param,
-        std::vector<int>{}, std::vector<Operand>{new ImmI32Operand(2)}, BasicInstruction::LLVMType::I32);
+        BasicInstruction::LLVMType::I32, end_gep_reg, args_param, BasicInstruction::LLVMType::I32);
+    end_gep->push_idx_imm32(2);
     func_block->Instruction_list.push_back(end_gep);
     
-    auto end_load = new LoadInstruction(BasicInstruction::LLVMType::I32, end_gep->GetResult(), end_reg);
+    auto end_load = new LoadInstruction(BasicInstruction::LLVMType::I32, end_gep_reg, end_reg);
     func_block->Instruction_list.push_back(end_load);
 }
 
-void LoopParallelismPass::AddThreadRangeCalculation(LLVMBlock& func_block, CFG* cfg) {
-    // 简化处理：直接使用固定的线程范围计算
-    // 这里可以后续优化为动态计算
+void LoopParallelismPass::AddThreadRangeCalculation(FunctionDefineInstruction* func_def, std::map<int, int>& reg_mapping) {
+    // 计算每个线程的循环范围
+    // part = (end - start) / 4
+    // my_start = part * thread_id + start
+    // my_end = part * (thread_id + 1) + start
+    
+    int& max_reg = llvmIR->function_max_reg[func_def];
+    int& max_label = llvmIR->function_max_label[func_def];
+    auto func_block = llvmIR->function_block_map[func_def][0];
+    
+    // 获取之前解析的参数
+	// r0 - ((int*)args), r2 - ((int*)args)[0], r4 - ((int*)args)[1], r6 - ((int*)args)[2]
+    auto thread_id_reg = GetNewRegOperand(thread_id_regNo);
+    auto start_reg = GetNewRegOperand(start_regNo);
+    auto end_reg = GetNewRegOperand(end_regNo);
+    
+    // part = (end - start) / 4
+    auto diff_reg = GetNewRegOperand(++max_reg);
+    auto sub_inst = new ArithmeticInstruction(BasicInstruction::SUB, BasicInstruction::LLVMType::I32, end_reg, start_reg, diff_reg);
+    func_block->Instruction_list.push_back(sub_inst);
+    
+	auto part_reg = GetNewRegOperand(++max_reg);
+    auto div_inst = new ArithmeticInstruction(BasicInstruction::DIV, BasicInstruction::LLVMType::I32, diff_reg, new ImmI32Operand(4), part_reg);
+    func_block->Instruction_list.push_back(div_inst);
+    
+    // my_start = part * thread_id + start
+	auto mid_reg = GetNewRegOperand(++max_reg);
+    auto mul_inst = new ArithmeticInstruction(BasicInstruction::MUL, BasicInstruction::LLVMType::I32, part_reg, thread_id_reg, mid_reg);
+    func_block->Instruction_list.push_back(mul_inst);
+    
+	auto my_start_reg = GetNewRegOperand(++max_reg);
+	my_start_regNo = max_reg;
+    auto add_inst = new ArithmeticInstruction(BasicInstruction::ADD, BasicInstruction::LLVMType::I32, mid_reg, start_reg, my_start_reg);
+    func_block->Instruction_list.push_back(add_inst);
+    
+    // 计算 my_end，需要处理最后一个线程的特殊情况
+    // my_end = part * (thread_id + 1) + start = my_start + part
+    auto temp_reg = GetNewRegOperand(++max_reg);
+    auto add2_inst = new ArithmeticInstruction(BasicInstruction::ADD, BasicInstruction::LLVMType::I32, my_start_reg, part_reg, temp_reg);
+    func_block->Instruction_list.push_back(add2_inst);
+    
+    // 创建条件判断：if (thread_id == 3) my_end = end; else my_end = temp_reg;
+    auto cmp_reg = GetNewRegOperand(++max_reg);
+    auto cmp_inst = new IcmpInstruction(BasicInstruction::LLVMType::I32, thread_id_reg, new ImmI32Operand(3), IcmpInstruction::eq, cmp_reg);
+    func_block->Instruction_list.push_back(cmp_inst);
+    
+    // 创建分支结构
+    auto branch_block = llvmIR->NewBlock(func_def, ++max_label);
+    auto merge_block = llvmIR->NewBlock(func_def, ++max_label);
+    
+    // 条件跳转
+    auto br_cond_inst = new BrCondInstruction(cmp_reg, GetNewLabelOperand(branch_block->block_id), GetNewLabelOperand(merge_block->block_id));
+    func_block->Instruction_list.push_back(br_cond_inst);
+    
+    // branch_block: my_end = end
+    auto br_uncond1 = new BrUncondInstruction(GetNewLabelOperand(merge_block->block_id));
+    branch_block->Instruction_list.push_back(br_uncond1);
+
+    // 在merge_block中使用PHI指令汇总结果
+    auto my_end_reg = GetNewRegOperand(++max_reg);
+	my_end_regNo = max_reg;
+    std::vector<std::pair<Operand, Operand>> phi_list;
+    phi_list.push_back({GetNewLabelOperand(branch_block->block_id), end_reg});
+    phi_list.push_back({GetNewLabelOperand(func_block->block_id), temp_reg});
+    auto phi_inst = new PhiInstruction(BasicInstruction::LLVMType::I32, my_end_reg, phi_list);
+    merge_block->Instruction_list.push_back(phi_inst);
 }
 
-void LoopParallelismPass::CopyLoopBodyInstructions(Loop* loop, CFG* cfg, LLVMBlock& new_func_block, 
-                                                  std::map<int, int>& reg_mapping) {
-    // 复制循环体中的指令，但跳过循环控制指令
+void LoopParallelismPass::CopyLoopBodyInstructions(Loop* loop, FunctionDefineInstruction* func_def, std::map<int, int>& reg_mapping) {
+    // 识别循环中使用但在循环外定义的变量，并添加到映射中
+    for (auto bb : loop->getBlocks()) {
+        for (auto I : bb->Instruction_list) {
+            for (auto op : I->GetNonResultOperands()) {
+                if (op->GetOperandType() == BasicOperand::REG) {
+                    auto r = (RegOperand*)op;
+                    int regno = r->GetRegNo();
+                    if (reg_mapping.find(regno) == reg_mapping.end()) {
+                        // 为循环外部变量创建新的寄存器
+                        int& max_reg = llvmIR->function_max_reg[func_def];
+                        int new_regno = ++max_reg;
+                        reg_mapping[regno] = new_regno;
+                    }
+                }
+            }
+        }
+    }
+    // 创建新的基本块映射
+    std::map<int, int> labelreplace_map;
+    
+    // 为循环中的每个基本块创建新的基本块
+	int& max_label = llvmIR->function_max_label[func_def];
     for (auto block : loop->getBlocks()) {
+        auto new_block = llvmIR->NewBlock(func_def, ++max_label);
+        labelreplace_map[block->block_id] = new_block->block_id;
+        
+        // 复制基本块中的指令
         for (auto inst : block->Instruction_list) {
-            // 跳过循环控制指令
-            if (inst->GetOpcode() == BasicInstruction::BR_COND) {
-                continue;
-            }
-            
-            // 跳过循环条件比较指令
-            if (inst->GetOpcode() == BasicInstruction::ICMP) {
-                continue;
-            }
-            
-            // 跳过PHI指令（在函数中不需要）
-            if (inst->GetOpcode() == BasicInstruction::PHI) {
-                continue;
-            }
-            
             // 克隆指令
-            Instruction cloned_inst = CloneInstruction(inst, cfg, reg_mapping);
+            Instruction cloned_inst = CloneInstruction(inst, func_def, reg_mapping);
             if (cloned_inst) {
-                new_func_block->Instruction_list.push_back(cloned_inst);
+                new_block->Instruction_list.push_back(cloned_inst);
+            }
+        }
+    }
+    
+    // 更新跳转指令中的标签
+    for (auto [id, bb] : llvmIR->function_block_map[func_def]) {
+        for (auto inst : bb->Instruction_list) {
+            if (inst->GetOpcode() == BasicInstruction::BR_UNCOND) {
+                BrUncondInstruction* br_inst = (BrUncondInstruction*)inst;
+                Operand dest_label = br_inst->GetDestLabel();
+                if (dest_label->GetOperandType() == BasicOperand::LABEL) {
+                    int old_label = ((LabelOperand*)dest_label)->GetLabelNo();
+                    if (labelreplace_map.find(old_label) != labelreplace_map.end()) {
+                        int new_label = labelreplace_map[old_label];
+                        br_inst->SetTarget(GetNewLabelOperand(new_label));
+                    }
+                }
+            } else if (inst->GetOpcode() == BasicInstruction::BR_COND) {
+                BrCondInstruction* br_inst = (BrCondInstruction*)inst;
+                Operand true_label = br_inst->GetTrueLabel();
+                Operand false_label = br_inst->GetFalseLabel();
+                
+                if (true_label->GetOperandType() == BasicOperand::LABEL) {
+                    int old_label = ((LabelOperand*)true_label)->GetLabelNo();
+                    if (labelreplace_map.find(old_label) != labelreplace_map.end()) {
+                        int new_label = labelreplace_map[old_label];
+                        br_inst->SetTrueLabel(GetNewLabelOperand(new_label));
+                    }
+                }
+                
+                if (false_label->GetOperandType() == BasicOperand::LABEL) {
+                    int old_label = ((LabelOperand*)false_label)->GetLabelNo();
+                    if (labelreplace_map.find(old_label) != labelreplace_map.end()) {
+                        int new_label = labelreplace_map[old_label];
+                        br_inst->SetFalseLabel(GetNewLabelOperand(new_label));
+                    }
+                }
             }
         }
     }
 }
 
-Instruction LoopParallelismPass::CloneInstruction(Instruction inst, CFG* cfg, std::map<int, int>& reg_mapping) {
-    // 使用BasicInstruction的Clone方法
+Instruction LoopParallelismPass::CloneInstruction(Instruction inst, FunctionDefineInstruction* func_def, std::map<int, int>& reg_mapping) {
+    // 使用CopyInstruction方法
     Instruction cloned_inst = inst->Clone();
     
     if (!cloned_inst) {
         return nullptr;
+    }
+    
+    // 为指令定义的新寄存器创建映射
+    int def_reg = inst->GetDefRegno();
+    if (def_reg != -1 && reg_mapping.find(def_reg) == reg_mapping.end()) {
+        // 为新的定义寄存器创建映射
+        int& max_reg = llvmIR->function_max_reg[func_def];
+        int new_regno = ++max_reg;
+        reg_mapping[def_reg] = new_regno;
     }
     
     // 应用寄存器映射
@@ -326,7 +450,6 @@ Instruction LoopParallelismPass::CloneInstruction(Instruction inst, CFG* cfg, st
         }
         
         // 获取指令定义的寄存器
-        int def_reg = inst->GetDefRegno();
         std::map<int, int> def_map;
         if (def_reg != -1 && reg_mapping.find(def_reg) != reg_mapping.end()) {
             def_map[def_reg] = reg_mapping[def_reg];
