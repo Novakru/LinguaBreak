@@ -29,5 +29,6 @@ debug*
 # Statistics files
 target_time_stats.csv
 llvm_time_stats.csv
+spillsize.txt
 
 compiler

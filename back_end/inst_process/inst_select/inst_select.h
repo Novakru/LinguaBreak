@@ -18,7 +18,7 @@ const int immF12Min = -2048, immF12Max= 2047;
 class MachineUnit {
 public:
     // 指令选择时，对全局变量不作任何处理，直接保留到MachineUnit中
-    std::vector<Instruction> global_def{};
+    std::unordered_set<Instruction> global_def{};
     std::vector<MachineFunction *> functions;
  
 public:

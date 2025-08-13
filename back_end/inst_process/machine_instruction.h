@@ -42,7 +42,7 @@ private:
     int op;
     Register rd, rs1, rs2, rs3;
     bool use_label;
-    int imm;
+    int imm ;
     RiscVLabel label;
     RelocType reloc_type;
     int local_label_id; // For local labels like 3:

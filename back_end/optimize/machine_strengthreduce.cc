@@ -3,6 +3,7 @@
 void MachineStrengthReducePass::Execute() {
     ScalarStrengthReduction();
     GepStrengthReduction();
+    //LSOffsetCompute();
 }
 
 // 仅保留乘法的优化
@@ -11,6 +12,10 @@ void MachineStrengthReducePass::ScalarStrengthReduction() {
     for (auto &func : unit->functions) {
         for (auto &block : func->blocks) {
             for (auto it = block->instructions.begin(); it != block->instructions.end();) {
+                if((*it)->arch != MachineBaseInstruction::RiscV){ //跳过LOCAL_LABAEL
+                    it = std::next(it);
+                    continue;
+                }
                 auto inst = (RiscV64Instruction*)(*it);
                 //[1] 乘/除/模 的削弱
                 if(inst->getOpcode() == RISCV_ADDI || inst->getOpcode() == RISCV_ADDIW ||
@@ -294,6 +299,128 @@ void MachineStrengthReducePass::GepStrengthReduction() {
                     block->instructions.push_back(inst1);
                     ++it;
                 }
+            }
+        }
+    }
+}
+
+//访存地址强度削弱
+/*
+sw xx, 0(t0)                 sw xx, 0(t0)
+...
+addi t0, t0,4         
+...
+sw xx, 0(t0)         ==>     sw xx, 4(t0) 
+...
+addi t0, t0,4
+...
+sw xx, 0(t0)                 sw xx, 8(t0) 
+*/
+/*
+1. 目前实现了栈上内存访问的指令合并，（sp的值在函数开始即设置好，不会更改，不存在连锁效应）
+2. 大多数自增访问存在连锁反应
+*/
+void MachineStrengthReducePass::LSOffsetCompute(){
+    // for (auto &func : unit->functions) {
+    //     std::cout<<"-----------function: "<<func->getFunctionName()<<std::endl;
+    //     for (auto &block : func->blocks) {
+    //         int offset = 0;
+    //         int ba_regno=0;
+    //         std::vector<RiscV64Instruction*> insts_todlt;
+    //         std::cout<<" --- block "<<block->getLabelId()<<std::endl;
+    //         for(auto it = block->instructions.begin(); it!=block->instructions.end();){
+    //             auto inst=(RiscV64Instruction*)(*it);
+    //             if(inst->getOpcode()==RISCV_SW){
+    //                 offset=0;
+    //                 ba_regno=inst->getRs2().reg_no;
+    //                 auto look_ahead=std::next(it);
+    //                 bool matched=false;
+    //                 while(look_ahead!=block->instructions.end()){
+    //                     auto next_inst=(RiscV64Instruction*)(*look_ahead);
+    //                     if((next_inst->getRd().reg_no!=ba_regno&&next_inst->getOpcode()!=RISCV_SW)){
+    //                         ++look_ahead;
+    //                     }else if(next_inst->getOpcode()==RISCV_ADDI && // addi t0, t0, imm
+    //                            next_inst->getRd().reg_no==next_inst->getRs1().reg_no){
+
+    //                     }else if(next_inst->getOpcode()==RISCV_SW){
+
+    //                     }else{
+
+
+    //                     }
+    //                 }
+    //             }else if(inst->getOpcode()==RISCV_LW){
+
+    //             }
+
+    //             ++it;
+    //         }
+    //     }
+    // }
+
+
+    for (auto &func : unit->functions) {
+        std::cout<<"-----------function: "<<func->getFunctionName()<<std::endl;
+        for (auto &block : func->blocks) {
+            std::cout<<" --- block "<<block->getLabelId()<<std::endl;
+            for(auto it = block->instructions.rbegin(); it!=block->instructions.rend();){
+                if((*it)->arch != MachineBaseInstruction::RiscV){ //跳过LOCAL_LABAEL
+                    it = std::next(it);
+                    continue;
+                }
+                auto inst = (RiscV64Instruction*)(*it); 
+                //std::cout<<OpTable.at(inst->getOpcode()).name<<std::endl;
+
+                if(inst->getOpcode() == RISCV_SW && !inst->getUseLabel() ){
+                    int basic_address = inst->getRs2().reg_no;
+                    auto look_ahead = std::next(it);
+                    while(look_ahead!=block->instructions.rend() &&
+                          ((RiscV64Instruction*)(*look_ahead))->getRd().reg_no!=basic_address){
+                        ++look_ahead;
+                    }
+                    //若basic_address的计算不在此Block中，放弃
+                    if(look_ahead==block->instructions.rend()){
+                        break;
+                    }
+                    //若找到，看basic_address的计算是否可以合并到sw指令中
+                    auto next_it =look_ahead;
+                    auto next_inst = (RiscV64Instruction*)(*next_it);
+                    //std::cout<<OpTable.at(next_inst->getOpcode()).name<<std::endl;
+                    if((next_inst->getOpcode()==RISCV_ADDI || next_inst->getOpcode()==RISCV_ADDIW)&&
+                        next_inst->getRs1().reg_no == RISCV_sp ){
+                        inst->setRs2(next_inst->getRs1());
+                        inst->setImm(inst->getImm()+next_inst->getImm());
+                        auto base = next_it.base();
+                        --base;
+                        it = std::reverse_iterator<decltype(base)>(block->instructions.erase(base));
+                        continue;
+                    }
+                }else if(inst->getOpcode() == RISCV_LW && !inst->getUseLabel() ){
+                    int basic_address = inst->getRs1().reg_no;
+                    auto look_ahead = std::next(it);
+                    while(look_ahead!=block->instructions.rend() &&
+                          ((RiscV64Instruction*)(*look_ahead))->getRd().reg_no!=basic_address){
+                        ++look_ahead;
+                    }
+                    //若basic_address的计算不在此Block中，放弃
+                    if(look_ahead==block->instructions.rend()){
+                        break;
+                    }
+                    //若找到，看basic_address的计算是否可以合并到sw指令中
+                    auto next_it =look_ahead;
+                    auto next_inst = (RiscV64Instruction*)(*next_it);
+                    //std::cout<<OpTable.at(next_inst->getOpcode()).name<<std::endl;
+                    if((next_inst->getOpcode()==RISCV_ADDI || next_inst->getOpcode()==RISCV_ADDIW)&&
+                        next_inst->getRs1().reg_no == RISCV_sp){
+                        inst->setRs1(next_inst->getRs1());
+                        inst->setImm(inst->getImm()+next_inst->getImm());
+                        auto base = next_it.base();
+                        --base;
+                        it = std::reverse_iterator<decltype(base)>(block->instructions.erase(base));
+                        continue;
+                    }
+                }
+                it = std::next(it);
             }
         }
     }

@@ -1,7 +1,7 @@
 #include"inst_select.h"
 #include"machine_instruction.h"
 #include <functional>
-#define USE_AUIPC_LW_OPTIMIZATION 1 // Set to 1 to use auipc+lw, 0 to use la+lw
+
 static int local_label_counter = 0;
 
 // 所有模板特化声明

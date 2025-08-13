@@ -8,5 +8,6 @@ class MachineStrengthReducePass : MachinePass {
 public:
     MachineStrengthReducePass(MachineUnit *unit) : MachinePass(unit) {}
     void Execute();
+    void LSOffsetCompute();
 };
 #endif

@@ -318,7 +318,7 @@ void RetInstruction::ChangeReg(const std::map<int, int> &store_map, const std::m
 
 void GetElementptrInstruction::ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map){
     for(int i=0; i<indexes.size(); i++){
-        if(indexes[i]->GetOperandType()==BasicOperand::REG){
+        if(indexes[i] && indexes[i]->GetOperandType()==BasicOperand::REG){
             int regno = ((RegOperand*)indexes[i])->GetRegNo();
             if(use_map.find(regno)!=use_map.end()){
                 int new_regno = use_map.at(regno);
@@ -442,7 +442,7 @@ int RetInstruction::GetDefRegno(){
 }
 
 int GetElementptrInstruction::GetDefRegno(){
-    if(result->GetOperandType()==BasicOperand::REG){
+    if(result && result->GetOperandType()==BasicOperand::REG){
         return ((RegOperand*)result)->GetRegNo();
     }
     return -1;
@@ -476,8 +476,6 @@ int ZextInstruction::GetDefRegno(){
     }
     return -1;
 }
-
-
 
 std::set<int> LoadInstruction::GetUseRegno(){
     std::set<int> regno_set;
@@ -591,11 +589,11 @@ std::set<int> RetInstruction::GetUseRegno(){
 
 std::set<int> GetElementptrInstruction::GetUseRegno(){
     std::set<int> regno_set;
-    if(ptrval->GetOperandType()==BasicOperand::REG){
+    if(ptrval && ptrval->GetOperandType()==BasicOperand::REG){
         regno_set.insert(((RegOperand*)ptrval)->GetRegNo());
     }
     for(int i=0; i<indexes.size(); i++){
-        if(indexes[i]->GetOperandType()==BasicOperand::REG){
+        if(indexes[i] && indexes[i]->GetOperandType()==BasicOperand::REG){
             regno_set.insert(((RegOperand*)indexes[i])->GetRegNo());
         }
     }
@@ -904,7 +902,7 @@ BasicInstruction* BrUncondInstruction::Clone() const {
 BasicInstruction* GlobalVarDefineInstruction::Clone() const {
     if(init_val != nullptr) {
         Operand new_init_val = init_val->Clone();
-        return new GlobalVarDefineInstruction(name, type, new_init_val,is_const);
+        return new GlobalVarDefineInstruction(name, type, new_init_val,is_const,has_initval);
     } else {
         return new GlobalVarDefineInstruction(name, type, arrayval,is_const);
     }
@@ -929,11 +927,11 @@ BasicInstruction* RetInstruction::Clone() const {
 }
 
 BasicInstruction* GetElementptrInstruction::Clone() const {
-    Operand new_result = result->Clone();
-    Operand new_ptrval = ptrval->Clone();
+    Operand new_result = result ? result->Clone() : nullptr;
+    Operand new_ptrval = ptrval ? ptrval->Clone() : nullptr;
     std::vector<Operand> new_indexes;
     for(const auto& index : indexes) {
-        new_indexes.push_back(index->Clone());
+        new_indexes.push_back(index ? index->Clone() : nullptr);
     }
     return new GetElementptrInstruction(type, new_result, new_ptrval, dims, new_indexes, index_type);
 }
@@ -1061,12 +1059,12 @@ void RetInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
 }
 
 void GetElementptrInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
-    if (ptrval->GetOperandType() == BasicOperand::REG) {
+    if (ptrval && ptrval->GetOperandType() == BasicOperand::REG) {
         auto result_reg = (RegOperand *)ptrval;
         if (regNo_map.find(result_reg->GetRegNo()) != regNo_map.end())
             this->ptrval = GetNewRegOperand(regNo_map.find(result_reg->GetRegNo())->second);
     }
-    if (result->GetOperandType() == BasicOperand::REG) {
+    if (result && result->GetOperandType() == BasicOperand::REG) {
         int old_regno = ((RegOperand*)result)->GetRegNo();
         if (regNo_map.find(old_regno) != regNo_map.end()) {
             result = GetNewRegOperand(regNo_map.at(old_regno));
@@ -1118,9 +1116,9 @@ int GetElementptrInstruction::ComputeIndex(){
     }
 
     for (int i = 0; i < indexes.size(); i++) {
-        if (indexes[i]->GetOperandType() == BasicOperand::IMMI32) {
+        if (indexes[i] && indexes[i]->GetOperandType() == BasicOperand::IMMI32) {
             res += (((ImmI32Operand *)indexes[i])->GetIntImmVal()) * size;
-        } else if (indexes[i]->GetOperandType() == BasicOperand::REG) {
+        } else if (indexes[i] && indexes[i]->GetOperandType() == BasicOperand::REG) {
             return -1;
         }
         if (i < dims.size()) {
