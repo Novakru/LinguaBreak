@@ -32,14 +32,16 @@ bool CSENotConsider(Instruction inst);
 // 基本块CSE优化实现
 class BasicBlockCSEOptimizer {
 public:
-    BasicBlockCSEOptimizer(CFG* cfg,LLVMIR *ir,AliasAnalysisPass *aa) : C(cfg), llvmIR(ir),alias_analyser(aa),changed(false),flag(false),hasMemOp(true) {}
+    BasicBlockCSEOptimizer(CFG* cfg,LLVMIR *ir,AliasAnalysisPass *aa,DomAnalysis* dom,SimpleMemDepAnalyser* ma) : C(cfg), llvmIR(ir),alias_analyser(aa),domtrees(dom),memdep_analyser(ma),changed(false),flag(false),hasMemOp(true) {}
     bool optimize();
     void NoMemoptimize();
     bool hasMemOp;
 private:
     CFG* C;
+    DomAnalysis *domtrees;
     LLVMIR *llvmIR;
     AliasAnalysisPass *alias_analyser;
+    SimpleMemDepAnalyser* memdep_analyser;
     void CallKillReadMemInst(Instruction I, std::map<InstCSEInfo, int> &CallInstMap,
                          std::map<InstCSEInfo, int> &LoadInstMap, std::set<Instruction> &CallInstSet,
                          std::set<Instruction> &LoadInstSet, CFG *C) ;
@@ -51,8 +53,9 @@ public:
     bool flag;
     std::map<int, int> reg_replace_map;
     std::set<Instruction> erase_set;
-    std::map<InstCSEInfo, int> inst_map;
-    std::map<InstCSEInfo, int> LoadInstMap;
+    std::map<InstCSEInfo, Instruction> inst_map;
+    std::set<Instruction> InstSet;
+    std::map<InstCSEInfo, Instruction> LoadInstMap;
     std::map<InstCSEInfo, int> CallInstMap;
     std::set<Instruction> LoadInstSet;
     std::set<Instruction> CallInstSet;
@@ -66,6 +69,8 @@ public:
     void removeDeadInstructions();
     void applyRegisterReplacements();
     void inst_clear();
+    void clearAllCSEInfo();
+    bool IsValChanged(Instruction I1, Instruction I2, CFG *C);
 };
 
 // 支配树优化

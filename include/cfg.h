@@ -39,8 +39,10 @@ public:
     std::unordered_map<int,std::set<int>> SSA_Graph; // value_regno->use_instruction's defregno  同一图内未必连通
 
 	// 通过LLVMIR获取支配树森林调用不方便，CFG单独存储支配树，方便调用且可以和G、invG同步更新
-	void* DomTree;
-    void* PostDomTree;
+	// void* DomTree;
+    // void* PostDomTree;
+    DominatorTree *DomTree;
+    DominatorTree* PostDomTree;
 
 	void* loopInfo;
 	void* SCEVInfo;

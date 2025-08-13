@@ -217,6 +217,7 @@ int main(int argc, char** argv) {
 
         AliasAnalysisPass AA(&llvmIR); 
 		AA.Execute();
+        MemDepAnalysisPass(&llvmIR,&AA,&dom).Execute();
         SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
 
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
@@ -234,17 +235,17 @@ int main(int argc, char** argv) {
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
 		dom.Execute();
 
-		// AA.Execute();
-        // SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
-        // SimplifyCFGPass(&llvmIR).EOBB();
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();	
-        // dom.Execute();							
+		AA.Execute();
+        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+        SimplifyCFGPass(&llvmIR).EOBB();
+		SimplifyCFGPass(&llvmIR).RebuildCFG();	
+        dom.Execute();							
 
-		// SCCPPass(&llvmIR).Execute();			// need to follow cse
-        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        // SimplifyCFGPass(&llvmIR).EOBB(); 
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();	
-		// dom.Execute();		
+		SCCPPass(&llvmIR).Execute();			// need to follow cse
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        SimplifyCFGPass(&llvmIR).EOBB(); 
+		SimplifyCFGPass(&llvmIR).RebuildCFG();	
+		dom.Execute();		
 
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
