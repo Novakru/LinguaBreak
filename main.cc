@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +35,7 @@
 #include "llvm/optimize/transform/loopidiomrecognize.h"
 #include "llvm/optimize/transform/instCombine.h"
 #include "llvm/optimize/transform/invarelim.h"
+#include "llvm/optimize/transform/LoopParallelism.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -261,9 +263,6 @@ int main(int argc, char** argv) {
 		AA.Execute();
 		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
-		// LoopAnalysisPass(&llvmIR).Execute();
-		// LoopSimplifyPass(&llvmIR).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
 		InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
 		LoopStrengthReducePass(&llvmIR).Execute();
@@ -289,6 +288,32 @@ int main(int argc, char** argv) {
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();		
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
+
+		// LoopAnalysisPass(&llvmIR).Execute();
+		// LoopSimplifyPass(&llvmIR).Execute();
+		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		// AA.Execute();
+		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
+		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		// SCEVPass(&llvmIR).Execute();
+		// LoopParallelismPass(&llvmIR).Execute();
+
+		// llvmIR.SyncMaxInfo();
+        // inv_dom.invExecute();
+        // (ADCEPass(&llvmIR, &inv_dom)).Execute();
+        // ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
+        // ADCEPass(&llvmIR,&inv_dom).ERLS();			// 删除冗余load指令
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();
+		// SimplifyCFGPass(&llvmIR).EOBB();  
+        // SimplifyCFGPass(&llvmIR).MergeBlocks();		
+		// PeepholePass(&llvmIR).ImmResultReplaceExecute();
+        // PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
+        // LoopStrengthReducePass(&llvmIR).GepStrengthReduce();	// GEP指令强度削弱中端部分
+
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();
+		// SimplifyCFGPass(&llvmIR).EOBB();  
+        // SimplifyCFGPass(&llvmIR).MergeBlocks();		
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();
 
     // }
 
