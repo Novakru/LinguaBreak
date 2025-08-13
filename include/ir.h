@@ -12,7 +12,7 @@ public:
 	std::unordered_map<std::string, FuncDefInstruction> FunctionNameTable;
 
     // 全局变量定义指令
-    std::vector<Instruction> global_def{};
+    std::unordered_set<Instruction> global_def{};
     // 函数声明指令
     std::vector<Instruction> function_declare{};
 

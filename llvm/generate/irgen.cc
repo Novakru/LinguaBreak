@@ -191,12 +191,12 @@ void IRgenAllocaArray(LLVMBlock B, BasicInstruction::LLVMType type, int reg, std
 void IRgenTypeConverse(LLVMBlock B, BuiltinType::BuiltinKind type_src, BuiltinType::BuiltinKind type_dst, int src);
 void IRgenGlobalVarDefineArray(std::string name, BasicInstruction::LLVMType type, VarAttribute v,bool is_const) {
     auto newI = new GlobalVarDefineInstruction(name, type, v,is_const);
-    llvmIR.global_def.push_back(newI);
+    llvmIR.global_def.insert(newI);
     
 }
-void IRgenGlobalVarDefine(std::string name, BasicInstruction::LLVMType type, Operand init_val,bool is_const) {
-    auto newI = new GlobalVarDefineInstruction(name, type, init_val,is_const);
-    llvmIR.global_def.push_back(newI);
+void IRgenGlobalVarDefine(std::string name, BasicInstruction::LLVMType type, Operand init_val,bool is_const,bool has_init) {
+    auto newI = new GlobalVarDefineInstruction(name, type, init_val,is_const,has_init);
+    llvmIR.global_def.insert(newI);
 }
 RegOperand *GetNewRegOperand(int RegNo);
 
@@ -1387,9 +1387,9 @@ void VarDef_no_init::codeIR() {
 
             ptrmap[name] = GetNewGlobalOperand(name->getName());
             if(ty == BuiltinType::BuiltinKind::Int){
-                IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(0),false);
+                IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(0),false,false);
             }else{
-                IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(0),false);
+                IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(0),false,false);
             }
         }else{
             ptrmap[name] = GetNewGlobalOperand(name->getName());
@@ -1463,15 +1463,15 @@ void VarDef::codeIR() {
         if(dims == nullptr){
             if(ty == BuiltinType::BuiltinKind::Int){
                 if(varinfo.IntInitVals.empty()){
-                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(varinfo.FloatInitVals.front()),false);
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(varinfo.FloatInitVals.front()),false,true);
                 }else{
-                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(varinfo.IntInitVals.front()),false);
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(varinfo.IntInitVals.front()),false,true);
                 }
             }else{
                 if(varinfo.FloatInitVals.empty()){
-                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(varinfo.IntInitVals.front()),false);
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(varinfo.IntInitVals.front()),false,true);
                 }else{
-                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(varinfo.FloatInitVals.front()),false);
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(varinfo.FloatInitVals.front()),false,true);
                 }
             }
         }else{
@@ -1606,16 +1606,16 @@ void ConstDef::codeIR() {
         if(dims == nullptr){
             if(ty == BuiltinType::BuiltinKind::Int){
                 if(varinfo.IntInitVals.empty()){
-                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(varinfo.FloatInitVals.front()),true);
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(varinfo.FloatInitVals.front()),true,true);
                 }else{
-                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(varinfo.IntInitVals.front()),true);
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::I32, new ImmI32Operand(varinfo.IntInitVals.front()),true,true);
                 }
                 
             }else{
                 if(varinfo.FloatInitVals.empty()){
-                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(varinfo.IntInitVals.front()),true);
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(varinfo.IntInitVals.front()),true,true);
                 }else{
-                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(varinfo.FloatInitVals.front()),true);
+                    IRgenGlobalVarDefine(name->getName(), BasicInstruction::LLVMType::FLOAT32, new ImmF32Operand(varinfo.FloatInitVals.front()),true,true);
                 }
             }
         }else{

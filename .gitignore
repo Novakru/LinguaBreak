@@ -31,3 +31,6 @@ llvm_time_stats.csv
 spillsize.txt
 
 compiler
+
+lib/libloop_parallel.c
+lib/libloop_parallel_x86.a

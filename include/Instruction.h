@@ -809,12 +809,13 @@ public:
     Operand init_val;
     VarAttribute arrayval;
     bool is_const; //源代码中是否声明为常量
-    GlobalVarDefineInstruction(std::string nam, enum LLVMType typ, Operand i_val, bool is_const)
-        : name(nam), type(typ), init_val(i_val),is_const(is_const) {
+    bool has_initval;//源代码中是否有初始值
+    GlobalVarDefineInstruction(std::string nam, enum LLVMType typ, Operand i_val, bool is_const,bool is_inited)
+        : name(nam), type(typ), init_val(i_val),is_const(is_const),has_initval(is_inited) {
         this->opcode = LLVMIROpcode::GLOBAL_VAR;
     }
-    GlobalVarDefineInstruction(std::string nam, enum LLVMType typ, VarAttribute v, bool is_const)
-        : name(nam), type(typ), arrayval(v), init_val{nullptr} ,is_const(is_const) {
+    GlobalVarDefineInstruction(std::string nam, enum LLVMType typ, VarAttribute v, bool is_const )
+        : name(nam), type(typ), arrayval(v), init_val{nullptr} ,is_const(is_const),has_initval(false) {//array的has_initval统一设为false，无实际含义
         this->opcode = LLVMIROpcode::GLOBAL_VAR;
     }
     virtual void PrintIR(std::ostream &s) override;
@@ -825,6 +826,7 @@ public:
     Operand GetInitVal() const { return init_val; }
     bool IsConst() const { return is_const; }
     bool IsArray() const { return !arrayval.dims.empty(); }
+    bool IsInited() {return has_initval;}
     
     int GetDefRegno() override;
     std::set<int> GetUseRegno() override;

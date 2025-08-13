@@ -1,8 +1,11 @@
 #include "machine_peephole.h"
 
+
 void MachinePeepholePass::Execute() {
     EliminateRedundantInstructions();
-    // FloatCompFusion();
+#if USE_FMA
+    FloatCompFusion();
+#endif
     ConstantReplacement();
 }
 
@@ -87,7 +90,7 @@ void MachinePeepholePass::EliminateRedundantInstructions() {
                     } 
                 // (4) addi(w) t0, x0, k
                 //     add(w)sub xxx, xx, t0  --->直接使用立即数k
-                    if(!rs1.is_virtual && rs1.reg_no == 0 ){// add t0, x0, k型，t0被使用，可直接用k替换
+                    if(!rs1.is_virtual && rs1.reg_no == 0 ){// addi t0, x0, k型，t0被使用，可直接用k替换
                         auto next_it = std::next(it);
                         if (next_it != block->instructions.end()) {
                             auto next_inst = (RiscV64Instruction*)(*next_it);
@@ -112,6 +115,13 @@ void MachinePeepholePass::EliminateRedundantInstructions() {
                                     ++it;
                                     continue;
                                 }
+                            }// store 0型： addi tx, x0, 0;  sw tx, imm(reg)  ---> sw x0, imm(reg)
+                            else if(next_inst->getOpcode() == RISCV_SW && next_inst->getRs1().reg_no == inst->getRd().reg_no
+                                     && inst->getImm()==0){
+                                    next_inst->setRs1(inst->getRs1());
+                                    it = block->instructions.erase(it);
+                                    ++it;
+                                    continue;
                             }
 
                         }
@@ -241,3 +251,4 @@ void MachinePeepholePass::ConstantReplacement() {
         }
     }
 }
+

@@ -23,6 +23,7 @@ class CFG {
 public:
     int max_reg = 0;
     int max_label = 0;
+    int tail_blockid = 0;
     FuncDefInstruction function_def;
     std::unordered_map<int, std::pair<int,Instruction>> def_instr_map; // result_regno -> block_id,def_Instruction【SCCP】（SSA 的value只定义一次）
 

@@ -3,7 +3,7 @@
 
 // #define scev_debug
 
-#ifdef scev_debug
+#ifdef scev_debug 
 #define SCEV_DEBUG_PRINT(x) do { x; } while(0)
 #else
 #define SCEV_DEBUG_PRINT(x) do {} while(0)

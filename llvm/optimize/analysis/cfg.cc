@@ -12,7 +12,7 @@ void LLVMIR::CFGInit() {
         cfg->function_def = defI;
 		cfg->max_label = function_max_label[defI];
 		cfg->max_reg = function_max_reg[defI];
-
+        //重置tail_blockid（在SearchB中）
         cfg->BuildCFG();
         llvm_cfg[defI] = cfg;
     }
@@ -94,6 +94,10 @@ void CFG::SearchB(LLVMBlock B){
             //（2）删除当前块中跳转指令之后的所有指令
             if(std::next(it) != B->Instruction_list.end())
                 B->Instruction_list.erase(std::next(it), B->Instruction_list.end());
+            // (3) 标记非main函数的唯一ret_block
+            if(function_def->GetFunctionName()!="main"){
+                tail_blockid=B->block_id;
+            }
             return;
         }else{
             //use_map
