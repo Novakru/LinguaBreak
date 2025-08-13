@@ -216,9 +216,14 @@ void GlobalOptPass::EliminateRedundantLS(){
    return ;
 }
 
+/*
+- 0 def, multi uses : 仅做一次load，放置在入口块处，其余load删除
+- 1 def, multi uses : 不删def，所有load均被替换删除 【考虑连襟的tradeoff】
+    *load通过后续的ADCE删除
+*/
 void GlobalOptPass::OneDefDomAllUses(CFG* cfg){
     std::unordered_map<int,Operand> replace_map; // old_regno ~ new_Operand
-    std::unordered_set<std::string> globals_to_mem2reg;
+    //std::unordered_set<std::string> globals_to_mem2reg;
     std::cout<<" ------------- In Function "<<cfg->function_def->GetFunctionName()<<"------------"<<std::endl;
     //【1】识别one def 的global，记录替换map
     for(auto &[global,id_pairs]:def_blocks){
@@ -242,8 +247,6 @@ void GlobalOptPass::OneDefDomAllUses(CFG* cfg){
         }
         //【1.2】One Def
         else if(id_pairs.size()==1){
-            globals_to_mem2reg.insert(global);//记录ModRefGlobals的操作数名称，后续删除其内存操作
-
             int def_id=id_pairs.begin()->first; //the block id which def inst is in
             Instruction def_inst = (*id_pairs.begin()).second;
             //get def value
@@ -264,49 +267,16 @@ void GlobalOptPass::OneDefDomAllUses(CFG* cfg){
             }
 
             // register use value to replace
-            auto globalval_inst=(GlobalVarDefineInstruction*)(global_map[global].second);
-            bool has_initval = globalval_inst->IsInited();
-            std::cout<<"global val @"<<global<<" has initval ? "<<has_initval<<std::endl;
             auto use_pairs=use_blocks[global];
-            bool to_dlt=true;
             for(auto &[use_id,inst]:use_pairs){
-                /*
-                - dominate && different blocks : replace
-                - dominate && the same block   : 
-                    - load  , store --> 不删store，因为可能循环
-                    - store , load  --> 已经在【0】中删除，不存在此模式
-                */
-                
-                if(!has_initval || cfg->getDomTree()->dominates(def_id,use_id)){
-                    if(def_id==use_id){ 
-                        to_dlt=false;
-                        continue; 
-                    }
+                if(cfg->getDomTree()->dominates(def_id,use_id)&&def_id!=use_id){
                     if(inst->GetOpcode()==BasicInstruction::LOAD){//支配且非同一块，才替换
                         int use_regno=inst->GetDefRegno();
                         replace_map[use_regno]=def_value;
-                    }else if(inst->GetOpcode()==BasicInstruction::CALL){//若同一块，则不删store了；非同一块，添加store
-                        to_dlt=false;
+                        //std::cout<<"需要将 "<<use_regno<<" 的寄存器替换为 "<<def_value->GetFullName()<<std::endl;
                     }
-                }
-            }
-
-            //唯当满足条件时才删除唯一的def指令
-            if(to_dlt && def_inst->GetOpcode()==BasicInstruction::STORE){
-                //删除store指令
-                LLVMBlock block=cfg->GetBlockWithId(def_id);
-                for(auto it=block->Instruction_list.begin();it!=block->Instruction_list.end();){
-                    auto inst=*it;
-                    if(inst->GetOpcode()==BasicInstruction::STORE){
-                        auto pointer = ((StoreInstruction*)inst)->GetPointer();
-                        if(pointer->GetOperandType()==BasicOperand::GLOBAL){
-                            if(globals_to_mem2reg.count(pointer->GetFullName())){
-                                it=block->Instruction_list.erase(it);
-                                break;
-                            }
-                        }
-                    }
-                    ++it;
+                    // }else if(inst->GetOpcode()==BasicInstruction::CALL){//若同一块，则不删store了；非同一块，添加store
+                    // }
                 }
             }
         }
@@ -315,24 +285,8 @@ void GlobalOptPass::OneDefDomAllUses(CFG* cfg){
     for(auto &[id,block]:*(cfg->block_map)){
         for(auto it=block->Instruction_list.begin();it!=block->Instruction_list.end();){
             auto inst=*it;
-            if(inst->GetOpcode()==BasicInstruction::STORE){ //STORE指令必须提前删，后续可能误删新增的
-                // auto pointer = ((StoreInstruction*)inst)->GetPointer();
-                // if(pointer->GetOperandType()==BasicOperand::GLOBAL){
-                //     if(globals_to_mem2reg.count(pointer->GetFullName())){
-                //         it=block->Instruction_list.erase(it);
-                //         continue;
-                //     }
-                // }
-            }else if(inst->GetOpcode()==BasicInstruction::LOAD){ //LOAD不能删，否则会误删store前的load【通过ADCE删】
-            //     auto pointer = ((LoadInstruction*)inst)->GetPointer();
-            //     if(pointer->GetOperandType()==BasicOperand::GLOBAL){
-            //         if(globals_to_mem2reg.count(pointer->GetFullName())){
-            //             it=block->Instruction_list.erase(it);
-            //             continue;
-            //         }
-            //     }
-            }
-            else{
+            if(inst->GetOpcode()!=BasicInstruction::STORE && inst->GetOpcode()!=BasicInstruction::LOAD)
+            {
                 auto operands=inst->GetNonResultOperands();
                 for(auto &op:operands){
                     if(op->GetOperandType()==BasicOperand::REG){
@@ -355,17 +309,14 @@ void GlobalOptPass::OneDefDomAllUses(CFG* cfg){
     - 若子函数Mod此global val, 则调用后进行load（前提：call后仍需使用global val，否则不添加）--- 都添加，后续可通过ADCE消除
 */
 void GlobalOptPass::ApproxiMem2reg(){
-    // 1. OneDefDomAllUses
-    // 2. need phi
-
 
     //【0】处理DefUseInSameBlock ，为【2】做铺垫
-        /*
+    /*
            %r1 = load  @a           %r1 = load  @a
            store %r2-->@a     =>    store %r2-->@a
            %r3 = load  @a           
            use %r3                  use %r2
-        */
+    */
     std::cout<<"<================= EliminateRedundantLS =====================>"<<std::endl<<std::endl;
     EliminateRedundantLS();
 

@@ -1458,32 +1458,33 @@ template <> void RiscV64Unit::ConvertAndAppend<CallInstruction *>(CallInstructio
 		InsertImmI32Instruction(GetPhysicalReg(RISCV_a1), imm_op1, cur_block);
 	
         // slove paramter 2
-		if (inst->GetParameterList()[2].second->GetOperandType() == BasicOperand::IMMI32) {
-			auto imm_op2 = (ImmI32Operand *)(inst->GetParameterList()[2].second);
-			InsertImmI32Instruction(GetPhysicalReg(RISCV_a2), imm_op2, cur_block);
-		} else {
-			auto SzReg = (RegOperand *)inst->GetParameterList()[2].second;
-			int SzReg_no = SzReg->GetRegNo();
-			if (llvm2rv_regmap.find(SzReg_no) == llvm2rv_regmap.end()) {
-				Register Sz_virReg = llvm2rv_regmap[SzReg_no];
-				auto assign_a2_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_x0), Sz_virReg);
-				cur_block->push_back(assign_a2_inst);
-			} else {
-				auto offset = llvmReg_offset_map[ptrreg_no];
-
-                // auto offset_reg = GetNewTempRegister(INT64);
-                // InsertImmI32Instruction(offset_reg, new ImmI32Operand(offset), cur_block);
-                // auto assign_a2_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_sp), offset_reg);
-
-				// auto assign_a2_inst = rvconstructor->ConstructIImm(RISCV_ADDI, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_sp), offset);
-				auto offset_reg = GetNewTempRegister(INT64);
-				auto li_inst = rvconstructor->ConstructUImm(RISCV_LI, offset_reg, offset);
-				auto assign_a2_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_sp), offset_reg);
-				cur_block->push_back(li_inst);
-				cur_block->push_back(assign_a2_inst);
-				((RiscV64Function *)cur_func)->AddAllocaInst(li_inst);
-			}
-		}
+        if (inst->GetParameterList()[2].second->GetOperandType() == BasicOperand::IMMI32) {
+            auto imm_op2 = (ImmI32Operand *)(inst->GetParameterList()[2].second);
+            InsertImmI32Instruction(GetPhysicalReg(RISCV_a2), imm_op2, cur_block);
+        } else {
+            auto SzReg = (RegOperand *)inst->GetParameterList()[2].second;
+            int SzReg_no = SzReg->GetRegNo();
+            if (llvm2rv_regmap.find(SzReg_no) != llvm2rv_regmap.end()) {
+                Register Sz_virReg = llvm2rv_regmap[SzReg_no];
+                auto assign_a2_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_x0), Sz_virReg);
+                cur_block->push_back(assign_a2_inst);
+            } else {
+                auto it = llvmReg_offset_map.find(SzReg_no);
+                if (it != llvmReg_offset_map.end()) {
+                    auto offset = it->second;
+                    auto offset_reg = GetNewTempRegister(INT64);
+                    auto li_inst = rvconstructor->ConstructUImm(RISCV_LI, offset_reg, offset);
+                    auto assign_a2_inst = rvconstructor->ConstructR(RISCV_ADD, GetPhysicalReg(RISCV_a2), GetPhysicalReg(RISCV_sp), offset_reg);
+                    cur_block->push_back(li_inst);
+                    cur_block->push_back(assign_a2_inst);
+                    ((RiscV64Function *)cur_func)->AddAllocaInst(li_inst);
+                } else {
+                    // fallback: size 未知，置 0 防止未定义行为
+                    auto zero_li = rvconstructor->ConstructUImm(RISCV_LI, GetPhysicalReg(RISCV_a2), 0);
+                    cur_block->push_back(zero_li);
+                }
+            }
+        }
         
         // call
         cur_block->push_back(rvconstructor->ConstructCall(RISCV_CALL, "memset", 3, 0));
@@ -1891,10 +1892,7 @@ template <> void RiscV64Unit::ConvertAndAppend<ZextInstruction *>(ZextInstructio
 }
 
 template <> void RiscV64Unit::ConvertAndAppend<GetElementptrInstruction *>(GetElementptrInstruction *inst) {
-    // TODO("Implement this if you need");
-	// for (auto arg_reg : cur_func->GetParameters()){
-	// 	std::cerr << arg_reg.get_reg_no() << std::endl;
-	// }
+	
     auto base_op = inst->GetPtrVal();
     // 1. 计算getelementptr的地址偏移
     auto dims = inst->GetDims();

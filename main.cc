@@ -241,14 +241,14 @@ int main(int argc, char** argv) {
 		AA.Execute();
         GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
 
-		AA.Execute();
-        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
-        SimplifyCFGPass(&llvmIR).EOBB();
-		SimplifyCFGPass(&llvmIR).RebuildCFG();							
-		SCCPPass(&llvmIR).Execute();			// need to follow cse
-        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        SimplifyCFGPass(&llvmIR).EOBB(); 
-		SimplifyCFGPass(&llvmIR).RebuildCFG();		
+		// AA.Execute();
+        // SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+        // SimplifyCFGPass(&llvmIR).EOBB();
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();							
+		// SCCPPass(&llvmIR).Execute();			// need to follow cse
+        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        // SimplifyCFGPass(&llvmIR).EOBB(); 
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();		
 
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
@@ -265,24 +265,23 @@ int main(int argc, char** argv) {
 		// SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
 		LoopStrengthReducePass(&llvmIR).Execute();
-		// LoopIdiomRecognizePass(&llvmIR).Execute();
+		LoopIdiomRecognizePass(&llvmIR).Execute();
 
 		llvmIR.SyncMaxInfo();     
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
-        ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除 --> 能否用cse替代
+        //ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除 --> 能否用cse替代
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();		
 		PeepholePass(&llvmIR).ImmResultReplaceExecute();
         PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
+		PeepholePass(&llvmIR).NegMulAddToSubExecute();
         LoopStrengthReducePass(&llvmIR).GepStrengthReduce();	// GEP指令强度削弱中端部分
-        // InstCombinePass(&llvmIR).Execute();
-        // SimplifyCFGPass(&llvmIR).RebuildCFG();
-        // PeepholePass(&llvmIR).IdentitiesEliminateExecute();
-        // SCCPPass(&llvmIR).Execute();			
-        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        // //inv_dom.Execute();
-        // //(ADCEPass(&llvmIR, &inv_dom)).Execute();
+        InstCombinePass(&llvmIR).Execute();
+        SimplifyCFGPass(&llvmIR).RebuildCFG();
+        PeepholePass(&llvmIR).IdentitiesEliminateExecute();
+        SCCPPass(&llvmIR).Execute();			
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
 
 
     // }

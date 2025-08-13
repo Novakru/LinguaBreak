@@ -15,6 +15,7 @@ public:
     void ImmResultReplaceExecute();
     void IdentitiesEliminateExecute();
 	void DeadArgElim();
+	void NegMulAddToSubExecute();
 };
 
 #endif
