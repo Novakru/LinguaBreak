@@ -478,7 +478,9 @@ Syntax:
 <result> = getelementptr <ty>, <N x ptr> <ptrval>, [inrange] <vector index type> <idx>
 */
 void GetElementptrInstruction::PrintIR(std::ostream &s) {
-    s << result << " = getelementptr ";
+    if (result) s << result << " = getelementptr ";
+    else s << "getelementptr ";
+    
     // print type
     if (dims.empty())
         s << type;
@@ -491,10 +493,14 @@ void GetElementptrInstruction::PrintIR(std::ostream &s) {
     }
 
     // print ptrval
-    s << ", ptr " << ptrval;
+    if (ptrval) s << ", ptr " << ptrval;
+    else s << ", ptr null";
+    
     // print indexes
-    for (Operand idx : indexes)
-        s << ", " << index_type << " " << idx;
+    for (Operand idx : indexes) {
+        if (idx) s << ", " << index_type << " " << idx;
+        else s << ", " << index_type << " null";
+    }
     s << "\n";
 }
 

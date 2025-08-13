@@ -218,23 +218,42 @@ void LoopInfo::markExitingAndExits(Loop* loop, CFG* cfg) {
 }
 
 void LoopInfo::buildLoopNesting(DominatorTree* dom_tree) {
+    // 第一步：构建循环的嵌套关系
     for (auto& entry : bb_loop_map) {
-		// skip block that is not header.
-		Loop* loop = entry.second;
+        // skip block that is not header.
+        Loop* loop = entry.second;
         if (loop->getHeader() != entry.first) continue;
         
         Loop* parent = nullptr;
-		LLVMBlock header = loop->getHeader();
-		// The nearest loop that satisfies contains() in the dominance chain.
+        LLVMBlock header = loop->getHeader();
+        
+        // 寻找最近的包含当前循环的父循环
+        // 通过支配树向上查找，找到最近的循环头，该循环包含当前循环的所有块
         for (auto& dom : dom_tree->getDominators(header)) {
             if (dom != header && bb_loop_map.count(dom)) {
                 Loop* candidate = bb_loop_map[dom];
-                if (candidate->getHeader() != header && candidate->contains(header)) {
-                    parent = candidate;
-                    break; 
+                if (candidate->getHeader() != header && candidate->contains(loop)) {
+                    // 检查是否是最近的父循环
+                    bool is_nearest = true;
+                    for (auto& other_dom : dom_tree->getDominators(header)) {
+                        if (other_dom != header && other_dom != dom && bb_loop_map.count(other_dom)) {
+                            Loop* other_candidate = bb_loop_map[other_dom];
+                            if (other_candidate->getHeader() != header && 
+                                other_candidate->contains(loop) && 
+                                candidate->contains(other_candidate)) {
+                                is_nearest = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (is_nearest) {
+                        parent = candidate;
+                        break;
+                    }
                 }
             }
         }
+        
         if (parent) {
             parent->addSubLoop(loop);
             loop->setParentLoop(parent);
@@ -243,6 +262,7 @@ void LoopInfo::buildLoopNesting(DominatorTree* dom_tree) {
         }
     }
 
+    // 第二步：计算循环深度
     for (Loop* loop : top_level_loops) {
         computeLoopDepth(loop);
     }
@@ -498,4 +518,27 @@ bool LoopInfo::verifySimplifyForm(CFG* cfg) {
 	}
 
 	return true;
+}
+
+void Loop::replaceLoopExternUses(CFG* C, Operand old_op, Operand new_op) const {
+    for (auto [block_id, block] : *C->block_map) {
+        if (this->contains(block)) continue; // 跳过循环内的块
+        
+        for (auto inst : block->Instruction_list) {
+            auto operands = inst->GetNonResultOperands();
+            bool changed = false;
+            
+            for (auto& op : operands) {
+                if (op->GetOperandType() == BasicOperand::REG && 
+                    ((RegOperand*)op)->GetRegNo() == ((RegOperand*)old_op)->GetRegNo()) {
+                    op = new_op;
+                    changed = true;
+                }
+            }
+            
+            if (changed) {
+                inst->SetNonResultOperands(operands);
+            }
+        }
+    }
 }

@@ -33,6 +33,7 @@
 #include "llvm/optimize/transform/lcssa.h"
 #include "llvm/optimize/transform/loopidiomrecognize.h"
 #include "llvm/optimize/transform/instCombine.h"
+#include "llvm/optimize/transform/invarelim.h"
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -264,13 +265,15 @@ int main(int argc, char** argv) {
 		// LoopSimplifyPass(&llvmIR).Execute();
 		// SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
+		InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
 		LoopStrengthReducePass(&llvmIR).Execute();
-		LoopIdiomRecognizePass(&llvmIR).Execute();
+		LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
 
 		llvmIR.SyncMaxInfo();     
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
-        //ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除 --> 能否用cse替代
+        //ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
+		SimplifyCFGPass(&llvmIR).RebuildCFG();
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();		
 		PeepholePass(&llvmIR).ImmResultReplaceExecute();
@@ -283,6 +286,9 @@ int main(int argc, char** argv) {
         SCCPPass(&llvmIR).Execute();			
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
 
+		SimplifyCFGPass(&llvmIR).EOBB();  
+        SimplifyCFGPass(&llvmIR).MergeBlocks();		
+		SimplifyCFGPass(&llvmIR).RebuildCFG();
 
     // }
 

@@ -21,17 +21,10 @@
  * 5. 异或习语：xor_sum = 0; for(int i = 1; i <= const; i++) { xor_sum ^= i; } -> 直接计算
  */
 
-struct LoopParams {
-	int start_val;
-	int bound_val;
-	int count;
-	int step_val;
-};
-
-struct GepParams {
-	Operand base_ptr;
-	Operand offset_op;             // 计算出的总偏移量操作数
-};
+// 使用ScalarEvolution中定义的结构体
+using LoopParams = ScalarEvolution::LoopParams;
+using GepParams = ScalarEvolution::GepParams;
+using HoistingCandidate = ScalarEvolution::HoistingCandidate;
 
 class LoopIdiomRecognizePass : public IRPass {
 public:
@@ -39,45 +32,47 @@ public:
     void Execute() override;
 
 private:
+    struct LoopHoistingInfo {
+        std::vector<HoistingCandidate> all_candidates;        // 所有可以外提的变量
+        std::vector<HoistingCandidate> induction_candidates;  // 可以外提的induction变量
+        std::vector<HoistingCandidate> other_candidates;      // 可以外提的其他变量
+        
+        bool can_recognize_memset;     // 是否可以识别为memset习语
+        bool all_hoistable;            // 是否所有变量都能外提
+    };
+    
+    // 分析循环的外提信息
+    LoopHoistingInfo analyzeLoopHoisting(Loop* loop, CFG* C, ScalarEvolution* SE);
+    
+    // 执行部分外提优化（指定候选变量）
+    void executePartialHoisting(Loop* loop, CFG* C, ScalarEvolution* SE, const std::vector<HoistingCandidate>& candidates);
+    
+    // 执行memset优化并外提变量
+    bool executeMemsetWithHoisting(Loop* loop, CFG* C, ScalarEvolution* SE, const LoopHoistingInfo& info);
+    
+    // 检查是否可以识别memset习语
+    bool canRecognizeMemsetIdiom(Loop* loop, CFG* C, ScalarEvolution* SE);
+
+private:
     void processFunction(CFG* C);
     void processLoop(Loop* loop, CFG* C, ScalarEvolution* SE);
     
-    // recognize idiom
-    bool recognizeMemsetIdiom(Loop* loop, CFG* C, ScalarEvolution* SE);
-    bool recognizeArithmeticSumIdiom(Loop* loop, CFG* C, ScalarEvolution* SE);
-    bool recognizeModuloSumIdiom(Loop* loop, CFG* C, ScalarEvolution* SE);
-    bool recognizeMultiplicationIdiom(Loop* loop, CFG* C, ScalarEvolution* SE);
-    bool recognizeXorSumIdiom(Loop* loop, CFG* C, ScalarEvolution* SE);
-    
-    bool isInductionVariable(Operand var, Loop* loop, ScalarEvolution* SE);
 
+    std::vector<HoistingCandidate> findHoistingCandidates(Loop* loop, CFG* C, ScalarEvolution* SE);
+    bool canCalculateFinalValue(const HoistingCandidate& candidate, Loop* loop, CFG* C, ScalarEvolution* SE);
+    int calculateFinalValue(const HoistingCandidate& candidate, const LoopParams& params, Loop* loop, CFG* C, ScalarEvolution* SE);
+    void hoistVariable(Loop* loop, CFG* C, const HoistingCandidate& candidate, int finalValue);
+
+    bool isVariableOnlyUsedForSelfIteration(Operand op, Loop* loop, CFG* C);
+    
+    // 检查是否为induction variable
+    bool isInductionVariable(Operand op, Loop* loop);
+    
     bool isLinearArrayAccess(SCEV* array_scev, Operand induction_var, Loop* loop, ScalarEvolution* SE);
     bool isArithmeticOperation(Instruction inst, BasicInstruction::LLVMIROpcode op, Operand& lhs, Operand& rhs);
-
-    LoopParams extractLoopParams(Loop* loop, CFG* C, ScalarEvolution* SE);
-    GepParams extractGepParams(SCEV* array_scev, Loop* loop, ScalarEvolution* SE, LLVMBlock preheader, CFG* C);
-    
-    // 辅助函数：生成表达式操作数
-    Operand generateExpressionOperand(SCEV* scev, ScalarEvolution* SE, LLVMBlock preheader, CFG* C);
     
     // transform function
     void replaceWithMemset(Loop* loop, CFG* C, Operand array, Operand value, GepParams gep_params);
-    void replaceWithConstant(Loop* loop, CFG* C, Operand target, int value);
-    void replaceWithArithmeticSum(Loop* loop, CFG* C, Operand target, int n);
-    void replaceWithModuloSum(Loop* loop, CFG* C, Operand target, int n, int p);
-    void replaceWithFactorial(Loop* loop, CFG* C, Operand target, int n);
-    void replaceWithXorSum(Loop* loop, CFG* C, Operand target, int n);
-    
-    void removeLoop(Loop* loop, CFG* C);
-    void connectPreheaderToExit(Loop* loop, CFG* C);
-    void updatePhiNodes(Loop* loop, CFG* C);
-    
-    int calculateArithmeticSum(int n);
-    int calculateModuloSum(int n, int p);
-    int calculateFactorial(int n);
-    int calculateXorSum(int n);
-
-    void debugPrint(const std::string& message);
 };
 
 #endif // LOOP_IDIOM_RECOGNIZE_PASS_H
