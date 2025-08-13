@@ -309,6 +309,8 @@ std::set<Instruction> SimpleMemDepAnalyser::GetStorePostClobbers(Instruction I, 
 
     return res;
 }
+
+
 //检查两指令间路径是否存在存储冲突
 bool SimpleMemDepAnalyser::IsNoStore(Instruction I1, Instruction I2, CFG *C) {
     //1.获取指令1的内存指向
@@ -451,7 +453,35 @@ bool SimpleMemDepAnalyser::isLoadSameMemory(Instruction a, Instruction b, CFG *C
             return false;
         }
     }
-
+    Operand ptr1,ptr2;
+    if (a->GetOpcode() == BasicInstruction::LOAD) {
+        ptr1 = ((LoadInstruction *)a)->GetPointer();
+    } 
+    else if(a->GetOpcode() == BasicInstruction::STORE) {
+        ptr1 = ((StoreInstruction *)a)->GetPointer();
+    }
+    else{assert(false);}
+    if (b->GetOpcode() == BasicInstruction::LOAD) {
+        ptr2 = ((LoadInstruction *)b)->GetPointer();
+    } 
+    else if (b->GetOpcode() == BasicInstruction::STORE) {
+        ptr2 = ((StoreInstruction *)b)->GetPointer();
+    }
+    else{assert(false);}
+    // if(ptr1->GetOperandType()==BasicOperand::GLOBAL&&ptr2->GetOperandType()==BasicOperand::GLOBAL
+    // &&ptr1->GetFullName()!=ptr2->GetFullName())
+    // {
+    //     return false;
+    // }
+    if(ptr1->GetOperandType()==BasicOperand::GLOBAL&&ptr2->GetOperandType()==BasicOperand::GLOBAL
+    &&ptr1->GetFullName()==ptr2->GetFullName())
+    {
+        // if(alias_analyser->QueryAlias(ptr1, ptr2, C) != AliasStatus::MustAlias)//如果处理的内存不同，直接返回假
+        // {
+        //     return false;
+        // }
+        return false;
+    }
     int id1 = a->GetBlockID();
     int id2 = b->GetBlockID();
     auto bb1=(*C->block_map)[id1];
@@ -506,102 +536,94 @@ bool SimpleMemDepAnalyser::isStoreNotUsed(Instruction a, CFG *C) {
     return false;
 }
 
-// void SimpleMemDepAnalyser::MemDepTest() {
-//     //1.初始化blockID
-//     for (auto [defI, cfg] : IR->llvm_cfg) {
-//         for (auto [id, bb] : *cfg->block_map) {
-//             for (auto I : bb->Instruction_list) {
-//                 I->SetBlockID(bb->block_id);
-//             }
-//         }
-//     }
-//     //2.测试指令
-//     std::set<Instruction> LoadSet;
-//     for (auto [defI, cfg] : IR->llvm_cfg) {
-//         defI->PrintIR(std::cerr);
-//         std::cerr<<"L20:\n";
-//         auto IBB=(*cfg->block_map)[20];
-//         for (int i = IBB->Instruction_list.size() - 1; i >= 0; --i) {
-
-//             //3.找到load指令所在位置
-//             auto tmpI = IBB->Instruction_list[i];
-//             tmpI->PrintIR(std::cerr);
-//         }
-//         std::cerr<<"------------\n";
-//         for (auto [id, bb] : *cfg->block_map) {
-//             for (auto I : bb->Instruction_list) {
-//                 //3.测试load指令
-//                 if (I->GetOpcode() == BasicInstruction::LOAD) {
-//                     //1)插入load指令到LoadSet，并打印
-//                     LoadSet.insert(I);
-//                     I->PrintIR(std::cerr);
-//                     // std::cerr<<"test loadclobeers:\n";
-//                     // auto IBB=(*cfg->block_map)[I->GetBlockID()];
-//                     // for (int i = IBB->Instruction_list.size() - 1; i >= 0; --i) {
+void SimpleMemDepAnalyser::MemDepTest() {
+    //1.初始化blockID
+    for (auto [defI, cfg] : IR->llvm_cfg) {
+        for (auto [id, bb] : *cfg->block_map) {
+            for (auto I : bb->Instruction_list) {
+                I->SetBlockID(bb->block_id);
+            }
+        }
+    }
+    //2.测试指令
+    std::set<Instruction> LoadSet;
+    for (auto [defI, cfg] : IR->llvm_cfg) {
+        defI->PrintIR(std::cerr);
+        std::cerr<<"------------\n";
+        for (auto [id, bb] : *cfg->block_map) {
+            for (auto I : bb->Instruction_list) {
+                //3.测试load指令
+                if (I->GetOpcode() == BasicInstruction::LOAD) {
+                    //1)插入load指令到LoadSet，并打印
+                    LoadSet.insert(I);
+                    I->PrintIR(std::cerr);
+                    // std::cerr<<"test loadclobeers:\n";
+                    // auto IBB=(*cfg->block_map)[I->GetBlockID()];
+                    // for (int i = IBB->Instruction_list.size() - 1; i >= 0; --i) {
         
-//                     //     //3.找到load指令所在位置
-//                     //     auto tmpI = IBB->Instruction_list[i];
-//                     //     tmpI->PrintIR(std::cerr);
-//                     // }
-//                     //2)获取当前load指令依赖的store指令/call指令，并打印
-//                     auto res = GetLoadClobbers(I, cfg);
-//                     for (auto resI : res) {
-//                         resI->PrintIR(std::cerr);
-//                     }
-//                     std::cerr << "-----------------------------------\n";
-//                 //4.测试store指令
-//                 } else if (I->GetOpcode() == BasicInstruction::STORE) {
-//                     I->PrintIR(std::cerr);
-//                     //1)获取store指令依赖的store指令/call指令
-//                     auto res = GetLoadClobbers(I, cfg);
-//                     for (auto resI : res) {
-//                         resI->PrintIR(std::cerr);
-//                     }
-//                     std::cerr << "-----------------------------------\n";
-//                 }
-//             }
-//         }
-//         //5.测试两条load指令是否指向同一片内存
-//         std::cerr<<"test if load inst loads the same memory\n";
-//         for (auto I1 : LoadSet) {
-//             for (auto I2 : LoadSet) {
-//                 I1->PrintIR(std::cerr);
-//                 I2->PrintIR(std::cerr);
-//                 std::cerr << isLoadSameMemory(I1, I2, cfg) << "\n";
-//             }
-//         }
-//         LoadSet.clear();
-//     }
-//     //6.测试store指令
-//     std::set<Instruction> StoreSet;
-//     for (auto [defI, cfg] : IR->llvm_cfg) {
-//         defI->PrintIR(std::cerr);
-//         for (auto [id, bb] : *cfg->block_map) {
-//             for (auto I : bb->Instruction_list) {
-//                 if (I->GetOpcode() == BasicInstruction::STORE) {
-//                     //1)加入store指令到storeSet并打印
-//                     StoreSet.insert(I);
-//                     I->PrintIR(std::cerr);
-//                     //2)获取store指令的后续使用者
-//                     auto res = GetStorePostClobbers(I, cfg);
-//                     for (auto resI : res) {
-//                         resI->PrintIR(std::cerr);
-//                     }
-//                     std::cerr << "-----------------------------------\n";
-//                 }
-//             }
-//         }
-//         //3)判断两条store指令的后续用法是否相同
-//         for (auto I1 : StoreSet) {
-//             for (auto I2 : StoreSet) {
-//                 I1->PrintIR(std::cerr);
-//                 I2->PrintIR(std::cerr);
-//                 std::cerr << isStoreBeUsedSame(I1, I2, cfg) << "\n";
-//             }
-//         }
-//         StoreSet.clear();
-//     }
-// }
+                    //     //3.找到load指令所在位置
+                    //     auto tmpI = IBB->Instruction_list[i];
+                    //     tmpI->PrintIR(std::cerr);
+                    // }
+                    //2)获取当前load指令依赖的store指令/call指令，并打印
+                    auto res = GetLoadClobbers(I, cfg);
+                    for (auto resI : res) {
+                        resI->PrintIR(std::cerr);
+                    }
+                    std::cerr << "-----------------------------------\n";
+                //4.测试store指令
+                } else if (I->GetOpcode() == BasicInstruction::STORE) {
+                    I->PrintIR(std::cerr);
+                    //1)获取store指令依赖的store指令/call指令
+                    auto res = GetLoadClobbers(I, cfg);
+                    for (auto resI : res) {
+                        resI->PrintIR(std::cerr);
+                    }
+                    std::cerr << "-----------------------------------\n";
+                }
+            }
+        }
+        //5.测试两条load指令是否指向同一片内存
+        std::cerr<<"test if load inst loads the same memory, LoadSet="<<LoadSet.size()<<"\n";
+        for (auto I1 : LoadSet) {
+            for (auto I2 : LoadSet) {
+                I1->PrintIR(std::cerr);
+                I2->PrintIR(std::cerr);
+                std::cerr << isLoadSameMemory(I1, I2, cfg) << "\n";
+            }
+        }
+        LoadSet.clear();
+    }
+    //6.测试store指令
+    std::set<Instruction> StoreSet;
+    for (auto [defI, cfg] : IR->llvm_cfg) {
+        defI->PrintIR(std::cerr);
+        for (auto [id, bb] : *cfg->block_map) {
+            for (auto I : bb->Instruction_list) {
+                if (I->GetOpcode() == BasicInstruction::STORE) {
+                    //1)加入store指令到storeSet并打印
+                    StoreSet.insert(I);
+                    I->PrintIR(std::cerr);
+                    //2)获取store指令的后续使用者
+                    auto res = GetStorePostClobbers(I, cfg);
+                    for (auto resI : res) {
+                        resI->PrintIR(std::cerr);
+                    }
+                    std::cerr << "-----------------------------------\n";
+                }
+            }
+        }
+        //3)判断两条store指令的后续用法是否相同
+        for (auto I1 : StoreSet) {
+            for (auto I2 : StoreSet) {
+                I1->PrintIR(std::cerr);
+                I2->PrintIR(std::cerr);
+                std::cerr << isStoreBeUsedSame(I1, I2, cfg) << "\n";
+            }
+        }
+        StoreSet.clear();
+    }
+}
 void MemDepAnalysisPass::Execute()
 {
     for(auto [defI, cfg] : llvmIR->llvm_cfg){

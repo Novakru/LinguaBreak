@@ -243,14 +243,14 @@ int main(int argc, char** argv) {
 		AA.Execute();
         GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
 
-		// AA.Execute();
-        // SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
-        // SimplifyCFGPass(&llvmIR).EOBB();
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();							
-		// SCCPPass(&llvmIR).Execute();			// need to follow cse
-        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        // SimplifyCFGPass(&llvmIR).EOBB(); 
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();		
+		AA.Execute();
+        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+        SimplifyCFGPass(&llvmIR).EOBB();
+		SimplifyCFGPass(&llvmIR).RebuildCFG();							
+		SCCPPass(&llvmIR).Execute();			// need to follow cse
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        SimplifyCFGPass(&llvmIR).EOBB(); 
+		SimplifyCFGPass(&llvmIR).RebuildCFG();		
 
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();

@@ -73,50 +73,6 @@ static InstCSEInfo GetCSEInfo(Instruction inst) {
     return info;
 }
 
-// 从指令中提取CSE关键信息
-static InstCSEInfo GetBranchCSEInfo(Instruction I) {
-    InstCSEInfo ans;
-    ans.opcode = I->GetOpcode();  // 获取操作码
-
-    auto list = I->GetNonResultOperands(); // 获取非结果操作数
-    
-    // 处理函数调用指令的特殊情况
-    if (I->GetOpcode() == BasicInstruction::CALL) {
-        auto CallI = (CallInstruction *)I;
-        ans.operand_list.push_back(CallI->GetFunctionName()); // 添加函数名
-    }
-
-    // 处理整型比较指令
-    if (I->GetOpcode() == BasicInstruction::ICMP) {
-        auto IcmpI = (IcmpInstruction *)I;
-        ans.cond = IcmpI->GetCompareCondition(); // 记录比较条件
-    }
-
-    // 处理浮点比较指令
-    if (I->GetOpcode() == BasicInstruction::FCMP) {
-        auto FcmpI = (FcmpInstruction *)I;
-        ans.cond = FcmpI->GetCompareCondition(); // 记录比较条件
-    }
-
-    // 处理可交换操作（加法和乘法）
-    if (I->GetOpcode() == BasicInstruction::ADD || I->GetOpcode() == BasicInstruction::MUL) {
-        assert(list.size() == 2); // 确保有两个操作数
-        auto op1 = list[0], op2 = list[1];
-        // 按名称排序保证交换律一致性
-        if (op1->GetFullName() > op2->GetFullName()) {
-            std::swap(op1, op2);
-        }
-        ans.operand_list.push_back(op1->GetFullName());
-        ans.operand_list.push_back(op2->GetFullName());
-    } else {
-        // 普通指令按顺序添加操作数
-        for (auto op : list) {
-            ans.operand_list.push_back(op->GetFullName());
-        }
-    }
-    return ans;
-}
-
 int GetResultRegNo(Instruction inst)
 {
     auto result = (RegOperand*)inst->GetResult();
@@ -141,7 +97,121 @@ bool InstCSEInfo::operator<(const InstCSEInfo &other) const {
         other.operand_list.begin(), other.operand_list.end()
     );
 }
+bool BasicBlockCSEOptimizer::IsValChanged(Instruction I1, Instruction I2, CFG *C) {
+    //1.获取指令1的内存指向
+    Operand ptr1,ptr2;
+    if (I1->GetOpcode() == BasicInstruction::LOAD) {
+        ptr1 = ((LoadInstruction *)I1)->GetPointer();
+    } else if (I1->GetOpcode() == BasicInstruction::STORE) {
+        ptr1 = ((StoreInstruction *)I1)->GetPointer();
+    }
+    if (I2->GetOpcode() == BasicInstruction::LOAD) {
+        ptr2 = ((LoadInstruction *)I2)->GetPointer();
+    } else if (I2->GetOpcode() == BasicInstruction::STORE) {
+        ptr2 = ((StoreInstruction *)I2)->GetPointer();
+    }
+    assert(ptr1==ptr2);
+    //2.获取I1正向遍历，I2反向遍历的基本块交集（？）
+    int id1=I1->GetBlockID();
+    int id2=I2->GetBlockID();
+    std::set<int> blocks;
+    assert(id1 != id2);
+    std::set<int> id1_tos, to_id2s;
 
+    std::queue<int> q;
+    std::vector<int> vis;
+    vis.resize(C->max_label + 1);
+    q.push(id1);
+    //1.BFS编号为id1的基本块的所有后继块，所有可达块记录在id1_tos中
+    while (!q.empty()) {
+        int x = q.front();
+        q.pop();
+        if (vis[x]) {
+            continue;
+        }
+        id1_tos.insert(x);
+        vis[x] = 1;
+        for (auto v : C->GetSuccessor(x)) {
+            q.push(v->block_id);
+        }
+    }
+
+    vis.clear();
+    vis.resize(C->max_label + 1);
+    q.push(id2);
+    //2.BFS编号为id2的基本块的所有前驱块，所有可达块记录在id2_tos中（不记录id1的前驱块）
+    while (!q.empty()) {
+        int x = q.front();
+        q.pop();
+        if (vis[x]) {
+            continue;
+        }
+        to_id2s.insert(x);
+        vis[x] = 1;
+        if (x == id1) {
+            continue;
+        }
+        for (auto v : C->GetPredecessor(x)) {
+            q.push(v->block_id);
+        }
+    }
+    //3.记录两组路径的基本块交集
+    for (int i = 0; i <= C->max_label; ++i) {
+        if (id1_tos.find(i) != id1_tos.end() && to_id2s.find(i) != to_id2s.end()) {
+            blocks.insert(i);
+        }
+    }
+
+    if (blocks.size() == 0) {
+        return false;
+    }
+    //3.遍历交集基本块
+    for (auto id : blocks) {
+        auto bb = (*C->block_map)[id];
+        int st = 0, ed = bb->Instruction_list.size();
+        //1)找到I1所在基本块及I1所在位置
+        if (id == I1->GetBlockID()) {
+            int Iindex = -1;
+            auto IBB = (*C->block_map)[I1->GetBlockID()];
+            for (int i = IBB->Instruction_list.size() - 1; i >= 0; --i) {
+                auto tmpI = IBB->Instruction_list[i];
+                if (tmpI == I1) {
+                    Iindex = i;
+                    break;
+                }
+            }
+            assert(Iindex != -1);
+            st = Iindex + 1;
+        //2)找到I2所在基本块及指令所在位置
+        } else if (id == I2->GetBlockID()) {
+            int Iindex = -1;
+            auto IBB = (*C->block_map)[I2->GetBlockID()];
+            for (int i = IBB->Instruction_list.size() - 1; i >= 0; --i) {
+                auto tmpI = IBB->Instruction_list[i];
+                if (tmpI == I2) {
+                    Iindex = i;
+                    break;
+                }
+            }
+            assert(Iindex != -1);
+            ed = Iindex;
+        }
+        //3)遍历I1之后的指令，I2之前的指令，其他块中的指令
+        for (int i = st; i < ed; ++i) {
+            auto I = bb->Instruction_list[i];
+            if(I->GetOpcode()==BasicInstruction::BR_COND||I->GetOpcode()==BasicInstruction::BR_UNCOND||I->GetOpcode()==BasicInstruction::OTHER||I->GetOpcode()==BasicInstruction::RET)
+            {
+                continue;
+            }
+            if(alias_analyser->QueryInstModRef(I,ptr1,C)==Mod||alias_analyser->QueryInstModRef(I,ptr1,C)==ModRef)
+            {return true;}
+            if(I->GetResult()==ptr1){return true;}
+            
+        }
+    }
+    // std::cerr<<"NoStore\n";
+    return false;
+}
 // CSE初始化函数实现
 void SimpleCSEPass::CSEInit(CFG* cfg) {
     // 1. 把store立即数转换成store寄存器：add reg,val,0;store reg mem
@@ -239,10 +309,17 @@ void BasicBlockCSEOptimizer::inst_clear()
     LoadInstSet.clear();
     CallInstSet.clear();
 }
+void BasicBlockCSEOptimizer::clearAllCSEInfo() {
+    inst_map.clear();
+    InstSet.clear();
+    LoadInstMap.clear();
+    LoadInstSet.clear();
+    CallInstMap.clear();
+    CallInstSet.clear();
+}
 void BasicBlockCSEOptimizer::processAllBlocks() {
     for (auto [id, bb] : *C->block_map) {
-        inst_map.clear();
-        inst_clear();
+        clearAllCSEInfo();
         changed|=processBlock(bb);
     }
 }
@@ -276,7 +353,7 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
     //1.不处理外部调用（lib_func），清理即可
     if (cfgTable.find(CallI->GetFunctionName()) == cfgTable.end()) {
        // std::cout<<"extern call\n";
-        inst_clear();
+        clearAllCSEInfo();
         return;    // external call, clear all instructions
     }
     //2.获取cfg与cfg对应的读写内存信息
@@ -292,6 +369,8 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
     //std::cout<<"getrwinfo\n";
     if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) // write memory, can not CSE, and will kill some Load and Call
     {
+        inst_map.clear();//新增，清除普通指令
+        InstSet.clear();
         //std::cout<<"write call\n";
         //CallI->PrintIR(std::cerr);
         //1.如果是外部函数调用，清理后直接返回
@@ -336,27 +415,32 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
         //4.获取call指令修改的内存集合，逐一遍历，存储实际写入的指针
         auto writeptrs = rwinfo.WriteRoots;
         std::vector<Operand> real_writeptrs;//存储实际写入地址
-        for (auto ptr : writeptrs) {
-            real_writeptrs.push_back(ptr);
-        }
         // for (auto ptr : writeptrs) {
-        //     //1)如果为全局变量，直接加入向量
-        //     if (ptr->GetOperandType() == BasicOperand::GLOBAL) {
-        //         real_writeptrs.push_back(ptr);
-        //     //2)如果为局部变量（寄存器），那么一定在参数列表，获取调用时传入的实际指针(别名分析已经获取实际指针)
-        //     //如果有修改函数参数列表的优化，需要在此处优化之后进行
-        //     } else if (ptr->GetOperandType() == BasicOperand::REG) {
-        //         int ptr_regno = ((RegOperand *)ptr)->GetRegNo();
-        //         //std::cerr<<"ptr_regno= "<<ptr_regno<<"; call_param_size= "<< CallI->GetParameterList().size()<<"\n";
-        //         assert(ptr_regno < CallI->GetParameterList().size());
-
-        //         auto [type, real_ptr2] = CallI->GetParameterList()[ptr_regno];
-        //         real_writeptrs.push_back(real_ptr2);
-        //         //real_writeptrs.push_back(ptr);
-        //     } else {    // should not reach here
-        //         assert(false);
-        //     }
+        //     real_writeptrs.push_back(ptr);
         // }
+        for (auto ptr : writeptrs) {
+            //1)如果为全局变量，直接加入向量
+            if (ptr->GetOperandType() == BasicOperand::GLOBAL) {
+                real_writeptrs.push_back(ptr);
+            //2)如果为局部变量（寄存器），那么一定在参数列表，获取调用时传入的实际指针(别名分析已经获取实际指针)
+            //如果有修改函数参数列表的优化，需要在此处优化之后进行
+            } else if (ptr->GetOperandType() == BasicOperand::REG) {
+                int ptr_regno = ((RegOperand *)ptr)->GetRegNo();
+                //std::cerr<<"ptr_regno= "<<ptr_regno<<"; call_param_size= "<< CallI->GetParameterList().size()<<"\n";
+                //assert(ptr_regno < CallI->GetParameterList().size());
+                if(ptr_regno< CallI->GetParameterList().size())
+                {
+                    auto [type, real_ptr2] = CallI->GetParameterList()[ptr_regno];
+                    real_writeptrs.push_back(real_ptr2);
+                }
+                else
+                {
+                    real_writeptrs.push_back(ptr);
+                }
+            } else {    // should not reach here
+                assert(false);
+            }
+        }
         //5.遍历call指令集合
         for (auto it = CallInstSet.begin(); it != CallInstSet.end();) {
             assert((*it)->GetOpcode() == BasicInstruction::CALL);
@@ -399,11 +483,13 @@ void BasicBlockCSEOptimizer::processStoreInstruction(StoreInstruction* StoreI) {
     // store instructions, this will kill some loads
     //1.删除与当前store指令涉及同一处内存的，call指令与load指令
     auto ptr =StoreI->GetPointer();
+    
     //2.遍历load指令集合
     for (auto it = LoadInstSet.begin(); it != LoadInstSet.end();) {
         //1)如果存在load指令加载了此处内存，则从load指令集合中删除该条load指令
         auto result = alias_analyser->QueryInstModRef(*it, ptr, C);
-        if (result == ModRefStatus::Ref) {    // if load instruction ref the ptr of store instruction
+        auto ptr2=((LoadInstruction*)(*it))->GetPointer();
+        if ((result == ModRefStatus::Ref||result==ModRefStatus::ModRef)||alias_analyser->QueryAlias(ptr,ptr2,C)==MustAlias) {    // if load instruction ref the ptr of store instruction
             // I->PrintIR(std::cerr);std::cerr<<"kill ";(*it)->PrintIR(std::cerr);
 
             LoadInstMap.erase(GetCSEInfo(*it));
@@ -436,16 +522,45 @@ void BasicBlockCSEOptimizer::processStoreInstruction(StoreInstruction* StoreI) {
     assert(StoreI->GetValue()->GetOperandType() == BasicOperand::REG);
     //3.获取寄存器编号
     int val_regno = ((RegOperand *)StoreI->GetValue())->GetRegNo();
+    
     if (reg_replace_map.find(val_regno) != reg_replace_map.end()) {
         val_regno = reg_replace_map[val_regno];
+    }
+    for(auto it = InstSet.begin(); it !=InstSet.end();)
+    {
+        auto ins=*it;
+        int f=false;
+        for(auto regno:ins->GetUseRegno())
+        {
+            if(regno==val_regno)
+            {
+                f=true;
+            }
+        }
+        if(f)
+        {
+            inst_map.erase(GetCSEInfo(*it));
+            it = InstSet.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+        
     }
     //StoreI->PrintIR(std::cerr);
     //4.对store生成对应的load指令，插入到load映射与集合中
     auto LoadI = new LoadInstruction(StoreI->GetDataType(), StoreI->GetPointer(), GetNewRegOperand(val_regno));
     auto Info = GetCSEInfo(LoadI);
+    auto it=LoadInstMap.find(Info);
+    if(it!=LoadInstMap.end())
+    {
+        LoadInstSet.erase(it->second);
+        LoadInstMap.erase(it);
+    }
     //LoadI->PrintIR(std::cerr);
     LoadInstSet.insert(LoadI);
-    LoadInstMap.insert({Info, GetResultRegNo(LoadI)});
+    LoadInstMap.insert({Info, LoadI});
 }
 
 void BasicBlockCSEOptimizer::processLoadInstruction(LoadInstruction* loadI) {
@@ -454,17 +569,19 @@ void BasicBlockCSEOptimizer::processLoadInstruction(LoadInstruction* loadI) {
     auto CSEiter = LoadInstMap.find(Info);
     //2.如果在load映射中找到：
     if (CSEiter != LoadInstMap.end()) {
+        //if(!memdep_analyser->isLoadSameMemory(loadI,CSEiter->second,C)){return;}
         //1)把当前load指令插入erase_set
-        erase_set.insert(loadI);
-        // I->PrintIR(std::cerr);
-        //2)把当前load指令的寄存器编号修改成映射中存储的寄存器编号
-        reg_replace_map[GetResultRegNo(loadI)] = CSEiter->second;
-        //3)标记flag为true(?)
-        flag = true;
+        // erase_set.insert(loadI);
+        // // I->PrintIR(std::cerr);
+        // //2)把当前load指令的寄存器编号修改成映射中存储的寄存器编号
+        // reg_replace_map[GetResultRegNo(loadI)] =GetResultRegNo( CSEiter->second);
+        // //3)标记flag为true(?)
+        // flag = true;
+        
     //3.如果没有在load映射中找到cse信息，则插入集合与映射中
     } else {
         LoadInstSet.insert(loadI);
-        LoadInstMap.insert({Info, GetResultRegNo(loadI)});
+        LoadInstMap.insert({Info, loadI});
     }
 }
 
@@ -473,10 +590,11 @@ void BasicBlockCSEOptimizer::processRegularInstruction(BasicInstruction* I) {
     
     if (inst_map.find(info) != inst_map.end()) {
         erase_set.insert(I);
-        reg_replace_map[GetResultRegNo(I)] = inst_map[info];
+        reg_replace_map[GetResultRegNo(I)] = GetResultRegNo(inst_map[info]);
         flag = true;
     } else {
-        inst_map[info] = GetResultRegNo(I);
+        inst_map[info] = (I);
+        InstSet.insert(I);
     }
 }
 
@@ -521,7 +639,7 @@ void BasicBlockCSEOptimizer::applyRegisterReplacements() {
 
 // 基本块内CSE优化入口
 void SimpleCSEPass::SimpleBlockCSE(CFG* cfg,LLVMIR *IR) {
-    BasicBlockCSEOptimizer optimizer(cfg,IR,alias_analyser);
+    BasicBlockCSEOptimizer optimizer(cfg,IR,alias_analyser,domtrees,memdep_analyser);
     optimizer.optimize();
 }
 //DFS版本的BlockDef出错，暂沿用BFS版本
@@ -1283,6 +1401,7 @@ void DomTreeCSEOptimizer::processLoadInstruction(LoadInstruction* LoadI, std::ma
         for (auto I2 : LoadCSEMap[info]) {
             // I->PrintIR(std::cerr);I2->PrintIR(std::cerr);
             if(memdep_analyser->isLoadSameMemory(LoadI, I2, C) == false){continue;}
+            continue;//tmp
             //4.如果I2与该条load2加载同一块内存
             //1)该条load指令插入删除集合
             eraseSet.insert(LoadI);
@@ -1314,27 +1433,37 @@ void DomTreeCSEOptimizer::processLoadInstruction(LoadInstruction* LoadI, std::ma
     if(!is_cse)
     {
         LoadCSEMap[info].push_back(LoadI);
+        if(tmpLoadNumMap.find(info)==tmpLoadNumMap.end())
+        {
+            tmpLoadNumMap[info]=0;
+        }
         tmpLoadNumMap[info] += 1;
     }
 }
 
 void DomTreeCSEOptimizer::processStoreInstruction(StoreInstruction* StoreI, std::map<InstCSEInfo, int>& tmpLoadNumMap) {
+    //1.确保此时只剩下store reg的指令（通过block_cse的初始化，消除立即数版本的store)
     assert(StoreI->GetValue()->GetOperandType() == BasicOperand::REG);
-
+    //2.如果当前寄存器已经在替换列表中，直接替换即可
     int val_regno = ((RegOperand *)StoreI->GetValue())->GetRegNo();
     if (regReplaceMap.find(val_regno) != regReplaceMap.end()) {
         val_regno = regReplaceMap[val_regno];
     }
-
+    //3.创建store对应的load指令,用它提取info,存储store指令（？为什么得用load的info)
     auto LoadI =
     new LoadInstruction(StoreI->GetDataType(), StoreI->GetPointer(), GetNewRegOperand(val_regno));
     auto info = GetCSEInfo(LoadI);
     LoadCSEMap[info].push_back(StoreI);
+    if(tmpLoadNumMap.find(info)==tmpLoadNumMap.end())
+    {
+        tmpLoadNumMap[info]=0;
+    }
     tmpLoadNumMap[info] += 1;
     return;
 }
 
 void DomTreeCSEOptimizer::processCallInstruction(CallInstruction* CallI, std::set<InstCSEInfo>& regularCseSet) {
+    //1.如果是库函数调用，无法处理，直接返回
     if (cfgTable.find(CallI->GetFunctionName()) == cfgTable.end()) {
         return;    // external call
     }
@@ -1346,13 +1475,14 @@ void DomTreeCSEOptimizer::processCallInstruction(CallInstruction* CallI, std::se
             return;
     }
     const RWInfo& rwinfo = it->second;
+    //2.如果存在读写内存的操作，无法处理，直接返回
     // we only CSE independent call in this Pass
     if( (rwinfo.has_lib_func_call) || rwinfo.ReadRoots.size() !=0 || rwinfo.WriteRoots.size() != 0) {
         return;
     }
     auto info = GetCSEInfo(CallI);
     auto cseIter = instCSEMap.find(info);
-
+    //3.如果存在同等的call指令，加入删除队列中，并替换寄存器的值；如果不存在，存入信息中
     if (cseIter != instCSEMap.end()) {
         eraseSet.insert(CallI);
         regReplaceMap[GetResultRegNo(CallI)] = cseIter->second;
@@ -1448,7 +1578,7 @@ void SimpleCSEPass::Execute() {
     }
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         CSEInit(cfg);
-        BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser);
+        BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser,domtrees,memdep_analyser);
         optimizer.optimize();
         DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
         optimizer2.optimize();
@@ -1473,23 +1603,12 @@ void SimpleCSEPass::BNExecute() {
     }
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         CSEInit(cfg);
-        BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser);
+        BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser,domtrees,memdep_analyser);
         optimizer.NoMemoptimize();
-        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
-        optimizer2.optimize();
-    }
-    for (auto [defI, cfg] : llvmIR->llvm_cfg) {
-        //CSEInit(cfg);
-        for (auto [id, bb] : *cfg->block_map) {
-            for (auto I : bb->Instruction_list) {
-                I->SetBlockID(id);
-            }
-        }
-        DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
-        optimizer2.branch_optimize();
     }
 }
 void SimpleCSEPass::BlockExecute() {
+    memdep_analyser = new SimpleMemDepAnalyser(llvmIR,alias_analyser,domtrees);
     cfgTable.clear();
     for(auto [defI, cfg] : llvmIR->llvm_cfg){
 		std::string funcName = defI->GetFunctionName();
@@ -1497,7 +1616,7 @@ void SimpleCSEPass::BlockExecute() {
     }
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         CSEInit(cfg);
-        BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser);
+        BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser,domtrees,memdep_analyser);
         optimizer.optimize();
     }
 }

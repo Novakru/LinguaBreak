@@ -24,6 +24,7 @@ debug4.sy
 debug5.ll
 debug5.S
 debug5.sy
+debug*
 
 # Statistics files
 target_time_stats.csv
