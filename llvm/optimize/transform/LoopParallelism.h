@@ -12,6 +12,12 @@
 
 class LoopParallelismPass : public IRPass {
 public:
+	int thread_id_regNo = 0;
+	int start_regNo = 0;
+	int end_regNo = 0;
+	int my_start_regNo = 0;
+	int my_end_regNo = 0;
+
     LoopParallelismPass(LLVMIR* IR) : IRPass(IR) {}
     void Execute() override;
 
@@ -33,13 +39,12 @@ private:
     void CreateParallelCall(Loop* loop, CFG* cfg, const std::string& func_name, ScalarEvolution* SE);
     
     // 循环体指令处理
-    void CopyLoopBodyInstructions(Loop* loop, CFG* cfg, LLVMBlock& new_func_block, 
-                                 std::map<int, int>& reg_mapping);
-    Instruction CloneInstruction(Instruction inst, CFG* cfg, std::map<int, int>& reg_mapping);
+    void CopyLoopBodyInstructions(Loop* loop, FunctionDefineInstruction* func_def, std::map<int, int>& reg_mapping);
+    Instruction CloneInstruction(Instruction inst, FunctionDefineInstruction* func_def, std::map<int, int>& reg_mapping);
     
     // 参数和返回值处理
-    void AddFunctionParameters(LLVMBlock& func_block, CFG* cfg);
-    void AddThreadRangeCalculation(LLVMBlock& func_block, CFG* cfg);
+    void AddFunctionParameters(FunctionDefineInstruction* func_def, std::map<int, int>& reg_mapping);
+    void AddThreadRangeCalculation(FunctionDefineInstruction* func_def, std::map<int, int>& reg_mapping);
     
     // 辅助函数
     std::string GenerateUniqueName(const std::string& base_name);
