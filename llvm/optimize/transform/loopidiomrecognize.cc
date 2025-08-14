@@ -136,6 +136,11 @@ bool LoopIdiomRecognizePass::canRecognizeMemsetIdiom(Loop* loop, CFG* C, ScalarE
     // 使用extractLoopParams获取循环参数
     LoopParams params = SE->extractLoopParams(loop, C);
     // 暂时只支持步长为1的memset；trip count 可为动态（上下界循环不变量）
+	if(params.count != 0) { // 可以静态获取迭代次数, 过小的memset优化没有意义
+		if (params.count < 20) { 
+			return false;
+		}
+	}
     if (params.step_val != 1) return false;
 	
     // 检查数组访问模式
