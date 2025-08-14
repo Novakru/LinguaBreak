@@ -7,6 +7,7 @@ import subprocess
 # Usage examples:
 # python3 grade.py 3 1 last (测试lab3进阶要求，使用functional_test目录)
 # python3 grade.py 5 0 curr (测试lab5基本要求，使用functional_test_curr目录)
+# python3 grade.py 6 0 extr (测试lab6基本要求，使用functional_test_extr目录)
 
 # 记录开始时间
 start_time = time.time()
@@ -14,12 +15,15 @@ start_time = time.time()
 parser = argparse.ArgumentParser()
 parser.add_argument('lab', type=int, default=1)
 parser.add_argument('is_advance', type=int, default=1)
-parser.add_argument('test_version', choices=['last', 'curr'], default='last', 
-                   help="'last' for functional_test, 'curr' for functional_test_curr")
+parser.add_argument('test_version', choices=['last', 'curr','extr'], default='last', 
+                   help="'last' for functional_test, 'curr' for functional_test_curr,'extr' for functional_test_extr")
 args = parser.parse_args()
 
 # Determine test directory based on test_version argument
-test_dir = "functional_test_curr" if args.test_version == "curr" else "functional_test"
+test_dir_dict = {"last":"functional_test",
+                 "curr":"functional_test_curr",
+                 "extr":"functional_test_extr"}
+test_dir = test_dir_dict[args.test_version]
 
 # 记录编译开始时间
 compile_start_time = time.time()
