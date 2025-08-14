@@ -4,6 +4,7 @@
 #include "../pass.h"
 #include "../analysis/ScalarEvolution.h"
 #include "../analysis/loop.h"
+#include "../analysis/LoopDependenceAnalysis.h"
 #include "../../include/cfg.h"
 #include <functional>
 #include <vector>
@@ -18,7 +19,7 @@ public:
 	int my_start_regNo = 0;
 	int my_end_regNo = 0;
 
-    LoopParallelismPass(LLVMIR* IR) : IRPass(IR) {}
+    LoopParallelismPass(LLVMIR* IR, LoopDependenceAnalysisPass* LDA = nullptr) : IRPass(IR), loop_dependence_analyser(LDA) {}
     void Execute() override;
 
 private:
@@ -29,8 +30,10 @@ private:
     // 循环可并行化性检查
     bool CanParallelizeLoop(Loop* loop, CFG* cfg, ScalarEvolution* SE);
     bool IsSimpleLoop(Loop* loop, CFG* cfg);
-    bool HasNoLoopCarriedDependencies(Loop* loop, CFG* cfg);
     bool IsConstantIterationCount(Loop* loop, CFG* cfg, ScalarEvolution* SE);
+    
+    // 循环依赖分析器
+    LoopDependenceAnalysisPass* loop_dependence_analyser;
     
     // 循环体提取和函数生成
     void ExtractLoopBodyToFunction(Loop* loop, CFG* cfg, ScalarEvolution* SE);

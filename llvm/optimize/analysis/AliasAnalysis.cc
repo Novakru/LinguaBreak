@@ -76,10 +76,7 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
     // 对于立即数类型（IMMI32, IMMF32, IMMI64），它们不是指针，返回 NoAlias
     if(op1->GetOperandType() == BasicOperand::IMMI32 || 
        op1->GetOperandType() == BasicOperand::IMMF32 || 
-       op1->GetOperandType() == BasicOperand::IMMI64 ||
-       op2->GetOperandType() == BasicOperand::IMMI32 || 
-       op2->GetOperandType() == BasicOperand::IMMF32 || 
-       op2->GetOperandType() == BasicOperand::IMMI64){
+       op1->GetOperandType() == BasicOperand::IMMI64){
         return NoAlias;
     }
 

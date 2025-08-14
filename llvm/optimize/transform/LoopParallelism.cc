@@ -70,7 +70,7 @@ bool LoopParallelismPass::CanParallelizeLoop(Loop* loop, CFG* cfg, ScalarEvoluti
     }
     
     // 检查是否有循环携带依赖
-    if (!HasNoLoopCarriedDependencies(loop, cfg)) {
+    if (!loop_dependence_analyser || loop_dependence_analyser->getLoopDependenceResult(loop)) {
         PARALLEL_DEBUG(std::cout << "存在循环携带依赖" << std::endl);
         return false;
     }
@@ -80,25 +80,6 @@ bool LoopParallelismPass::CanParallelizeLoop(Loop* loop, CFG* cfg, ScalarEvoluti
         PARALLEL_DEBUG(std::cout << "迭代次数不是常数" << std::endl);
         return false;
     }
-    
-    // // 检查循环体大小（避免并行化开销过大）
-    // const int MIN_LOOP_BODY_SIZE = 10;
-    // const int MAX_LOOP_BODY_SIZE = 500;
-    
-    // int loop_body_size = 0;
-    // for (auto block : loop->getBlocks()) {
-    //     loop_body_size += block->Instruction_list.size();
-    // }
-    
-    // if (loop_body_size < MIN_LOOP_BODY_SIZE) {
-    //     PARALLEL_DEBUG(std::cout << "循环体过小（" << loop_body_size << "），不值得并行化" << std::endl);
-    //     return false;
-    // }
-    
-    // if (loop_body_size > MAX_LOOP_BODY_SIZE) {
-    //     PARALLEL_DEBUG(std::cout << "循环体过大（" << loop_body_size << "），并行化开销过大" << std::endl);
-    //     return false;
-    // }
     
     return true;
 }
@@ -134,32 +115,7 @@ bool LoopParallelismPass::IsSimpleLoop(Loop* loop, CFG* cfg) {
     return true;
 }
 
-bool LoopParallelismPass::HasNoLoopCarriedDependencies(Loop* loop, CFG* cfg) {
-    // 简化版本：检查是否有数组访问
-    // 在实际实现中，这里应该进行更复杂的依赖分析
-    
-    for (auto block : loop->getBlocks()) {
-        for (auto inst : block->Instruction_list) {
-            // 检查是否有数组访问（GEP指令）
-            if (inst->GetOpcode() == BasicInstruction::GETELEMENTPTR) {
-                // 简化处理：如果数组访问的索引是循环变量，可能存在依赖
-                GetElementptrInstruction* gep = (GetElementptrInstruction*)inst;
-                auto indices = gep->GetIndexes();
-                
-                for (auto idx : indices) {
-                    if (idx->GetOperandType() == BasicOperand::REG) {
-                        int regno = ((RegOperand*)idx)->GetRegNo();
-                        // 检查这个寄存器是否是循环变量
-                        // 这里简化处理，实际应该检查是否是归纳变量
-                        return false; // 暂时保守处理
-                    }
-                }
-            }
-        }
-    }
-    
-    return true;
-}
+
 
 bool LoopParallelismPass::IsConstantIterationCount(Loop* loop, CFG* cfg, ScalarEvolution* SE) {
     // 使用extractLoopParams来检查循环参数
@@ -537,7 +493,8 @@ void LoopParallelismPass::CreateParallelCall(Loop* loop, CFG* cfg, const std::st
     for (auto [id, bb] : *cfg->block_map) {
         for (auto I : bb->Instruction_list) {
             Operand v = I->GetResult();
-            if (auto v_reg = dynamic_cast<RegOperand*>(v)) {
+            if (v && v->GetOperandType() == BasicOperand::REG) {
+                auto v_reg = (RegOperand*)v;
                 ResultMap[v_reg->GetRegNo()] = I;
             }
         }
@@ -589,8 +546,18 @@ void LoopParallelismPass::CreateParallelCall(Loop* loop, CFG* cfg, const std::st
     // 添加I32类型的外部变量
     for (auto rn : i32set) {
         if (float32set.find(rn) != float32set.end()) {
-            // FLOAT32直接传递，不需要转换
-            params.push_back({BasicInstruction::LLVMType::FLOAT32, GetNewRegOperand(rn)});
+            // FLOAT32以无符号整数形式传递，需要转换
+			auto real_rn = rn;
+			if (float32set.find(rn) != float32set.end()) {
+				auto bitcastI = new BitCastInstruction(GetNewRegOperand(++cfg->max_reg), GetNewRegOperand(rn), BasicInstruction::LLVMType::FLOAT32, BasicInstruction::LLVMType::I32);
+				real_rn = cfg->max_reg;
+				// 将bitcast指令插入到preheader中
+				LLVMBlock preheader = loop->getPreheader();
+				if (preheader) {
+					preheader->Instruction_list.push_back(bitcastI);
+				}
+			}
+			params.push_back({BasicInstruction::LLVMType::I32, GetNewRegOperand(real_rn)});
         } else {
             // I32类型直接传递
             params.push_back({BasicInstruction::LLVMType::I32, GetNewRegOperand(rn)});
@@ -636,3 +603,5 @@ void LoopParallelismPass::AddRuntimeLibraryDeclarations(CFG* cfg) {
     
     PARALLEL_DEBUG(std::cout << "添加运行时库函数声明" << std::endl);
 }
+
+

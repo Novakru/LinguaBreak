@@ -251,6 +251,7 @@ public:
         SITOFP = 27,
         GLOBAL_VAR = 28,
         GLOBAL_STR = 29,
+        BITCAST = 30,
         
     };
 
@@ -1268,6 +1269,44 @@ public:
     ZextInstruction(LLVMType to_type, Operand result_receiver, LLVMType from_type, Operand value_for_cast)
         : to_type(to_type), result(result_receiver), from_type(from_type), value(value_for_cast) {
         this->opcode = ZEXT;
+    }
+    void PrintIR(std::ostream &s) override;
+    LLVMType GetFromType(){ return from_type; }
+    LLVMType GetToType(){ return to_type; }
+    int GetDefRegno() override;
+    std::set<int> GetUseRegno() override;
+    void ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) override;
+    void ChangeResult(const std::map<int, int> &regNo_map) override;
+    std::vector<Operand> GetNonResultOperands() override {
+        std::vector<Operand> vec;
+        vec.push_back(value);
+        return vec;
+    }
+    void SetNonResultOperands(std::vector<Operand> ops) override {
+        if(ops.size() > 0) {
+            value = ops[0];
+        }
+    }
+    virtual BasicInstruction* Clone() const override;
+    inline void SetResult(Operand op) override { result = op; }
+    bool isSame(const Instruction& other) override {return false;}
+};
+
+// 位转换指令，用于在不同类型之间进行位级别的转换
+class BitCastInstruction : public BasicInstruction {
+private:
+    LLVMType from_type;
+    LLVMType to_type;
+    Operand result;
+    Operand value;
+
+public:
+    Operand GetResult() override { return result; }
+    enum LLVMType GetType() override { return to_type; }
+    Operand GetSrc() { return value; }
+    BitCastInstruction(Operand result_receiver, Operand value_for_cast, LLVMType from_type, LLVMType to_type)
+        : result(result_receiver), value(value_for_cast), from_type(from_type), to_type(to_type) {
+        this->opcode = BITCAST;
     }
     void PrintIR(std::ostream &s) override;
     LLVMType GetFromType(){ return from_type; }

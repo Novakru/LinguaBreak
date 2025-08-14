@@ -15,6 +15,7 @@
 #include "llvm/optimize/analysis/AliasAnalysis.h"
 #include "llvm/optimize/analysis/ScalarEvolution.h"
 #include "llvm/optimize/analysis/memdep.h"
+#include "llvm/optimize/analysis/LoopDependenceAnalysis.h"
 
 #include "llvm/optimize/transform/simplify_cfg.h"
 #include "llvm/optimize/transform/mem2reg.h"
@@ -35,6 +36,7 @@
 #include "llvm/optimize/transform/instCombine.h"
 #include "llvm/optimize/transform/invarelim.h"
 #include "llvm/optimize/transform/LoopParallelism.h"
+
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -71,6 +73,29 @@ void print_usage() {
     std::cerr << "  compiler -semant [-o output_file] input_file\n";
     std::cerr << "  compiler -llvm [-o output_file] input_file\n";
     std::cerr << "  compiler -select [-o output_file] input_file\n";
+}
+
+void redundency_elimination(DomAnalysis inv_dom) {
+	llvmIR.SyncMaxInfo();     
+	inv_dom.invExecute();
+	(ADCEPass(&llvmIR, &inv_dom)).Execute();
+	//ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
+	SimplifyCFGPass(&llvmIR).RebuildCFG();
+	SimplifyCFGPass(&llvmIR).EOBB();  
+	SimplifyCFGPass(&llvmIR).MergeBlocks();		
+	PeepholePass(&llvmIR).ImmResultReplaceExecute();
+	PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
+	PeepholePass(&llvmIR).NegMulAddToSubExecute();
+	LoopStrengthReducePass(&llvmIR).GepStrengthReduce();	// GEP指令强度削弱中端部分
+	InstCombinePass(&llvmIR).Execute();
+	SimplifyCFGPass(&llvmIR).RebuildCFG();
+	PeepholePass(&llvmIR).IdentitiesEliminateExecute();
+	SCCPPass(&llvmIR).Execute();			
+	SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+
+	SimplifyCFGPass(&llvmIR).EOBB();  
+	SimplifyCFGPass(&llvmIR).MergeBlocks();		
+	SimplifyCFGPass(&llvmIR).RebuildCFG();
 }
 
 int main(int argc, char** argv) {
@@ -267,26 +292,7 @@ int main(int argc, char** argv) {
 		LoopStrengthReducePass(&llvmIR).Execute();
 		LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
 
-		llvmIR.SyncMaxInfo();     
-        inv_dom.invExecute();
-        (ADCEPass(&llvmIR, &inv_dom)).Execute();
-        //ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
-		SimplifyCFGPass(&llvmIR).RebuildCFG();
-		SimplifyCFGPass(&llvmIR).EOBB();  
-        SimplifyCFGPass(&llvmIR).MergeBlocks();		
-		PeepholePass(&llvmIR).ImmResultReplaceExecute();
-        PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
-		PeepholePass(&llvmIR).NegMulAddToSubExecute();
-        LoopStrengthReducePass(&llvmIR).GepStrengthReduce();	// GEP指令强度削弱中端部分
-        InstCombinePass(&llvmIR).Execute();
-        SimplifyCFGPass(&llvmIR).RebuildCFG();
-        PeepholePass(&llvmIR).IdentitiesEliminateExecute();
-        SCCPPass(&llvmIR).Execute();			
-        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-
-		SimplifyCFGPass(&llvmIR).EOBB();  
-        SimplifyCFGPass(&llvmIR).MergeBlocks();		
-		SimplifyCFGPass(&llvmIR).RebuildCFG();
+		redundency_elimination(inv_dom);
 
 		// LoopAnalysisPass(&llvmIR).Execute();
 		// LoopSimplifyPass(&llvmIR).Execute();
@@ -295,24 +301,21 @@ int main(int argc, char** argv) {
 		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
 		// SimplifyCFGPass(&llvmIR).TOPPhi();
 		// SCEVPass(&llvmIR).Execute();
+		// InvariantVariableEliminationPass(&llvmIR).Execute();
+
+	    // redundency_elimination(inv_dom);
+
+		// LoopAnalysisPass(&llvmIR).Execute();
+		// LoopSimplifyPass(&llvmIR).Execute();
+		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		// AA.Execute();
+		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
+		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		// SCEVPass(&llvmIR).Execute();
+		// LoopDependenceAnalysisPass(&llvmIR, &AA).Execute();
 		// LoopParallelismPass(&llvmIR).Execute();
 
-		// llvmIR.SyncMaxInfo();
-        // inv_dom.invExecute();
-        // (ADCEPass(&llvmIR, &inv_dom)).Execute();
-        // ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
-        // ADCEPass(&llvmIR,&inv_dom).ERLS();			// 删除冗余load指令
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();
-		// SimplifyCFGPass(&llvmIR).EOBB();  
-        // SimplifyCFGPass(&llvmIR).MergeBlocks();		
-		// PeepholePass(&llvmIR).ImmResultReplaceExecute();
-        // PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
-        // LoopStrengthReducePass(&llvmIR).GepStrengthReduce();	// GEP指令强度削弱中端部分
-
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();
-		// SimplifyCFGPass(&llvmIR).EOBB();  
-        // SimplifyCFGPass(&llvmIR).MergeBlocks();		
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();
+		// redundency_elimination(inv_dom);
 
     // }
 
