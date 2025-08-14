@@ -670,7 +670,7 @@ class AllocaInstruction : public BasicInstruction {
 
 public:
     enum LLVMType GetDataType() { return type; }
-    enum LLVMType GetType() override { return type; }
+    enum LLVMType GetType() override { return (dims.size() == 0) ? type : LLVMType::PTR; }
     Operand GetResult() override { return result; }
     std::vector<int> GetDims() { return dims; }
     AllocaInstruction(enum LLVMType dttype, Operand result) {

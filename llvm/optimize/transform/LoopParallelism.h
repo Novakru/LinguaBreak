@@ -18,8 +18,10 @@ public:
 	int end_regNo = 0;
 	int my_start_regNo = 0;
 	int my_end_regNo = 0;
+	int new_preheader_block_id = 0;
+	int new_latch_block_id = 0;
 	std::map<std::string, int> name_counter;
-	std::set<int> i32set, i64set;
+	std::set<int> i32set, i64set, float32set;
 	LoopDependenceAnalysisPass* loop_dependence_analyser;
 
     LoopParallelismPass(LLVMIR* IR, LoopDependenceAnalysisPass* LDA = nullptr) : IRPass(IR), loop_dependence_analyser(LDA) {}

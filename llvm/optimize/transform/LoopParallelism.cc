@@ -221,6 +221,8 @@ void LoopParallelismPass::AddFunctionParameters(FunctionDefineInstruction* func_
     
     // 处理循环外部变量
     int bias = 3; // thread_id, start, end 之后
+	// std::cout << "i32set.size(): " << i32set.size() << std::endl;
+	// std::cout << "i64set.size(): " << i64set.size() << std::endl;
     
     // 加载I32和FLOAT32类型的外部变量
     for (int regno : i32set) {
@@ -328,6 +330,7 @@ void LoopParallelismPass::AddThreadRangeCalculation(FunctionDefineInstruction* f
 	// auto preheader_block = llvmIR->NewBlock(func_def, ++max_label);
 	auto br_uncond2 = new BrUncondInstruction(GetNewLabelOperand(max_label + 1));
 	merge_block->Instruction_list.push_back(br_uncond2);
+	new_preheader_block_id = max_label;
 }
 
 void LoopParallelismPass::CopyLoopBodyInstructions(Loop* loop, FunctionDefineInstruction* func_def, std::map<int, int>& reg_mapping) {
@@ -360,9 +363,9 @@ void LoopParallelismPass::CopyLoopBodyInstructions(Loop* loop, FunctionDefineIns
     }
 
 	// show reg_mapping
-	// for (auto [regno, new_regno] : reg_mapping) {
-	// 	std::cout << "regno: " << regno << ", new_regno: " << new_regno << std::endl;
-	// }
+	for (auto [regno, new_regno] : reg_mapping) {
+		std::cout << "regno: " << regno << ", new_regno: " << new_regno << std::endl;
+	}
 
     // 创建新的基本块映射
     std::map<int, int> labelreplace_map;
@@ -372,6 +375,10 @@ void LoopParallelismPass::CopyLoopBodyInstructions(Loop* loop, FunctionDefineIns
     for (auto block : loop->getBlocks()) {
         auto new_block = llvmIR->NewBlock(func_def, ++max_label);
         labelreplace_map[block->block_id] = new_block->block_id;
+		LLVMBlock old_latch = *(loop->getLatches().begin());
+		if (block->block_id == old_latch->block_id) {
+			new_latch_block_id = new_block->block_id;
+		}
         
         for (auto inst : block->Instruction_list) {
             Instruction cloned_inst = CloneInstruction(inst, func_def, reg_mapping);
@@ -381,17 +388,22 @@ void LoopParallelismPass::CopyLoopBodyInstructions(Loop* loop, FunctionDefineIns
         }
     }
 
-	// exit 需要特殊处理，这是循环中唯一出现的循环外标签
+	// exit、preheader 需要特殊处理，这是循环中唯一出现的循环外标签
 	// 循环跳转到 exit 表示循环运行结束，此处函数封装循环，exit 表示函数返回
 	auto func_exit_block = llvmIR->NewBlock(func_def, ++max_label);
 	LLVMBlock exit = *loop->getExits().begin();
 	labelreplace_map[exit->block_id] = func_exit_block->block_id;
+	auto preheader = loop->getPreheader();
+	labelreplace_map[preheader->block_id] = new_preheader_block_id;
 
 	auto ret_void_inst = new RetInstruction(BasicInstruction::LLVMType::VOID, nullptr);
 	func_exit_block->Instruction_list.push_back(ret_void_inst);
     
     // 更新跳转指令中的标签
     for (auto [id, bb] : llvmIR->function_block_map[func_def]) {
+		if (id <= new_preheader_block_id) {
+			continue;
+		}
         for (auto inst : bb->Instruction_list) {
             if (inst->GetOpcode() == BasicInstruction::BR_UNCOND) {
                 BrUncondInstruction* br_inst = (BrUncondInstruction*)inst;
@@ -423,9 +435,30 @@ void LoopParallelismPass::CopyLoopBodyInstructions(Loop* loop, FunctionDefineIns
                         br_inst->SetFalseLabel(GetNewLabelOperand(new_label));
                     }
                 }
-            }
+            } else if (inst->GetOpcode() == BasicInstruction::PHI) {
+				PhiInstruction* phi_inst = (PhiInstruction*)inst;
+				auto phi_list = phi_inst->GetPhiList();
+				std::vector<std::pair<Operand, Operand>> new_phi_list;
+				for (auto [label, value] : phi_list) {
+					if (label->GetOperandType() == BasicOperand::LABEL) {
+						int old_label = ((LabelOperand*)label)->GetLabelNo();
+						if (labelreplace_map.find(old_label) != labelreplace_map.end()) {
+							int new_label = labelreplace_map[old_label];
+							label = GetNewLabelOperand(new_label);
+						}
+					}
+					new_phi_list.push_back({label, value});
+				}
+				phi_inst->SetPhiList(new_phi_list);
+			}
         }
     }
+
+	// std::cout << "new_preheader_block_id: " << new_preheader_block_id << std::endl;
+	// std::cout << "new_latch_block_id: " << new_latch_block_id << std::endl;
+
+	// 处理 preheader 和 latch, 修改上下界
+
 }
 
 Instruction LoopParallelismPass::CloneInstruction(Instruction inst, FunctionDefineInstruction* func_def, std::map<int, int>& reg_mapping) {
@@ -436,25 +469,22 @@ Instruction LoopParallelismPass::CloneInstruction(Instruction inst, FunctionDefi
         return nullptr;
     }
     
-	std::map<int, int> use_map;
-	std::map<int, int> def_map;
-	
-	auto use_regs = inst->GetUseRegno();
-	for (int reg : use_regs) {
-		if (reg_mapping.find(reg) != reg_mapping.end()) {
-			use_map[reg] = reg_mapping[reg];
+	auto newNonresultOperands = std::vector<Operand>();
+	for (auto op : cloned_inst->GetNonResultOperands()) {
+		if (op->GetOperandType() == BasicOperand::REG) {
+			auto r = (RegOperand*)op;
+			int regno = r->GetRegNo();
+			if (reg_mapping.find(regno) != reg_mapping.end()) {
+				auto new_reg = GetNewRegOperand(reg_mapping[regno]);
+				newNonresultOperands.push_back(new_reg);
+			}
+		} else {
+			newNonresultOperands.push_back(op);
 		}
 	}
+	cloned_inst->SetNonResultOperands(newNonresultOperands);
 
-    int def_reg = inst->GetDefRegno();
-	if (def_reg != -1 && reg_mapping.find(def_reg) != reg_mapping.end()) {
-		def_map[def_reg] = reg_mapping[def_reg];
-	}
-
-    if (!reg_mapping.empty()) {
-        cloned_inst->ChangeReg(def_map, use_map); // 应用寄存器替换
-		cloned_inst->ChangeResult(reg_mapping);
-    }
+	cloned_inst->ChangeResult(reg_mapping);
     
     return cloned_inst;
 }
@@ -471,7 +501,7 @@ void LoopParallelismPass::CreateConditionalParallelization(Loop* loop, CFG* cfg,
     // 使用extractLoopParams获取循环参数
     auto loop_params = SE->extractLoopParams(loop, cfg);
     
-    const int PARALLEL_THRESHOLD = 100;
+    const int PARALLEL_THRESHOLD = 50;
     
     if (loop_params.is_simple_loop && loop_params.count >= PARALLEL_THRESHOLD) {
         // 创建并行化调用
@@ -481,57 +511,62 @@ void LoopParallelismPass::CreateConditionalParallelization(Loop* loop, CFG* cfg,
 
 void LoopParallelismPass::CreateParallelCall(Loop* loop, CFG* cfg, const std::string& func_name, ScalarEvolution* SE) {
 
-    // auto loop_params = SE->extractLoopParams(loop, cfg);
+    auto loop_params = SE->extractLoopParams(loop, cfg);
 
-    // // 创建参数列表
-    // std::vector<std::pair<BasicInstruction::LLVMType, Operand>> params;
+    // 创建参数列表
+    std::vector<std::pair<BasicInstruction::LLVMType, Operand>> params;
     
-    // // 函数指针参数
-    // auto func_ptr = GetNewGlobalOperand(func_name);
-    // params.push_back({BasicInstruction::LLVMType::PTR, func_ptr});
+    // 函数指针参数
+    auto func_ptr = GetNewGlobalOperand(func_name);
+    params.push_back({BasicInstruction::LLVMType::PTR, func_ptr});
     
-    // // 循环起始和结束
-    // params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(loop_params.start_val)});
-    // params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(loop_params.bound_val)});
+    // 循环起始和结束
+    params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(loop_params.start_val)});
+    params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(loop_params.bound_val)});
     
-    // // I32变量数量和PTR变量数量
-    // params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(i32set.size())});
-    // params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(i64set.size())});
+    // I32变量数量和PTR变量数量
+    params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(i32set.size())});
+    params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(i64set.size())});
     
-    // // 添加I32类型的外部变量
-    // for (auto rn : i32set) {
-    //     if (float32set.find(rn) != float32set.end()) {
-    //         // FLOAT32以无符号整数形式传递，需要转换
-	// 		auto real_rn = rn;
-	// 		if (float32set.find(rn) != float32set.end()) {
-	// 			auto bitcastI = new BitCastInstruction(GetNewRegOperand(++cfg->max_reg), GetNewRegOperand(rn), BasicInstruction::LLVMType::FLOAT32, BasicInstruction::LLVMType::I32);
-	// 			real_rn = cfg->max_reg;
-	// 			// 将bitcast指令插入到preheader中
-	// 			LLVMBlock preheader = loop->getPreheader();
-	// 			if (preheader) {
-	// 				preheader->Instruction_list.push_back(bitcastI);
-	// 			}
-	// 		}
-	// 		params.push_back({BasicInstruction::LLVMType::I32, GetNewRegOperand(real_rn)});
-    //     } else {
-    //         // I32类型直接传递
-    //         params.push_back({BasicInstruction::LLVMType::I32, GetNewRegOperand(rn)});
-    //     }
-    // }
-    
-    // // 添加PTR类型的外部变量
-    // for (auto rn : i64set) {
-    //     params.push_back({BasicInstruction::LLVMType::PTR, GetNewRegOperand(rn)});
-    // }
+    LLVMBlock preheader = loop->getPreheader();
+	preheader->Instruction_list.pop_back();  // pop br_uncond_inst
 
-    // auto call_inst = new CallInstruction(BasicInstruction::LLVMType::VOID, nullptr, "parallel_loop_execute", params);
+    // 添加I32类型的外部变量
+    for (auto rn : i32set) {
+        if (i32set.find(rn) != i32set.end()) {
+            // FLOAT32以无符号整数形式传递，需要转换
+			auto real_rn = rn;
+			if (float32set.find(rn) != float32set.end()) {
+				auto bitcastI = new BitCastInstruction(GetNewRegOperand(++cfg->max_reg), GetNewRegOperand(rn), BasicInstruction::LLVMType::FLOAT32, BasicInstruction::LLVMType::I32);
+				real_rn = cfg->max_reg;
+				// 将bitcast指令插入到preheader中
+				LLVMBlock preheader = loop->getPreheader();
+				if (preheader) {
+					preheader->Instruction_list.push_back(bitcastI);
+				}
+			}
+			params.push_back({BasicInstruction::LLVMType::I32, GetNewRegOperand(real_rn)});
+        } else {
+            // I32类型直接传递
+            params.push_back({BasicInstruction::LLVMType::I32, GetNewRegOperand(rn)});
+        }
+    }
     
-    // // 将调用指令插入到循环头部之前
-    // LLVMBlock preheader = loop->getPreheader();
-    // if (preheader) {
-    //     preheader->Instruction_list.push_back(call_inst);
-    // }
+    // 添加PTR类型的外部变量
+    for (auto rn : i64set) {
+        params.push_back({BasicInstruction::LLVMType::PTR, GetNewRegOperand(rn)});
+    }
+
+    auto call_inst = new CallInstruction(BasicInstruction::LLVMType::VOID, nullptr, "parallel_loop_execute", params);
     
+    // 将调用指令插入到循环头部之前
+    if (preheader) {
+        preheader->Instruction_list.push_back(call_inst);
+    }
+	auto exit_block = *loop->getExits().begin();
+	auto br_uncond_inst = new BrUncondInstruction(GetNewLabelOperand(exit_block->block_id));
+	preheader->Instruction_list.push_back(br_uncond_inst);
+	
     // PARALLEL_DEBUG(std::cout << "创建并行化调用: " << func_name << std::endl);
 }
 
@@ -540,7 +575,7 @@ void LoopParallelismPass::AddRuntimeLibraryDeclarations() {
     // void parallel_loop_execute(void* func_ptr, int start, int end, int len1, int len2, ...);
     
     // 创建函数声明
-    auto decl = new FunctionDefineInstruction(BasicInstruction::LLVMType::VOID, "parallel_loop_execute");
+    auto decl = new FunctionDeclareInstruction(BasicInstruction::LLVMType::VOID, "parallel_loop_execute");
     decl->InsertFormal(BasicInstruction::LLVMType::PTR);  // func_ptr
     decl->InsertFormal(BasicInstruction::LLVMType::I32);  // start
     decl->InsertFormal(BasicInstruction::LLVMType::I32);  // end
@@ -579,12 +614,17 @@ void LoopParallelismPass::CollectLoopExternalVariables(Loop* loop, CFG* cfg) {
                         auto def_bbid = ResultMap[regno]->GetBlockID();
                         auto def_bb = (*cfg->block_map)[def_bbid];
                         if (!loop->contains(def_bb)) {
+							// std::cout << "regno: " << regno << std::endl;
+							// std::cout << "outloop_defI: "; outloop_defI->PrintIR(std::cout);
                             auto type = outloop_defI->GetType();
-                            if (type == BasicInstruction::LLVMType::I32 || type == BasicInstruction::LLVMType::FLOAT32) {
+                            if (type == BasicInstruction::LLVMType::I32) {
                                 i32set.insert(regno);
                             } else if (type == BasicInstruction::LLVMType::PTR) {
                                 i64set.insert(regno);
-                            }
+                            } else if (type == BasicInstruction::LLVMType::FLOAT32) {
+								i32set.insert(regno);
+								float32set.insert(regno);
+							}
                         }
                     }
                 }
