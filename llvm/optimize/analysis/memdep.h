@@ -51,7 +51,7 @@ public:
     bool isStoreNotUsed(Instruction a, CFG *C);
 
     // 测试函数 (开发调试用)
-    //void MemDepTest();
+    void MemDepTest();
 
     SimpleMemDepAnalyser(LLVMIR *ir, AliasAnalysisPass * aa,DomAnalysis *dom)
         : IR(ir), alias_analyser(aa),domtrees(dom) {}
