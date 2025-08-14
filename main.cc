@@ -223,8 +223,8 @@ int main(int argc, char** argv) {
         inv_dom.invExecute();
 
         AliasAnalysisPass AA(&llvmIR); 
-		AA.Execute();
-        SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
+		// AA.Execute();
+        // SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
 
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
