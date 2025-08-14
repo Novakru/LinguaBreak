@@ -8,7 +8,7 @@
 
 // 调试宏定义
 // 精简调试输出，只保留关键信息
-#define LOOP_IDIOM_DEBUG
+// #define LOOP_IDIOM_DEBUG
 
 #ifdef LOOP_IDIOM_DEBUG
 #define LOOP_IDIOM_DEBUG_PRINT(x) do {std::cerr << "[LoopIdiom] "; x; } while(0)

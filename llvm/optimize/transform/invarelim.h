@@ -14,7 +14,7 @@
 #include "../analysis/loop.h"
 
 // 调试宏定义
-#define INVAR_ELIM_DEBUG
+// #define INVAR_ELIM_DEBUG
 
 #ifdef INVAR_ELIM_DEBUG
 #define INVAR_ELIM_DEBUG_PRINT(x) do { std::cerr << "[INVAR_ELIM] " << x << std::endl; } while(0)

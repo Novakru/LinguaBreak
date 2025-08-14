@@ -248,11 +248,7 @@ int main(int argc, char** argv) {
         inv_dom.invExecute();
 
         AliasAnalysisPass AA(&llvmIR); 
-<<<<<<< HEAD
 		AA.Execute();
-=======
-		// AA.Execute();
->>>>>>> 84b44f94f7f7fff46b2bd6c0db3cf44b043d3319
         // SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
 
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
@@ -284,40 +280,30 @@ int main(int argc, char** argv) {
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
-		// AA.Execute();
-		// LoopRotate(&llvmIR, &AA).Execute();
-		// LoopAnalysisPass(&llvmIR).Execute();
-		// LoopSimplifyPass(&llvmIR).Execute();
 		AA.Execute();
 		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
-		InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
-		LoopStrengthReducePass(&llvmIR).Execute();
-		LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
+		LoopDependenceAnalysisPass loopDepAnalysis(&llvmIR, &AA); // must before lsr
+		loopDepAnalysis.Execute();
+		LoopParallelismPass(&llvmIR, &loopDepAnalysis).Execute(); 
 
-		redundency_elimination(inv_dom);
-
-		// LoopAnalysisPass(&llvmIR).Execute();
-		// LoopSimplifyPass(&llvmIR).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
-		// AA.Execute();
-		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
-		// SCEVPass(&llvmIR).Execute();
-		// InvariantVariableEliminationPass(&llvmIR).Execute();
-
-	    // redundency_elimination(inv_dom);
+		// redundency_elimination(inv_dom);
 
 		// LoopAnalysisPass(&llvmIR).Execute();
 		// LoopSimplifyPass(&llvmIR).Execute();
 		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		// // AA.Execute();
+		// // LoopRotate(&llvmIR, &AA).Execute();
+		// // LoopAnalysisPass(&llvmIR).Execute();
+		// // LoopSimplifyPass(&llvmIR).Execute();
 		// AA.Execute();
 		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
 		// SimplifyCFGPass(&llvmIR).TOPPhi();
 		// SCEVPass(&llvmIR).Execute();
-		// LoopDependenceAnalysisPass(&llvmIR, &AA).Execute();
-		// LoopParallelismPass(&llvmIR).Execute();
+		// InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
+		// LoopStrengthReducePass(&llvmIR).Execute();
+		// LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
 
 		// redundency_elimination(inv_dom);
 

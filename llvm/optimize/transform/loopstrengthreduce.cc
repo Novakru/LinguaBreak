@@ -10,7 +10,7 @@ bool isInductionVariable(Operand op, Loop* loop);
 // 2. while(i < n) i *= 2
 // 3. while(i > n) i /= 2 ...
 
-#define lsr_debug 
+// #define lsr_debug 
 
 #ifdef lsr_debug
 #define LSR_DEBUG_PRINT(x) do { x; } while(0)

@@ -13,7 +13,9 @@
 
 void LoopParallelismPass::Execute() {
     PARALLEL_DEBUG(std::cout << "=== 开始自动并行化Pass ===" << std::endl);
-    
+
+    AddRuntimeLibraryDeclarations();
+
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         PARALLEL_DEBUG(std::cout << "处理函数: " << cfg->function_def->GetFunctionName() << std::endl);
         
@@ -33,9 +35,6 @@ void LoopParallelismPass::ProcessFunction(CFG* cfg) {
     
     ScalarEvolution* SE = cfg->getSCEVInfo();
     if (!SE) return;
-    
-    // 添加运行时库函数声明
-    AddRuntimeLibraryDeclarations(cfg);
     
     for (auto loop : loop_info->getTopLevelLoops()) {
         PARALLEL_DEBUG(std::cout << "分析循环，header block_id=" << loop->getHeader()->block_id << std::endl);
@@ -128,10 +127,8 @@ bool LoopParallelismPass::IsConstantIterationCount(Loop* loop, CFG* cfg, ScalarE
 void LoopParallelismPass::ExtractLoopBodyToFunction(Loop* loop, CFG* cfg, ScalarEvolution* SE) {
     std::string func_name = GenerateFunctionName(cfg, loop);
     
-    // 创建并行化函数
+	CollectLoopExternalVariables(loop, cfg);
     CreateParallelFunction(loop, cfg, func_name, SE);
-    
-    // 创建并行化调用
     CreateConditionalParallelization(loop, cfg, func_name, SE);
 }
 
@@ -154,30 +151,20 @@ std::string LoopParallelismPass::GenerateUniqueName(const std::string& base_name
 }
 
 void LoopParallelismPass::CreateParallelFunction(Loop* loop, CFG* cfg, const std::string& func_name, ScalarEvolution* SE) {
-    // 创建新的函数定义
     auto func_def = new FunctionDefineInstruction(BasicInstruction::LLVMType::VOID, func_name);
     
     // 添加函数参数：void* args
     func_def->InsertFormal(BasicInstruction::LLVMType::PTR);
     
-    // 使用IR的NewFunction方法
     llvmIR->NewFunction(func_def);
 	llvmIR->function_max_reg[func_def] = 0;  // ptr arg is %r0
 	llvmIR->function_max_label[func_def] = -1;
     
-    // 全局维护寄存器映射
     std::map<int, int> reg_mapping;
     
-    // 添加函数参数处理
     AddFunctionParameters(func_def, reg_mapping);
-    std::cout << "AddFunctionParameters" << std::endl;
-    // 添加线程范围计算
     AddThreadRangeCalculation(func_def, reg_mapping);
-	std::cout << "AddThreadRangeCalculation" << std::endl;
-
-	// 复制循环体指令到基本块中，后续再根据基本块构建 new_cfg
 	CopyLoopBodyInstructions(loop, func_def, reg_mapping);
-	std::cout << "CopyLoopBodyInstructions" << std::endl;
     
     PARALLEL_DEBUG(std::cout << "创建并行化函数: " << func_name << std::endl);
 }
@@ -233,34 +220,31 @@ void LoopParallelismPass::AddFunctionParameters(FunctionDefineInstruction* func_
     func_block->Instruction_list.push_back(end_load);
     
     // 处理循环外部变量
-    // 根据len1和len2参数加载外部变量
     int bias = 3; // thread_id, start, end 之后
     
     // 加载I32和FLOAT32类型的外部变量
-    for (int i = 0; i < 10; i++) { // 假设最多10个变量
-        bias += 1;
+    for (int regno : i32set) {
         auto var_gep_reg = GetNewRegOperand(++max_reg);
+        // 使用新的GEP构造函数，直接传入偏移量
         auto var_gep = new GetElementptrInstruction(
-            BasicInstruction::LLVMType::I32, var_gep_reg, args_param, BasicInstruction::LLVMType::I32);
-        var_gep->push_idx_imm32(bias);
+            BasicInstruction::LLVMType::I32, var_gep_reg, args_param, new ImmI32Operand(bias), BasicInstruction::LLVMType::I32);
         func_block->Instruction_list.push_back(var_gep);
         
         auto var_reg = GetNewRegOperand(++max_reg);
-        // 根据变量类型选择加载类型
-        auto var_load = new LoadInstruction(BasicInstruction::LLVMType::I32, var_gep_reg, var_reg);
+        auto load_type = i32set.count(regno) ? BasicInstruction::LLVMType::I32 : BasicInstruction::LLVMType::FLOAT32;
+        auto var_load = new LoadInstruction(load_type, var_gep_reg, var_reg);
         func_block->Instruction_list.push_back(var_load);
         
-        // 将变量添加到映射中，供后续循环体使用
-        reg_mapping[1000 + i] = max_reg; // 使用特殊编号避免冲突
+        // 将变量添加到映射中，供后续寄存器映射替换使用
+        reg_mapping[regno] = max_reg;
+		bias += 1;
     }
     
     // 加载PTR类型的外部变量
-    for (int i = 0; i < 5; i++) { // 假设最多5个PTR变量
-        bias += 2; // PTR变量占用8字节
+    for (int regno : i64set) {
         auto var_gep_reg = GetNewRegOperand(++max_reg);
         auto var_gep = new GetElementptrInstruction(
-            BasicInstruction::LLVMType::I32, var_gep_reg, args_param, BasicInstruction::LLVMType::I32);
-        var_gep->push_idx_imm32(bias);
+            BasicInstruction::LLVMType::I32, var_gep_reg, args_param, new ImmI32Operand(bias), BasicInstruction::LLVMType::I32);
         func_block->Instruction_list.push_back(var_gep);
         
         auto var_reg = GetNewRegOperand(++max_reg);
@@ -268,7 +252,8 @@ void LoopParallelismPass::AddFunctionParameters(FunctionDefineInstruction* func_
         func_block->Instruction_list.push_back(var_load);
         
         // 将变量添加到映射中
-        reg_mapping[2000 + i] = max_reg; // 使用特殊编号避免冲突
+        reg_mapping[regno] = max_reg;
+		bias += 2; // PTR变量占用8字节
     }
 }
 
@@ -318,13 +303,14 @@ void LoopParallelismPass::AddThreadRangeCalculation(FunctionDefineInstruction* f
     auto cmp_inst = new IcmpInstruction(BasicInstruction::LLVMType::I32, thread_id_reg, new ImmI32Operand(3), IcmpInstruction::eq, cmp_reg);
     func_block->Instruction_list.push_back(cmp_inst);
     
-    // 创建分支结构
-    auto branch_block = llvmIR->NewBlock(func_def, ++max_label);
-    auto merge_block = llvmIR->NewBlock(func_def, ++max_label);
+    auto branch_block = llvmIR->NewBlock(func_def, ++max_label); // my_end = end
+    auto merge_block = llvmIR->NewBlock(func_def, ++max_label); // my_end = temp_reg
     
-    // 条件跳转
     auto br_cond_inst = new BrCondInstruction(cmp_reg, GetNewLabelOperand(branch_block->block_id), GetNewLabelOperand(merge_block->block_id));
     func_block->Instruction_list.push_back(br_cond_inst);
+
+	std::cout << "branch_block->block_id: " << branch_block->block_id << std::endl;
+	std::cout << "merge_block->block_id: " << merge_block->block_id << std::endl;
     
     // branch_block: my_end = end
     auto br_uncond1 = new BrUncondInstruction(GetNewLabelOperand(merge_block->block_id));
@@ -338,18 +324,32 @@ void LoopParallelismPass::AddThreadRangeCalculation(FunctionDefineInstruction* f
     phi_list.push_back({GetNewLabelOperand(func_block->block_id), temp_reg});
     auto phi_inst = new PhiInstruction(BasicInstruction::LLVMType::I32, my_end_reg, phi_list);
     merge_block->Instruction_list.push_back(phi_inst);
+
+	// auto preheader_block = llvmIR->NewBlock(func_def, ++max_label);
+	auto br_uncond2 = new BrUncondInstruction(GetNewLabelOperand(max_label + 1));
+	merge_block->Instruction_list.push_back(br_uncond2);
 }
 
 void LoopParallelismPass::CopyLoopBodyInstructions(Loop* loop, FunctionDefineInstruction* func_def, std::map<int, int>& reg_mapping) {
-    // 识别循环中使用但在循环外定义的变量，并添加到映射中
+    // 循环外的变量需要与参数读取时的顺序对应，循环内的reg则需要与新建的reg不冲突 (此处处理循环内)
     for (auto bb : loop->getBlocks()) {
         for (auto I : bb->Instruction_list) {
+			auto res_op = I->GetResult();
+			if (res_op && res_op->GetOperandType() == BasicOperand::REG) {
+				auto r = (RegOperand*)res_op;
+				int regno = r->GetRegNo();
+				if (reg_mapping.find(regno) == reg_mapping.end()) {
+					int& max_reg = llvmIR->function_max_reg[func_def];
+					int new_regno = ++max_reg;
+					reg_mapping[regno] = new_regno;
+				}
+			}
+
             for (auto op : I->GetNonResultOperands()) {
                 if (op->GetOperandType() == BasicOperand::REG) {
                     auto r = (RegOperand*)op;
                     int regno = r->GetRegNo();
                     if (reg_mapping.find(regno) == reg_mapping.end()) {
-                        // 为循环外部变量创建新的寄存器
                         int& max_reg = llvmIR->function_max_reg[func_def];
                         int new_regno = ++max_reg;
                         reg_mapping[regno] = new_regno;
@@ -358,6 +358,12 @@ void LoopParallelismPass::CopyLoopBodyInstructions(Loop* loop, FunctionDefineIns
             }
         }
     }
+
+	// show reg_mapping
+	// for (auto [regno, new_regno] : reg_mapping) {
+	// 	std::cout << "regno: " << regno << ", new_regno: " << new_regno << std::endl;
+	// }
+
     // 创建新的基本块映射
     std::map<int, int> labelreplace_map;
     
@@ -367,15 +373,22 @@ void LoopParallelismPass::CopyLoopBodyInstructions(Loop* loop, FunctionDefineIns
         auto new_block = llvmIR->NewBlock(func_def, ++max_label);
         labelreplace_map[block->block_id] = new_block->block_id;
         
-        // 复制基本块中的指令
         for (auto inst : block->Instruction_list) {
-            // 克隆指令
             Instruction cloned_inst = CloneInstruction(inst, func_def, reg_mapping);
             if (cloned_inst) {
                 new_block->Instruction_list.push_back(cloned_inst);
             }
         }
     }
+
+	// exit 需要特殊处理，这是循环中唯一出现的循环外标签
+	// 循环跳转到 exit 表示循环运行结束，此处函数封装循环，exit 表示函数返回
+	auto func_exit_block = llvmIR->NewBlock(func_def, ++max_label);
+	LLVMBlock exit = *loop->getExits().begin();
+	labelreplace_map[exit->block_id] = func_exit_block->block_id;
+
+	auto ret_void_inst = new RetInstruction(BasicInstruction::LLVMType::VOID, nullptr);
+	func_exit_block->Instruction_list.push_back(ret_void_inst);
     
     // 更新跳转指令中的标签
     for (auto [id, bb] : llvmIR->function_block_map[func_def]) {
@@ -423,35 +436,24 @@ Instruction LoopParallelismPass::CloneInstruction(Instruction inst, FunctionDefi
         return nullptr;
     }
     
-    // 为指令定义的新寄存器创建映射
+	std::map<int, int> use_map;
+	std::map<int, int> def_map;
+	
+	auto use_regs = inst->GetUseRegno();
+	for (int reg : use_regs) {
+		if (reg_mapping.find(reg) != reg_mapping.end()) {
+			use_map[reg] = reg_mapping[reg];
+		}
+	}
+
     int def_reg = inst->GetDefRegno();
-    if (def_reg != -1 && reg_mapping.find(def_reg) == reg_mapping.end()) {
-        // 为新的定义寄存器创建映射
-        int& max_reg = llvmIR->function_max_reg[func_def];
-        int new_regno = ++max_reg;
-        reg_mapping[def_reg] = new_regno;
-    }
-    
-    // 应用寄存器映射
+	if (def_reg != -1 && reg_mapping.find(def_reg) != reg_mapping.end()) {
+		def_map[def_reg] = reg_mapping[def_reg];
+	}
+
     if (!reg_mapping.empty()) {
-        // 获取指令使用的寄存器
-        auto use_regs = inst->GetUseRegno();
-        std::map<int, int> use_map;
-        
-        for (int reg : use_regs) {
-            if (reg_mapping.find(reg) != reg_mapping.end()) {
-                use_map[reg] = reg_mapping[reg];
-            }
-        }
-        
-        // 获取指令定义的寄存器
-        std::map<int, int> def_map;
-        if (def_reg != -1 && reg_mapping.find(def_reg) != reg_mapping.end()) {
-            def_map[def_reg] = reg_mapping[def_reg];
-        }
-        
-        // 应用寄存器替换
-        cloned_inst->ChangeReg(def_map, use_map);
+        cloned_inst->ChangeReg(def_map, use_map); // 应用寄存器替换
+		cloned_inst->ChangeResult(reg_mapping);
     }
     
     return cloned_inst;
@@ -478,16 +480,81 @@ void LoopParallelismPass::CreateConditionalParallelization(Loop* loop, CFG* cfg,
 }
 
 void LoopParallelismPass::CreateParallelCall(Loop* loop, CFG* cfg, const std::string& func_name, ScalarEvolution* SE) {
-    // 创建调用运行时库函数的指令
-    // parallel_loop_execute(func_name, start, end, len1, len2, ...)
+
+    // auto loop_params = SE->extractLoopParams(loop, cfg);
+
+    // // 创建参数列表
+    // std::vector<std::pair<BasicInstruction::LLVMType, Operand>> params;
     
-    // 使用extractLoopParams获取循环参数
-    auto loop_params = SE->extractLoopParams(loop, cfg);
+    // // 函数指针参数
+    // auto func_ptr = GetNewGlobalOperand(func_name);
+    // params.push_back({BasicInstruction::LLVMType::PTR, func_ptr});
     
-    // 收集循环外部变量
-    std::set<int> i32set, i64set;
-    std::set<int> float32set;
+    // // 循环起始和结束
+    // params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(loop_params.start_val)});
+    // params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(loop_params.bound_val)});
     
+    // // I32变量数量和PTR变量数量
+    // params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(i32set.size())});
+    // params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(i64set.size())});
+    
+    // // 添加I32类型的外部变量
+    // for (auto rn : i32set) {
+    //     if (float32set.find(rn) != float32set.end()) {
+    //         // FLOAT32以无符号整数形式传递，需要转换
+	// 		auto real_rn = rn;
+	// 		if (float32set.find(rn) != float32set.end()) {
+	// 			auto bitcastI = new BitCastInstruction(GetNewRegOperand(++cfg->max_reg), GetNewRegOperand(rn), BasicInstruction::LLVMType::FLOAT32, BasicInstruction::LLVMType::I32);
+	// 			real_rn = cfg->max_reg;
+	// 			// 将bitcast指令插入到preheader中
+	// 			LLVMBlock preheader = loop->getPreheader();
+	// 			if (preheader) {
+	// 				preheader->Instruction_list.push_back(bitcastI);
+	// 			}
+	// 		}
+	// 		params.push_back({BasicInstruction::LLVMType::I32, GetNewRegOperand(real_rn)});
+    //     } else {
+    //         // I32类型直接传递
+    //         params.push_back({BasicInstruction::LLVMType::I32, GetNewRegOperand(rn)});
+    //     }
+    // }
+    
+    // // 添加PTR类型的外部变量
+    // for (auto rn : i64set) {
+    //     params.push_back({BasicInstruction::LLVMType::PTR, GetNewRegOperand(rn)});
+    // }
+
+    // auto call_inst = new CallInstruction(BasicInstruction::LLVMType::VOID, nullptr, "parallel_loop_execute", params);
+    
+    // // 将调用指令插入到循环头部之前
+    // LLVMBlock preheader = loop->getPreheader();
+    // if (preheader) {
+    //     preheader->Instruction_list.push_back(call_inst);
+    // }
+    
+    // PARALLEL_DEBUG(std::cout << "创建并行化调用: " << func_name << std::endl);
+}
+
+void LoopParallelismPass::AddRuntimeLibraryDeclarations() {
+    // 添加运行时库函数声明
+    // void parallel_loop_execute(void* func_ptr, int start, int end, int len1, int len2, ...);
+    
+    // 创建函数声明
+    auto decl = new FunctionDefineInstruction(BasicInstruction::LLVMType::VOID, "parallel_loop_execute");
+    decl->InsertFormal(BasicInstruction::LLVMType::PTR);  // func_ptr
+    decl->InsertFormal(BasicInstruction::LLVMType::I32);  // start
+    decl->InsertFormal(BasicInstruction::LLVMType::I32);  // end
+    decl->InsertFormal(BasicInstruction::LLVMType::I32);  // len1 (I32变量数量)
+    decl->InsertFormal(BasicInstruction::LLVMType::I32);  // len2 (PTR变量数量)
+    
+    // 添加到全局函数表
+    llvmIR->function_declare.push_back(decl);
+    
+    PARALLEL_DEBUG(std::cout << "添加运行时库函数声明" << std::endl);
+}
+
+void LoopParallelismPass::CollectLoopExternalVariables(Loop* loop, CFG* cfg) {
+
     // 获取循环中使用的寄存器映射
     std::map<int, Instruction> ResultMap;
     for (auto [id, bb] : *cfg->block_map) {
@@ -513,13 +580,10 @@ void LoopParallelismPass::CreateParallelCall(Loop* loop, CFG* cfg, const std::st
                         auto def_bb = (*cfg->block_map)[def_bbid];
                         if (!loop->contains(def_bb)) {
                             auto type = outloop_defI->GetType();
-                            if (type == BasicInstruction::LLVMType::I32) {
+                            if (type == BasicInstruction::LLVMType::I32 || type == BasicInstruction::LLVMType::FLOAT32) {
                                 i32set.insert(regno);
                             } else if (type == BasicInstruction::LLVMType::PTR) {
                                 i64set.insert(regno);
-                            } else if (type == BasicInstruction::LLVMType::FLOAT32) {
-                                float32set.insert(regno);
-                                i32set.insert(regno);
                             }
                         }
                     }
@@ -527,81 +591,5 @@ void LoopParallelismPass::CreateParallelCall(Loop* loop, CFG* cfg, const std::st
             }
         }
     }
-    
-    // 创建参数列表
-    std::vector<std::pair<BasicInstruction::LLVMType, Operand>> params;
-    
-    // 函数指针参数
-    auto func_ptr = GetNewGlobalOperand(func_name);
-    params.push_back({BasicInstruction::LLVMType::PTR, func_ptr});
-    
-    // 循环起始和结束
-    params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(loop_params.start_val)});
-    params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(loop_params.bound_val)});
-    
-    // I32变量数量和PTR变量数量
-    params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(i32set.size())});
-    params.push_back({BasicInstruction::LLVMType::I32, new ImmI32Operand(i64set.size())});
-    
-    // 添加I32类型的外部变量
-    for (auto rn : i32set) {
-        if (float32set.find(rn) != float32set.end()) {
-            // FLOAT32以无符号整数形式传递，需要转换
-			auto real_rn = rn;
-			if (float32set.find(rn) != float32set.end()) {
-				auto bitcastI = new BitCastInstruction(GetNewRegOperand(++cfg->max_reg), GetNewRegOperand(rn), BasicInstruction::LLVMType::FLOAT32, BasicInstruction::LLVMType::I32);
-				real_rn = cfg->max_reg;
-				// 将bitcast指令插入到preheader中
-				LLVMBlock preheader = loop->getPreheader();
-				if (preheader) {
-					preheader->Instruction_list.push_back(bitcastI);
-				}
-			}
-			params.push_back({BasicInstruction::LLVMType::I32, GetNewRegOperand(real_rn)});
-        } else {
-            // I32类型直接传递
-            params.push_back({BasicInstruction::LLVMType::I32, GetNewRegOperand(rn)});
-        }
-    }
-    
-    // 添加PTR类型的外部变量
-    for (auto rn : i64set) {
-        params.push_back({BasicInstruction::LLVMType::PTR, GetNewRegOperand(rn)});
-    }
-
-    auto call_inst = new CallInstruction(BasicInstruction::LLVMType::VOID, nullptr, "parallel_loop_execute", params);
-    
-    // 将调用指令插入到循环头部之前
-    LLVMBlock preheader = loop->getPreheader();
-    if (preheader) {
-        preheader->Instruction_list.push_back(call_inst);
-    }
-    
-    PARALLEL_DEBUG(std::cout << "创建并行化调用: " << func_name << std::endl);
 }
-
-void LoopParallelismPass::AddRuntimeLibraryDeclarations(CFG* cfg) {
-    // 添加运行时库函数声明
-    // void parallel_loop_execute(void* func_ptr, int start, int end, int len1, int len2, ...);
-    
-    // 检查是否已经声明过
-    static bool declared = false;
-    if (declared) return;
-    
-    // 创建函数声明
-    auto decl = new FunctionDefineInstruction(BasicInstruction::LLVMType::VOID, "parallel_loop_execute");
-    decl->InsertFormal(BasicInstruction::LLVMType::PTR);  // func_ptr
-    decl->InsertFormal(BasicInstruction::LLVMType::I32);  // start
-    decl->InsertFormal(BasicInstruction::LLVMType::I32);  // end
-    decl->InsertFormal(BasicInstruction::LLVMType::I32);  // len1 (I32变量数量)
-    decl->InsertFormal(BasicInstruction::LLVMType::I32);  // len2 (PTR变量数量)
-    
-    // 添加到全局函数表
-    llvmIR->FunctionNameTable["parallel_loop_execute"] = decl;
-    
-    declared = true;
-    
-    PARALLEL_DEBUG(std::cout << "添加运行时库函数声明" << std::endl);
-}
-
 
