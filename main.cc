@@ -248,7 +248,11 @@ int main(int argc, char** argv) {
         inv_dom.invExecute();
 
         AliasAnalysisPass AA(&llvmIR); 
+<<<<<<< HEAD
 		AA.Execute();
+=======
+		// AA.Execute();
+>>>>>>> 84b44f94f7f7fff46b2bd6c0db3cf44b043d3319
         // SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
 
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
