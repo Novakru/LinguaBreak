@@ -76,12 +76,18 @@ bool LoopParallelismPass::CanParallelizeLoop(Loop* loop, CFG* cfg, ScalarEvoluti
         return false;
     }
     
-    // 检查迭代次数是否为常数或者循环不变量
+	// 检查迭代次数是否为常数或者循环不变量
     if (!IsConstantIterationCount(loop, cfg, SE)) {
         PARALLEL_DEBUG(std::cout << "迭代次数不是常数" << std::endl);
         return false;
     }
     
+    // 检查循环外是否使用了循环内定义的寄存器
+    if (HasLoopExternalUses(loop, cfg)) {
+        PARALLEL_DEBUG(std::cout << "循环外使用了循环内的寄存器" << std::endl);
+        return false;
+    }
+
     return true;
 }
 
@@ -235,7 +241,7 @@ void LoopParallelismPass::AddFunctionParameters(FunctionDefineInstruction* func_
         func_block->Instruction_list.push_back(var_gep);
         
         auto var_reg = GetNewRegOperand(++max_reg);
-        auto load_type = i32set.count(regno) ? BasicInstruction::LLVMType::I32 : BasicInstruction::LLVMType::FLOAT32;
+        auto load_type = float32set.count(regno) ? BasicInstruction::LLVMType::FLOAT32 : BasicInstruction::LLVMType::I32;
         auto var_load = new LoadInstruction(load_type, var_gep_reg, var_reg);
         func_block->Instruction_list.push_back(var_load);
         
@@ -709,26 +715,73 @@ void LoopParallelismPass::CollectLoopExternalVariables(Loop* loop, CFG* cfg) {
 								i32set.insert(regno);
 								float32set.insert(regno);
 							}
-                        }
+                        } 
+                    } else {  // func_arg no def_bb
+						auto type = cfg->function_def->formals[regno];
+						if (type == BasicInstruction::LLVMType::I32) {
+							i32set.insert(regno);
+						} else if (type == BasicInstruction::LLVMType::PTR) {
+							i64set.insert(regno);
+						} else if (type == BasicInstruction::LLVMType::FLOAT32) {
+							float32set.insert(regno);
+							i32set.insert(regno);
+						}
+					}
+                }
+            }
+        }
+    }
+	std::cout << "i32set: ";
+	for (auto regno : i32set) {
+		std::cout << regno << " ";
+	}
+	std::cout << std::endl;
+	std::cout << "i64set: ";
+	for (auto regno : i64set) {
+		std::cout << regno << " ";
+	}
+	std::cout << std::endl;
+	std::cout << "float32set: ";
+	for (auto regno : float32set) {
+		std::cout << regno << " ";
+	}
+	std::cout << std::endl;
+}
+
+bool LoopParallelismPass::HasLoopExternalUses(Loop* loop, CFG* cfg) {
+    // 1. 统计循环内的defset
+    std::set<int> loop_def_set;
+    for (auto bb : loop->getBlocks()) {
+        for (auto I : bb->Instruction_list) {
+            auto res_op = I->GetResult();
+            if (res_op && res_op->GetOperandType() == BasicOperand::REG) {
+                auto r = (RegOperand*)res_op;
+                loop_def_set.insert(r->GetRegNo());
+            }
+        }
+    }
+    
+    // 2. 遍历循环外指令的use(nonresop)，观察是否用到循环内def
+    for (auto [id, bb] : *cfg->block_map) {
+        // 跳过循环内的块
+        if (loop->contains(bb)) {
+            continue;
+        }
+        
+        for (auto I : bb->Instruction_list) {
+            for (auto op : I->GetNonResultOperands()) {
+                if (op->GetOperandType() == BasicOperand::REG) {
+                    auto r = (RegOperand*)op;
+                    int regno = r->GetRegNo();
+                    if (loop_def_set.find(regno) != loop_def_set.end()) {
+                        PARALLEL_DEBUG(std::cout << "循环外使用了循环内的寄存器: " << regno << std::endl);
+                        return true;
                     }
                 }
             }
         }
     }
-	std::cout << "i32set: " << std::endl;
-	for (auto regno : i32set) {
-		std::cout << regno << " ";
-	}
-	std::cout << std::endl;
-	std::cout << "i64set: " << std::endl;
-	for (auto regno : i64set) {
-		std::cout << regno << " ";
-	}
-	std::cout << std::endl;
-	std::cout << "float32set: " << std::endl;
-	for (auto regno : float32set) {
-		std::cout << regno << " ";
-	}
-	std::cout << std::endl;
+    
+    return false;
 }
 

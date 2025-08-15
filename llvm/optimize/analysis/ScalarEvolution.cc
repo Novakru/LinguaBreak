@@ -1,7 +1,7 @@
 #include "ScalarEvolution.h"
 #include <iostream>
 
-// #define scev_debug
+#define scev_debug
 
 #ifdef scev_debug 
 #define SCEV_DEBUG_PRINT(x) do { x; } while(0)
@@ -177,7 +177,18 @@ SCEV *ScalarEvolution::createSCEV(Operand V, Loop *L) {
         auto Dims = GEP->GetDims();
         auto Indexes = GEP->GetIndexes();
         
-        SCEV* BaseSCEV = getSCEV(Ptr, L);
+        // 检查ptr是否为循环不变量
+        SCEV* BaseSCEV = nullptr;
+        if (isLoopInvariant(Ptr, L)) {
+            BaseSCEV = getSCEV(Ptr, L);
+        } else {
+            // ptr不是循环不变量，直接返回Unknown避免嵌套递推
+            SCEV_DEBUG_PRINT(std::cout << "[createSCEV] ptr不是循环不变量，直接返回Unknown" << std::endl);
+            BaseSCEV = getSCEVUnknown(Ptr, L);
+			return BaseSCEV;
+        }
+        
+        SCEV_DEBUG_PRINT(std::cout << "[createSCEV] BaseSCEV: "; BaseSCEV->print(std::cout); std::cout << std::endl);
         SCEV* TotalOffsetSCEV = getSCEVConstant(new ImmI32Operand(0));
     
         for (size_t i = 0; i < Indexes.size(); ++i) {
@@ -201,7 +212,9 @@ SCEV *ScalarEvolution::createSCEV(Operand V, Loop *L) {
             TotalOffsetSCEV = getAddExpr({TotalOffsetSCEV, ScaledIndex});
         }
 
-        return getAddExpr({BaseSCEV, TotalOffsetSCEV});
+        SCEV* result = getAddExpr({BaseSCEV, TotalOffsetSCEV});
+		SCEV_DEBUG_PRINT(std::cout << "[createSCEV] " << V << " 的定义是GEP指令, result="; result->print(std::cout); std::cout << std::endl);
+        return result;
     }
 
     if (auto *PN = dynamic_cast<PhiInstruction*>(I)) {
@@ -489,7 +502,7 @@ void SCEVPass::Execute() {
 		cfg->SCEVInfo = SE;
 		simplifyAllSCEVExpr();
 		// fixAllSCEVExpr();
-		// SE->print(std::cout);
+		SE->print(std::cout);
     }
 }
 

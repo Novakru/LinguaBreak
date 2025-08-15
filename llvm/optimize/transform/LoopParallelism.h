@@ -37,6 +37,7 @@ private:
     bool CanParallelizeLoop(Loop* loop, CFG* cfg, ScalarEvolution* SE);
     bool IsSimpleLoop(Loop* loop, CFG* cfg);
     bool IsConstantIterationCount(Loop* loop, CFG* cfg, ScalarEvolution* SE);
+    bool HasLoopExternalUses(Loop* loop, CFG* cfg);
         
     // 循环体提取和函数生成
     void ExtractLoopBodyToFunction(Loop* loop, CFG* cfg, ScalarEvolution* SE);
