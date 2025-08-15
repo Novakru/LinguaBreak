@@ -11,6 +11,8 @@
 #define PARALLEL_DEBUG(x) do {} while(0)
 #endif
 
+extern std::map<CFG *, DominatorTree *> DomInfo;
+
 void LoopParallelismPass::Execute() {
     PARALLEL_DEBUG(std::cout << "=== 开始自动并行化Pass ===" << std::endl);
 
@@ -167,12 +169,14 @@ void LoopParallelismPass::CreateParallelFunction(Loop* loop, CFG* cfg, const std
     llvmIR->NewFunction(func_def);
 	llvmIR->function_max_reg[func_def] = 0;  // ptr arg is %r0
 	llvmIR->function_max_label[func_def] = -1;
+	llvmIR->FunctionNameTable[func_name] = func_def;
     
     std::map<int, int> reg_mapping;
     
     AddFunctionParameters(func_def, reg_mapping);
     AddThreadRangeCalculation(func_def, reg_mapping);
 	CopyLoopBodyInstructions(loop, func_def, reg_mapping);
+	BuildCFGforParallelFunction(func_def);  
     
     PARALLEL_DEBUG(std::cout << "创建并行化函数: " << func_name << std::endl);
 }
@@ -783,5 +787,21 @@ bool LoopParallelismPass::HasLoopExternalUses(Loop* loop, CFG* cfg) {
     }
     
     return false;
+}
+
+void LoopParallelismPass::BuildCFGforParallelFunction(FunctionDefineInstruction* func_def) {
+	CFG *cfg = new CFG();
+
+    cfg->block_map = &llvmIR->function_block_map[func_def];
+    cfg->function_def = func_def;
+    cfg->max_reg = llvmIR->function_max_reg[func_def];
+    cfg->max_label = llvmIR->function_max_label[func_def];
+
+    llvmIR->llvm_cfg[func_def] = cfg;
+
+    cfg->BuildCFG();
+	DominatorTree* dom_tree = new DominatorTree(cfg);
+    dom_tree->BuildDominatorTree();
+	DomInfo[cfg] = dom_tree;
 }
 

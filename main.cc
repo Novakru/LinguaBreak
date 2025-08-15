@@ -309,7 +309,7 @@ int main(int argc, char** argv) {
 		InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
 		LoopStrengthReducePass(&llvmIR).Execute();
 
-		// redundency_elimination(inv_dom);
+		redundency_elimination(inv_dom);
 
     // }
 

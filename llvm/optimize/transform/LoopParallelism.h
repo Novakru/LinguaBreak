@@ -43,6 +43,7 @@ private:
     void ExtractLoopBodyToFunction(Loop* loop, CFG* cfg, ScalarEvolution* SE);
     std::string GenerateFunctionName(CFG* cfg, Loop* loop);
     void CreateParallelFunction(Loop* loop, CFG* cfg, const std::string& func_name, ScalarEvolution* SE);
+	void BuildCFGforParallelFunction(FunctionDefineInstruction* func_def);
     void CreateParallelCall(Loop* loop, CFG* cfg, const std::string& func_name, ScalarEvolution* SE);
     
     // 循环体指令处理

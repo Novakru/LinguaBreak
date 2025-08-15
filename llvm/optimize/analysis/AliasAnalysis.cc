@@ -22,6 +22,8 @@ void AliasAnalysisPass::DefineLibFuncStatus(){
     lib_function_status["llvm.umin.i32"]=NoModRef;
     lib_function_status["llvm.smax.i32"]=NoModRef;
     lib_function_status["llvm.smin.i32"]=NoModRef;
+
+    lib_function_status["___parallel_loop_constant_100"]=ModRef;
 }   
 
 

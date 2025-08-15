@@ -496,7 +496,7 @@ void ScalarEvolution::print(std::ostream &OS) const {
 
 void SCEVPass::Execute() {
 	for (auto [defI, cfg] : llvmIR->llvm_cfg) {
-		// SCEV_DEBUG_PRINT(std::cerr << "ScalarEvolution Analysis for function " << cfg->function_def->GetFunctionName() << "\n");
+		// SCEV_DEBUG_PRINT(std::cerr << "ScalarEvolution Analysis for function " << cfg->function_def->GetFunctionName() << "\n");		
 		cfg->reSetBlockID();
 		ScalarEvolution* SE = new ScalarEvolution(cfg, cfg->getLoopInfo(), cfg->getDomTree());
 		cfg->SCEVInfo = SE;
