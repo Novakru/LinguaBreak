@@ -18,6 +18,7 @@ public:
 	int end_regNo = 0;
 	int my_start_regNo = 0;
 	int my_end_regNo = 0;
+	int new_header_block_id = 0;
 	int new_preheader_block_id = 0;
 	int new_latch_block_id = 0;
 	std::map<std::string, int> name_counter;

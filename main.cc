@@ -268,14 +268,24 @@ int main(int argc, char** argv) {
 		AA.Execute();
         GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
 
+		// AA.Execute();
+        // SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+        // SimplifyCFGPass(&llvmIR).EOBB();
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();							
+		// SCCPPass(&llvmIR).Execute();			// need to follow cse
+        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        // SimplifyCFGPass(&llvmIR).EOBB(); 
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();		
+
+		LoopAnalysisPass(&llvmIR).Execute();
+		LoopSimplifyPass(&llvmIR).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
 		AA.Execute();
-        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
-        SimplifyCFGPass(&llvmIR).EOBB();
-		SimplifyCFGPass(&llvmIR).RebuildCFG();							
-		SCCPPass(&llvmIR).Execute();			// need to follow cse
-        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        SimplifyCFGPass(&llvmIR).EOBB(); 
-		SimplifyCFGPass(&llvmIR).RebuildCFG();		
+		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
+		SCEVPass(&llvmIR).Execute();
+		LoopIdiomRecognizePass(&llvmIR).Execute();                // memset recognize, do not parallel
+		redundency_elimination(inv_dom);
 
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
@@ -287,8 +297,7 @@ int main(int argc, char** argv) {
 		LoopDependenceAnalysisPass loopDepAnalysis(&llvmIR, &AA); // must before lsr
 		loopDepAnalysis.Execute();
 		LoopParallelismPass(&llvmIR, &loopDepAnalysis).Execute(); 
-
-		// redundency_elimination(inv_dom);
+		redundency_elimination(inv_dom);
 
 		// LoopAnalysisPass(&llvmIR).Execute();
 		// LoopSimplifyPass(&llvmIR).Execute();
