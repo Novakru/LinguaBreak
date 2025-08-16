@@ -188,7 +188,7 @@ void SimpleDSEPass::EliminateNotUsedStore(CFG *C) {
             auto ptr = StoreI->GetPointer();
             auto PtrRegMemMap=alias_analyser->GetPtrMap();
             int tflag=false;
-            if (ptr->GetOperandType() == BasicOperand::REG&&PtrRegMemMap[C][((RegOperand *)ptr)->GetRegNo()].type==PtrInfo::Local) {
+            if (ptr->GetOperandType() == BasicOperand::REG && PtrRegMemMap[C][((RegOperand *)ptr)->GetRegNo()]->type==PtrInfo::Local) {
                 tflag=true;
             }
             //4. 若地址是局部指针，或当前函数是main函数(排除main函数)

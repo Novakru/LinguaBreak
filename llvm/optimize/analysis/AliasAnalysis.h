@@ -100,6 +100,7 @@ public:
     ModRefStatus QueryInstModRef(Instruction inst, Operand op, CFG* cfg);
     void Execute();
 
+    std::unordered_map<CFG*,std::unordered_map<int,PtrInfo*>>& GetPtrMap(){return ptrmap;}
 	std::unordered_map<CFG*,RWInfo>& GetRWMap() { return rwmap; }
     std::unordered_map<std::string,CallInfo>& GetReCallGraph() { return ReCallGraph; }
     ModRefStatus QueryCallGlobalModRef(CallInstruction* callI, std::string global_name);//基于globalmap，查询call指令是否mod/ref某全局非Array变量
