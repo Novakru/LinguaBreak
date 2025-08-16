@@ -242,7 +242,7 @@ int main(int argc, char** argv) {
 
         dom.Execute();
 		AA.Execute();
-        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+        //SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
         SimplifyCFGPass(&llvmIR).EOBB();
 		SimplifyCFGPass(&llvmIR).RebuildCFG();							
 		SCCPPass(&llvmIR).Execute();			// need to follow cse
@@ -283,7 +283,7 @@ int main(int argc, char** argv) {
         
         dom.Execute();
         AA.Execute();
-        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+        //SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
 
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();		

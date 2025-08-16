@@ -42,8 +42,9 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
 
         auto cur_mcfg = new MachineCFG;
         cur_func->SetMachineCFG(cur_mcfg);
-
         cur_cfg = cfg;
+        
+        cur_mcfg->SetMachineDomTree((DominatorTree*)cfg->DomTree);
 
         ClearFunctionSelectState();
 
@@ -696,6 +697,7 @@ void RiscV64Unit::DomtreeDfs(BasicBlock* ubb, CFG *C){
 		DomtreeDfs(vbb, C);
 	}
 }
+
 
 // 模板特化实现
 template <> void RiscV64Unit::ConvertAndAppend<Instruction>(Instruction inst) {
