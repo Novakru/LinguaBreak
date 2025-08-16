@@ -47,7 +47,7 @@
 #include"back_end/optimize/machine_strengthreduce.h"
 
 #define USE_AUIPC_LW_OPTIMIZATION 1 // Set to 1 to use auipc+lw, 0 to use la+lw
-#define USE_FMA 1 // set 1 to use FMA
+#define USE_FMA 0 // set 1 to use FMA
 
 
 extern FILE *yyin;
@@ -242,7 +242,7 @@ int main(int argc, char** argv) {
 
         dom.Execute();
 		AA.Execute();
-        //SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
         SimplifyCFGPass(&llvmIR).EOBB();
 		SimplifyCFGPass(&llvmIR).RebuildCFG();							
 		SCCPPass(&llvmIR).Execute();			// need to follow cse
@@ -283,7 +283,7 @@ int main(int argc, char** argv) {
         
         dom.Execute();
         AA.Execute();
-        //SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
 
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();		

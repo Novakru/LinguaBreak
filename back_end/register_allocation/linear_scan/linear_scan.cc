@@ -412,8 +412,7 @@ void FastLinearScan::UpdateIntervalsInCurrentFunc() {
                         ins->getNumber()   // 结束（定义即结束）
                     );
                 }
-                intervals[*reg].IncreaseReferenceCount((1 << (std::min(5, mblock->loop_depth))) + mblock->loop_depth +
-                                                       1); // 增加引用计数（用于溢出优先级）
+                intervals[*reg].IncreaseReferenceCount(mblock->loop_depth);//引用计数（用于溢出优先级）
             }
 
             // 处理指令的读寄存器（使用操作）
@@ -432,8 +431,7 @@ void FastLinearScan::UpdateIntervalsInCurrentFunc() {
                     );
                 }
                 last_use[*reg] = ins->getNumber(); // 更新最后一次使用位置
-                intervals[*reg].IncreaseReferenceCount((1 << (std::min(5, mblock->loop_depth))) + mblock->loop_depth +
-                                                       1); // 增加引用计数
+                intervals[*reg].IncreaseReferenceCount(mblock->loop_depth);
             }
         } // 结束指令遍历
 

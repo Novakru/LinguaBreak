@@ -110,7 +110,13 @@ public:
     }
 
     // 更新引用计数
-    void IncreaseReferenceCount(int count) { reference_count += count; }
+    void IncreaseReferenceCount(int loop_depth) { 
+        if(loop_depth==0){ 
+            reference_count+=1;
+        }else{
+            reference_count += ((1 << (std::min(5,loop_depth))) + loop_depth +1);
+        }
+    }
     int getReferenceCount() { return reference_count; }
     // 返回活跃区间长度
     int getIntervalLength() {

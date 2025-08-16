@@ -184,7 +184,7 @@ public:
 
 
     MachineCFGNode *ret_block;//新增
-    MachineCFG() : max_label(0){};
+    MachineCFG() : max_label(0){ DomTree = new MachineDominatorTree; };
     void AssignEmptyNode(int id, MachineBlock *Mblk);
 
     // Just modify CFG edge, no change on branch instructions

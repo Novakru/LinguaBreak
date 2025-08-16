@@ -369,9 +369,9 @@ std::list<MachineBaseInstruction *>::iterator RiscV64Block::getInsertBeforeBrIt(
 
 
 void MachineCFG::SetMachineDomTree(DominatorTree* domtree){
-    DomTree->sdom_map=domtree->sdom_map;
-    DomTree->C=this;
 
+    DomTree->sdom_map.insert(domtree->sdom_map.begin(), domtree->sdom_map.end());
+    
     for(auto &llvmblocks:domtree->dom_tree){
         std::vector<MachineBlock*> vecs;
         for(auto llvmblock:llvmblocks){
@@ -380,7 +380,7 @@ void MachineCFG::SetMachineDomTree(DominatorTree* domtree){
         }
         DomTree->dom_tree.push_back(vecs);
     }
-    
+
     return ;
 }
 
