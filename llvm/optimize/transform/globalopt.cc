@@ -317,12 +317,12 @@ void GlobalOptPass::ApproxiMem2reg(){
            %r3 = load  @a           
            use %r3                  use %r2
     */
-    std::cout<<"<================= EliminateRedundantLS =====================>"<<std::endl<<std::endl;
+    //std::cout<<"<================= EliminateRedundantLS =====================>"<<std::endl<<std::endl;
     EliminateRedundantLS();
 
     for(auto &[defI,cfg]:llvmIR->llvm_cfg){
         
-        std::cout<<"<=================    Gather Infomation =====================>"<<std::endl<<std::endl;
+        //std::cout<<"<=================    Gather Infomation =====================>"<<std::endl<<std::endl;
         //【1】收集信息
         def_blocks.clear();
         use_blocks.clear();
@@ -342,7 +342,10 @@ void GlobalOptPass::ApproxiMem2reg(){
                     auto func_name=((CallInstruction*)inst)->GetFunctionName();
                     if(!lib_function_names.count(func_name)){
                         auto son_cfg=llvmIR->llvm_cfg[llvmIR->FunctionNameTable[func_name]];
+                        std::cout<<"[in globalopt.cc] func_name: "<<func_name<<std::endl;
+                        assert(son_cfg!=nullptr);
                         auto info=AA->globalmap[son_cfg];
+                        assert(info!=nullptr);
                         for(auto &op:info->ref_ops){
                             use_blocks[op].push_back({id,inst});
                         }
@@ -361,26 +364,26 @@ void GlobalOptPass::ApproxiMem2reg(){
             }
         }
 
-        GLOBALOPT_DEBUG_PRINT(std::cerr << "=== GlobalOpt def/use Analysis ===" << std::endl);
-        GLOBALOPT_DEBUG_PRINT(std::cerr << "def_blocks: "<< std::endl);
-        for(auto &[op,set]:def_blocks){
-            GLOBALOPT_DEBUG_PRINT(std::cerr << op<<" is defed in block ");
-            for(auto &id_pair:set){
-                GLOBALOPT_DEBUG_PRINT(std::cerr << id_pair.first<<" ");
-            }
-            GLOBALOPT_DEBUG_PRINT(std::cerr<<std::endl);
-        }
-        GLOBALOPT_DEBUG_PRINT(std::cerr << "use_blocks: "<< std::endl);
-        for(auto &[op,set]:use_blocks){
-            GLOBALOPT_DEBUG_PRINT(std::cerr << op<<" is used in block ");
-            for(auto &id_pair:set){
-                GLOBALOPT_DEBUG_PRINT(std::cerr << id_pair.first<<" ");
-            }
-            GLOBALOPT_DEBUG_PRINT(std::cerr<<std::endl);
-        }
+        // GLOBALOPT_DEBUG_PRINT(std::cerr << "=== GlobalOpt def/use Analysis ===" << std::endl);
+        // GLOBALOPT_DEBUG_PRINT(std::cerr << "def_blocks: "<< std::endl);
+        // for(auto &[op,set]:def_blocks){
+        //     GLOBALOPT_DEBUG_PRINT(std::cerr << op<<" is defed in block ");
+        //     for(auto &id_pair:set){
+        //         GLOBALOPT_DEBUG_PRINT(std::cerr << id_pair.first<<" ");
+        //     }
+        //     GLOBALOPT_DEBUG_PRINT(std::cerr<<std::endl);
+        // }
+        // GLOBALOPT_DEBUG_PRINT(std::cerr << "use_blocks: "<< std::endl);
+        // for(auto &[op,set]:use_blocks){
+        //     GLOBALOPT_DEBUG_PRINT(std::cerr << op<<" is used in block ");
+        //     for(auto &id_pair:set){
+        //         GLOBALOPT_DEBUG_PRINT(std::cerr << id_pair.first<<" ");
+        //     }
+        //     GLOBALOPT_DEBUG_PRINT(std::cerr<<std::endl);
+        // }
 
         //【2】处理OneDefDomAllUses : 用该def的value替换所有load处的res
-        std::cout<<"<================= OneDefDomAllUses =====================>"<<std::endl<<std::endl;
+        //std::cout<<"<================= OneDefDomAllUses =====================>"<<std::endl<<std::endl;
         OneDefDomAllUses(cfg);
     }
 

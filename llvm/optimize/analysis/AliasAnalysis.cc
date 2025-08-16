@@ -26,21 +26,28 @@ void AliasAnalysisPass::DefineLibFuncStatus(){
 
 
 //取指针操作数对应的PtrInfo结构体
-PtrInfo AliasAnalysisPass::GetPtrInfo(Operand op, CFG* cfg){
+PtrInfo* AliasAnalysisPass::GetPtrInfo(Operand op, CFG* cfg){
+    // std::cout<<"[GetPtrInfo] In Function "<<cfg->function_def->GetFunctionName()<<" GetPtrInfo of op : ";
+    // if(op==nullptr){
+    //     std::cout<<"nullptr  .";
+    // }else{
+    //     std::cout<<op->GetFullName()<<"  .";
+    // }
+    
     if(op->GetOperandType()==BasicOperand::REG){
         int regno=((RegOperand*)op)->GetRegNo();
         return ptrmap[cfg][regno];
     }else if(op->GetOperandType()==BasicOperand::GLOBAL){
-        PtrInfo global_info(PtrInfo::types::Global);
-        global_info.root=op;
+        auto global_info =new PtrInfo(PtrInfo::types::Global);
+        global_info->root=op;
         return global_info;
     }else{
-        assert(0);
+        return nullptr;
     }
 }
 
 //判定两个GEP指令是否具有相同的ptr、constIndexes
-bool AliasAnalysisPass::IsSameArraySameConstIndex(GetElementptrInstruction* inst1,GetElementptrInstruction* inst2){
+bool AliasAnalysisPass::IsSameArraySameConstIndex(GetElementptrInstruction* inst1,GetElementptrInstruction* inst2,double offset1,double offset2){
     //SysY未支持指针的数据类型，因此部分数组赋值仅存在于函数调用传参时；
     //即过程内别名分析不存在二级数组，故GEP指令中的ptr一定就是初次alloc时的ptr
     auto ptr1=inst1->GetPtrVal();
@@ -49,8 +56,10 @@ bool AliasAnalysisPass::IsSameArraySameConstIndex(GetElementptrInstruction* inst
 
     int index1=inst1->ComputeIndex();
     int index2=inst2->ComputeIndex();
-    if(index1!=-1 && index2!=-1 && index1!=index2){
-        return false;
+    if(index1!=-1 && index2!=-1 && offset1!=-1 && offset2!=-1){
+        if((index1+offset1)!=(index2+offset2)){
+            return false;
+        }
     }
     return true;//对于索引为reg的情况，无法判定，我们都认为存在别名冲突风险
 }
@@ -83,51 +92,55 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
         return NoAlias;
     }
 
-    PtrInfo info1=GetPtrInfo(op1,cfg);
-    PtrInfo info2=GetPtrInfo(op2,cfg); 
+    PtrInfo* info1=GetPtrInfo(op1,cfg);
+    PtrInfo* info2=GetPtrInfo(op2,cfg); 
+    // 对于非指针类型的REG，返回NoAlias
+    if(info1 == nullptr || info2 == nullptr) { return NoAlias ;}
 
+    // std::cout<<"[in AA] op1: "<<op1->GetFullName()<<std::endl;
+    // std::cout<<"[in AA] op2: "<<op2->GetFullName()<<std::endl;
+
+    // std::cout<<"========================================"<<std::endl;
+    // std::cout<<"all the ptrmap info in this cfg: ";
+    // for(auto &[regno,ptrinfo]:ptrmap[cfg]){
+    //     std::cout<<regno<<" ";
+    //     if(ptrinfo==nullptr){std::cout<<"!! ";}
+    // }std::cout<<std::endl;
+    // std::cout<<"========================================"<<std::endl;
+    // if(ptrmap[cfg].count(2)){
+    //     std::cout<<"ptrmap[cfg][2].root: "<<std::endl;
+    // }
+    // std::cout<<"========================================"<<std::endl;
+
+    
     // case 1. 不属于同一array，一定不存在别名冲突
-    if(info1.root!=info2.root){
+    if(info1->root!=info2->root){
         return NoAlias;
     }
 
     // case 2. Global / Param / Local 彼此属于不同内存，不存在别名冲突
-    if(info1.type!=PtrInfo::types::Undefed && info2.type!=PtrInfo::types::Undefed && info1.type!=info2.type){
+    if(info1->type!=PtrInfo::types::Undefed && info2->type!=PtrInfo::types::Undefed && info1->type!=info2->type){
         return NoAlias;
     }
-
+    
     // case 3. 整个array与内部元素一定存在别名冲突
-    if(info1.AliasOps.empty()||info2.AliasOps.empty()){
-        if(info1.root==info2.root){
+    if(info1->AliasOps.empty()||info2->AliasOps.empty()){
+        if(info1->root==info2->root){
             return MustAlias;
         }
     }
+
     // case 4. 同类型同Array
     // case 4.1 若二者的别名集中存在重叠，则必由同一个指针别名而来
-    for(auto &op:info1.AliasOps){
-        if(info2.AliasOps.count(op)){
+    if(info1->se_gep_offset==info2->se_gep_offset && info1->se_gep_offset!=INFINITY)
+    for(auto &op:info1->AliasOps){
+        if(info2->AliasOps.count(op)){
             return MustAlias;
         }
     }
 
-    // case 4.2 ：寻找别名集中由定义原始ptr的那个GEP指令，并比较数组关系
-    Instruction inst1 = nullptr, inst2 = nullptr;
-    for(auto &op:info1.AliasOps){
-        if(op->GetOperandType() != BasicOperand::REG) continue;
-        int regno=((RegOperand*)op)->GetRegNo();
-        if(cfg->def_map[regno]->GetOpcode()==BasicInstruction::LLVMIROpcode::GETELEMENTPTR){
-            inst1=cfg->def_map[regno];
-            break;
-        }
-    }
-    for(auto &op:info2.AliasOps){
-        if(op->GetOperandType() != BasicOperand::REG) continue;
-        int regno=((RegOperand*)op)->GetRegNo();
-        if(cfg->def_map[regno]->GetOpcode()==BasicInstruction::LLVMIROpcode::GETELEMENTPTR){
-            inst2=cfg->def_map[regno];
-            break;
-        }
-    }
+    GetElementptrInstruction* inst1=info1->gep;
+    GetElementptrInstruction* inst2=info2->gep;
 
 	// 不存在 gep 指令表明为 op 为 alloca 指令的结果，表示为偏移为 0 的 gep 指令。
 	// s.t. a 表示成 a[0]
@@ -146,16 +159,14 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
         inst2 = new GetElementptrInstruction(typ, op2, op2, dim, idxs, idx_typ);
     }
 
-    //assert(inst1!=nullptr&&inst2!=nullptr);
-	auto gep1 = dynamic_cast<GetElementptrInstruction*>(inst1);
-	auto gep2 = dynamic_cast<GetElementptrInstruction*>(inst2);
-    if(IsSameArraySameConstIndex(gep1, gep2)){
+    if(IsSameArraySameConstIndex(inst1, inst2 ,info1->se_gep_offset, info2->se_gep_offset)){
         return MustAlias;
     }
     //其它
     return NoAlias;
 
 }
+
 
 Operand AliasAnalysisPass::CalleeParamToCallerArgu(Operand op, CFG* callee_cfg, CallInstruction* CallI){
     if(op->GetOperandType()==BasicOperand::REG){
@@ -193,7 +204,20 @@ ModRefStatus AliasAnalysisPass::QueryInstModRef(Instruction inst, Operand op, CF
 
     }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::CALL){
         CallInstruction* callI=(CallInstruction*)inst;
-        auto callee_defI=llvmIR->FunctionNameTable[(callI)->GetFunctionName()];
+        auto callee_name = callI->GetFunctionName();
+        //（1）若是库函数，特殊处理
+        if(lib_function_names.count(callee_name)){
+            for(auto &[type,argu]:callI->GetParameterList()){
+                if(type==BasicInstruction::LLVMType::PTR){
+                    if(QueryAlias(op,argu,cfg)){
+                        return lib_function_status[callee_name];
+                    }
+                }
+            }
+            return NoModRef;
+        }
+        //（2）非库函数，考虑该函数的读写情况
+        auto callee_defI=llvmIR->FunctionNameTable[callee_name];
         CFG* callee_cfg=llvmIR->llvm_cfg[callee_defI];
         RWInfo rwinfo=rwmap[callee_cfg];
         int read=0,write=0;
@@ -226,19 +250,40 @@ ModRefStatus AliasAnalysisPass::QueryInstModRef(Instruction inst, Operand op, CF
 }
 
 
-//从前往后，将别名汇聚
+//根据SSA def-use链，从前往后，将别名汇聚
 void AliasAnalysisPass::GatherPtrInfos(CFG* cfg, int regno){
-    PtrInfo info=ptrmap[cfg][regno];
+    PtrInfo* info=ptrmap[cfg][regno];
     std::vector<Instruction> use_insts = cfg->use_map[regno];
     for(auto &inst:use_insts){
         if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::PHI){
+            assert(((PhiInstruction*)inst)->GetType()==BasicInstruction::LLVMType::PTR);
             int res_regno=inst->GetDefRegno();
-            ptrmap[cfg][res_regno].AddAliass(info.AliasOps);//别名汇总
-            if(ptrmap[cfg][res_regno].type==PtrInfo::types::Undefed){//类型传递
-                ptrmap[cfg][res_regno].type=info.type;
+            PtrInfo* res_info=ptrmap[cfg][res_regno];
+            if(res_info->root==nullptr){//对每个声明了的ptrinfo，只需记录一次
+                res_info->AddAliass(info->AliasOps);//别名汇总
+                res_info->type=info->type;//类型传递
+                res_info->root=info->root;//祖宗传递
+                res_info->se_gep_offset=info->se_gep_offset;//偏移传递
+                res_info->gep=info->gep;//一代GEP指令传递
+                GatherPtrInfos(cfg,res_regno);
             }
-            ptrmap[cfg][res_regno].root=info.root;//祖宗传递
-            GatherPtrInfos(cfg,res_regno);
+        }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::GETELEMENTPTR){
+            int res_regno=inst->GetDefRegno();
+            PtrInfo* res_info=ptrmap[cfg][res_regno];
+            if(res_info->root==nullptr){//对每个声明了的ptrinfo，只需记录一次
+                res_info->AddAliass(info->AliasOps);//别名汇总
+                res_info->type=info->type;//类型传递
+                res_info->root=info->root;//祖宗传递
+                res_info->gep=info->gep;//一代GEP指令传递
+                //累计偏移计算
+                int offset=((GetElementptrInstruction*)inst)->ComputeIndex();
+                if(offset==-1 || info->se_gep_offset == INFINITY){// INFINITY 代表二次偏移量为reg类型，无法获知
+                    res_info->se_gep_offset = INFINITY;
+                }else{
+                    res_info->se_gep_offset= offset + info->se_gep_offset;
+                }
+                GatherPtrInfos(cfg,res_regno);
+            }
         }
     }
     return ;
@@ -247,6 +292,7 @@ void AliasAnalysisPass::GatherPtrInfos(CFG* cfg, int regno){
 //别名分析信息收集：沿数据流图记录并汇聚别名集
 void AliasAnalysisPass::PtrPropagationAnalysis(){
     for(auto &[defI,cfg]:llvmIR->llvm_cfg){
+        //std::cout<<"[in PtrPropagationAnalysis]  Now we analyse the function: "<<defI->GetFunctionName()<<std::endl;
         //【0】记录数组性质
         CallInfo callinfo;
         // (1)函数参数
@@ -255,25 +301,35 @@ void AliasAnalysisPass::PtrPropagationAnalysis(){
         for(int i=0;i<params.size();i++){
             if(param_types[i]==BasicInstruction::LLVMType::PTR){
                 int regno = ((RegOperand*)params[i])->GetRegNo();
-                PtrInfo info(PtrInfo::types::Param);
-                info.root=params[i];
+                auto info = new PtrInfo(PtrInfo::types::Param);
+                info->root=params[i];
                 ptrmap[cfg][regno]=info;//维护ptrmap
 
                 callinfo.param_order[params[i]]=i;//记录函数形参与序号的映射
+                //std::cout<<"[in PtrPropagationAnalysis]  Record a param PtrInfo: "<<params[i]->GetFullName()<<std::endl;
             }
         }
         ReCallGraph[defI->GetFunctionName()]=callinfo;
         //（2）函数内定义
+        bool meet_alloca=false;
         for(auto &[id,block]:*(cfg->block_map)){
             for(auto &inst: block->Instruction_list){
                 if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::ALLOCA){
                     assert(((AllocaInstruction*)inst)->GetDims().size()>0);
                     Operand PtrOp = inst->GetResult();
                     int regno = ((RegOperand*)PtrOp)->GetRegNo();
-                    PtrInfo info(PtrInfo::types::Local);
-                    info.root=PtrOp;
+                    auto info = new PtrInfo(PtrInfo::types::Local);
+                    info->root=PtrOp;
                     ptrmap[cfg][regno]=info;
+                    meet_alloca=true;
+                }else{
+                    if(meet_alloca){
+                        break;
+                    }
                 }
+            }
+            if(meet_alloca){
+                break;
             }
         }
 
@@ -281,21 +337,27 @@ void AliasAnalysisPass::PtrPropagationAnalysis(){
         for(auto &[regno,inst]:cfg->def_map){
             if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::GETELEMENTPTR){
                 Operand ptr = ((GetElementptrInstruction*)inst)->GetPtrVal();
-                PtrInfo ptr_info = GetPtrInfo(ptr,cfg);
-                //类型传递
-                PtrInfo info(PtrInfo::sources::Gep, ptr_info.type ,inst->GetResult());
-                info.root=ptr_info.root;
-                ptrmap[cfg][regno]=info;
-            }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::PHI){
+                PtrInfo* ptr_info = GetPtrInfo(ptr,cfg);
+                if(ptr_info!=nullptr){//初次遍历，仅记录一代GEP指令;对于n代GEP指令，仅做初始化
+                    //类型传递
+                    auto info = new PtrInfo(PtrInfo::sources::Gep, ptr_info->type ,inst->GetResult());
+                    info->root=ptr_info->root;
+                    info->gep=(GetElementptrInstruction*)inst;
+                    ptrmap[cfg][regno]=info;
+                }else{
+                    auto info = new PtrInfo(PtrInfo::sources::Gep,PtrInfo::types::Undefed,inst->GetResult());
+                    ptrmap[cfg][regno]=info;
+                }
+            }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::PHI){//phi指令，仅做初始化
                 if(((PhiInstruction*)inst)->GetResultType()==BasicInstruction::LLVMType::PTR){
-                    PtrInfo info(PtrInfo::sources::Phi,PtrInfo::types::Undefed,inst->GetResult());
+                    auto info=new PtrInfo(PtrInfo::sources::Phi,PtrInfo::types::Undefed,inst->GetResult());
                     ptrmap[cfg][regno]=info;
                 }
             }
         }
-        //【2】汇聚非根ptr的所有别名
+        //【2】汇聚非根ptr的所有别名——从初代GEP指令开始
         for(auto &[regno,info]:ptrmap[cfg]){
-            if(info.source==PtrInfo::sources::Gep){
+            if(info->source==PtrInfo::sources::Gep && info->root!=nullptr){
                 GatherPtrInfos(cfg,regno);
             }
         }
@@ -314,12 +376,12 @@ void AliasAnalysisPass::RWInfoAnalysis(){
             for(auto &inst:block->Instruction_list){
                 if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::LOAD){
                     Operand ptr=((LoadInstruction*)inst)->GetPointer();
-                    if(ptr->GetOperandType()==BasicOperand::GLOBAL){
+                    if(ptr->GetOperandType()==BasicOperand::GLOBAL){//非array的全局变量
                         globalinfo->ref_ops.insert(ptr->GetFullName());
                     }else{
-                        PtrInfo info=GetPtrInfo(ptr,cfg);
-                        if(info.type==PtrInfo::types::Global||info.type==PtrInfo::types::Param){
-                            rwinfo.AddRead(info.root);
+                        PtrInfo* info=GetPtrInfo(ptr,cfg);
+                        if(info->type==PtrInfo::types::Global||info->type==PtrInfo::types::Param){//array的全局变量/参数
+                            rwinfo.AddRead(info->root);
                         }
                     }
                 }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::STORE){
@@ -327,9 +389,9 @@ void AliasAnalysisPass::RWInfoAnalysis(){
                     if(ptr->GetOperandType()==BasicOperand::GLOBAL){
                         globalinfo->mod_ops.insert(ptr->GetFullName());
                     }else{
-                        PtrInfo info=GetPtrInfo(ptr,cfg);
-                        if(info.type==PtrInfo::types::Global||info.type==PtrInfo::types::Param){
-                            rwinfo.AddWrite(info.root);
+                        PtrInfo* info=GetPtrInfo(ptr,cfg);
+                        if(info->type==PtrInfo::types::Global||info->type==PtrInfo::types::Param){
+                            rwinfo.AddWrite(info->root);
                         }
                     }
                 }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::CALL){//call指令暂时不记录，在汇总时分析
@@ -338,8 +400,8 @@ void AliasAnalysisPass::RWInfoAnalysis(){
                         ReCallGraph[func_name].callers[cfg]=(*(CallInstruction*)inst);//构建反向CallGraph
                         rwinfo.has_lib_func_call = true;
                     } else if(func_name!=defI->GetFunctionName()){//递归函数只记一次
-                            ReCallGraph[func_name].callers[cfg]=(*(CallInstruction*)inst);//构建反向CallGraph
-                            LeafFuncs.erase(defI->GetFunctionName());//调用了其他函数的函数不能作为leaf
+                        ReCallGraph[func_name].callers[cfg]=(*(CallInstruction*)inst);//构建反向CallGraph
+                        LeafFuncs.erase(defI->GetFunctionName());//调用了其他函数的函数不能作为leaf
                     }
                 }
             }
@@ -363,19 +425,20 @@ void AliasAnalysisPass::GatherRWInfos(std::string func_name){
             RWInfo* caller_rwinfo=&rwmap[caller_cfg];
             auto arguments=callI.GetParameterList();
             if(lib_function_status[func_name]==Ref){
-                if(func_name=="putarray"||func_name=="putfarray"){
-                    Operand arguOp=arguments[1].second;//取实参
-                    PtrInfo caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
-                    caller_rwinfo->AddRead(caller_ptrinfo.root);
+                for(auto &[type,op]:arguments){
+                    if(type==BasicInstruction::LLVMType::PTR){//仅对ptr处理
+                        PtrInfo* caller_ptrinfo=GetPtrInfo(op,caller_cfg);//记录实参的root
+                        caller_rwinfo->AddRead(caller_ptrinfo->root);
+                    }
                 }
             }else if(lib_function_status[func_name]==Mod){
-                if(func_name=="getarray"||func_name=="getfarray"){
-                    Operand arguOp=arguments[1].second;//取实参
-                    PtrInfo caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
-                    caller_rwinfo->AddWrite(caller_ptrinfo.root);
+                for(auto &[type,op]:arguments){
+                    if(type==BasicInstruction::LLVMType::PTR){
+                        PtrInfo* caller_ptrinfo=GetPtrInfo(op,caller_cfg);//记录实参的root
+                        caller_rwinfo->AddWrite(caller_ptrinfo->root);
+                    }
                 }
             }
-
             //沿调用链反向传播汇总
             GatherRWInfos(caller_cfg->function_def->GetFunctionName());
         }
@@ -386,60 +449,46 @@ void AliasAnalysisPass::GatherRWInfos(std::string func_name){
         auto callee_cfg=llvmIR->llvm_cfg[llvmIR->FunctionNameTable[func_name]];
         RWInfo rwinfo=rwmap[callee_cfg];
         CallInfo* callinfo=&ReCallGraph[func_name];
-
         for(auto &[caller_cfg,callI]:callinfo->callers){
-
             //【2.1】不含global var的rw信息汇总
             RWInfo* caller_rwinfo=&rwmap[caller_cfg];
             auto arguments=callI.GetParameterList();
             //read   只要全局变量和函数参数中的PTR
             for(auto &rop:rwinfo.ReadRoots){
+                assert(rop!=nullptr);
                 if(rop->GetOperandType()==BasicOperand::GLOBAL){
                     caller_rwinfo->AddRead(rop);
                 }else if(rop->GetOperandType()==BasicOperand::REG){
-                    PtrInfo ptrinfo=GetPtrInfo(rop,callee_cfg);
-                    if(ptrinfo.type==PtrInfo::types::Param){
-                            Operand arguOp=arguments[callinfo->param_order[rop]].second;//形参映射到实参
-                    
+                    PtrInfo* ptrinfo=GetPtrInfo(rop,callee_cfg);
+                    if(ptrinfo->type==PtrInfo::types::Param){
                         // 只处理指针类型参数，i32 类型直接跳过（返回 NoAlias）
-                    if(arguments[callinfo->param_order[rop]].first==BasicInstruction::LLVMType::PTR){
-                        PtrInfo caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
-                            caller_rwinfo->AddRead(caller_ptrinfo.root);
+                        if(arguments[callinfo->param_order[rop]].first==BasicInstruction::LLVMType::PTR){
+                            Operand arguOp=arguments[callinfo->param_order[rop]].second;//形参映射到实参
+                            PtrInfo* caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
+                                caller_rwinfo->AddRead(caller_ptrinfo->root);
                         } 
-                    // 对于非指针类型参数（如 i32），直接跳过，不进行别名分析
-                    else {
-                        // i32 类型不是指针，不需要进行别名分析
-                        // 直接返回 NoAlias，跳过处理
                     }
-                }
                 }
             }
             //write
             for(auto &wop:rwinfo.WriteRoots){
+                assert(wop!=nullptr);
                 if(wop->GetOperandType()==BasicOperand::GLOBAL){
                     caller_rwinfo->AddWrite(wop);
                 }else if(wop->GetOperandType()==BasicOperand::REG){
-                    PtrInfo ptrinfo=GetPtrInfo(wop,callee_cfg);
-                    if(ptrinfo.type==PtrInfo::types::Param){
-                            Operand arguOp=arguments[callinfo->param_order[wop]].second;//形参映射到实参
-                    
+                    PtrInfo* ptrinfo=GetPtrInfo(wop,callee_cfg);
+                    if(ptrinfo->type==PtrInfo::types::Param){
                         // 只处理指针类型参数，i32 类型直接跳过（返回 NoAlias）
-                    if(arguments[callinfo->param_order[wop]].first==BasicInstruction::LLVMType::PTR){
-                        PtrInfo caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
-                            caller_rwinfo->AddWrite(caller_ptrinfo.root);
+                        if(arguments[callinfo->param_order[wop]].first==BasicInstruction::LLVMType::PTR){
+                            Operand arguOp=arguments[callinfo->param_order[wop]].second;//形参映射到实参
+                            PtrInfo* caller_ptrinfo=GetPtrInfo(arguOp,caller_cfg);//记录实参的root
+                                caller_rwinfo->AddWrite(caller_ptrinfo->root);
                         } 
-                    // 对于非指针类型参数（如 i32），直接跳过，不进行别名分析
-                    else {
-                        // i32 类型不是指针，不需要进行别名分析
-                        // 直接返回 NoAlias，跳过处理
                     }
-                }
                 }
             }
 
             //【2.2】global var的信息汇总
-            assert(globalmap[callee_cfg]!=nullptr);
-            assert(globalmap[caller_cfg]!=nullptr);
             globalmap[caller_cfg]->AddInfo(globalmap[callee_cfg]);
 
             //沿调用链反向传播汇总
@@ -448,7 +497,6 @@ void AliasAnalysisPass::GatherRWInfos(std::string func_name){
         return ;
     }
 }
-
 
 
 //寻找phi传递的ptr
@@ -481,6 +529,20 @@ void AliasAnalysisPass::Execute(){
     PtrPropagationAnalysis();
     RWInfoAnalysis();
 
+    // for(auto &[defI,cfg]:llvmIR->llvm_cfg){
+    //     std::cout<<"========================================"<<std::endl;
+    //     std::cout<<"all the ptrmap info in this cfg: ";
+    //     for(auto &[regno,ptrinfo]:ptrmap[cfg]){
+    //         std::cout<<regno<<" ";
+    //         if(ptrinfo==nullptr){std::cout<<"!! ";}
+    //     }std::cout<<std::endl;
+    //     std::cout<<"========================================"<<std::endl;
+    //     if(ptrmap[cfg].count(2)){
+    //         std::cout<<"ptrmap[cfg][2].root: "<<std::endl;
+    //     }
+    //     std::cout<<"========================================"<<std::endl;
+    // }
+
     // test
     // PrintAAResult();
     // Test();
@@ -510,11 +572,17 @@ std::string alias_status[2]={"NoAlias","MustAlias"};
 std::string modref_status[4]={"NoModRef","Ref","Mod","ModRef"};
 
 void PtrInfo::PrintDebugInfo(){
-    std::cout<<"source: "<<sour[source]<<" type: "<<tys[type]<<" root: "<<root->GetFullName() <<std::endl;
+    std::cout<<"source: "<<sour[source]<<" type: "<<tys[type]<<" root: ";
+    if(root!=nullptr){
+        std::cout<<root->GetFullName() <<std::endl;
+    }else{
+        std::cout<<"nullptr "<<std::endl;
+    }
     std::cout<<"Aliases: "<<std::endl;
     for(auto& op:AliasOps){
         std::cout<<"         "<<op->GetFullName()<<std::endl;
     }
+    std::cout<<"se_gep_offset: "<<se_gep_offset<<std::endl;
 
 }
 
@@ -544,7 +612,7 @@ void AliasAnalysisPass::PrintAAResult() {
         defI->PrintIR(std::cout);
         for (auto [regno, info] : ptrmap[cfg]) {
             std::cout << "REG: %r" << regno << "\n";
-            info.PrintDebugInfo();
+            info->PrintDebugInfo();
             std::cout<<"-----------"<<std::endl;
         }
     }
@@ -625,7 +693,7 @@ void AliasAnalysisPass::Test() {
 
         std::cout<<" ----------- ModRefResult -------------- "<<std::endl;
         for (auto ptr : ptrset) {
-            PtrInfo ptrinfo=GetPtrInfo(ptr,cfg);
+            PtrInfo ptrinfo=*GetPtrInfo(ptr,cfg);
             if(ptrinfo.source==PtrInfo::sources::Undef&&ptrinfo.type!=PtrInfo::types::Global){
                 continue;
             }

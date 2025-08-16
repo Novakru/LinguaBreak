@@ -1,0 +1,1810 @@
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @buffer  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : @buffer  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r66  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r69  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r53  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r73  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r42  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r54  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r65  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r75  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r85  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r93  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r101  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r121  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r132  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r144  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r156  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r173  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r178  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r261  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r184  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r190  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r195  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r58  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r60  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r58  . This is a reg 
+ ----------- CallInfo ------------- 
+define i32 @main()
+para_order:  
+callers:  
+
+-------------
+define void @pseudo_sha1(ptr %r0,i32 %r1,ptr %r2)
+para_order:  
+Operand: %r2 order: 2
+Operand: %r0 order: 0
+callers:  
+main    
+-------------
+ ----------- PtrInfo ------------- 
+define i32 @main()
+REG: %r5
+source: Gep type: Local root: %r4
+Aliases: 
+         %r5
+se_gep_offset: 0
+-----------
+REG: %r7
+source: Gep type: Local root: %r4
+Aliases: 
+         %r7
+se_gep_offset: 0
+-----------
+REG: %r37
+source: Gep type: Local root: %r15
+Aliases: 
+         %r37
+se_gep_offset: 0
+-----------
+REG: %r66
+source: Gep type: Local root: %r15
+Aliases: 
+         %r66
+se_gep_offset: 0
+-----------
+REG: %r33
+source: Gep type: Local root: %r15
+Aliases: 
+         %r33
+se_gep_offset: 0
+-----------
+REG: %r4
+source: Undef type: Local root: %r4
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r15
+source: Undef type: Local root: %r15
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r73
+source: Gep type: Local root: %r15
+Aliases: 
+         %r73
+se_gep_offset: 0
+-----------
+REG: %r60
+source: Gep type: Local root: %r4
+Aliases: 
+         %r60
+se_gep_offset: 0
+-----------
+REG: %r21
+source: Gep type: Local root: %r15
+Aliases: 
+         %r21
+se_gep_offset: 0
+-----------
+REG: %r29
+source: Gep type: Local root: %r15
+Aliases: 
+         %r29
+se_gep_offset: 0
+-----------
+REG: %r58
+source: Gep type: Global root: @buffer
+Aliases: 
+         %r58
+se_gep_offset: 0
+-----------
+REG: %r53
+source: Gep type: Global root: @buffer
+Aliases: 
+         %r53
+se_gep_offset: 0
+-----------
+REG: %r83
+source: Gep type: Local root: %r15
+Aliases: 
+         %r83
+se_gep_offset: 0
+-----------
+REG: %r25
+source: Gep type: Local root: %r15
+Aliases: 
+         %r25
+se_gep_offset: 0
+-----------
+REG: %r13
+source: Gep type: Local root: %r4
+Aliases: 
+         %r13
+se_gep_offset: 0
+-----------
+REG: %r69
+source: Gep type: Local root: %r4
+Aliases: 
+         %r69
+se_gep_offset: 0
+-----------
+REG: %r11
+source: Gep type: Local root: %r4
+Aliases: 
+         %r11
+se_gep_offset: 0
+-----------
+REG: %r9
+source: Gep type: Local root: %r4
+Aliases: 
+         %r9
+se_gep_offset: 0
+-----------
+define void @pseudo_sha1(ptr %r0,i32 %r1,ptr %r2)
+REG: %r195
+source: Gep type: Local root: %r100
+Aliases: 
+         %r195
+se_gep_offset: 0
+-----------
+REG: %r75
+source: Gep type: Param root: %r0
+Aliases: 
+         %r75
+se_gep_offset: 0
+-----------
+REG: %r162
+source: Gep type: Local root: %r100
+Aliases: 
+         %r162
+se_gep_offset: 0
+-----------
+REG: %r54
+source: Gep type: Param root: %r0
+Aliases: 
+         %r54
+se_gep_offset: 0
+-----------
+REG: %r184
+source: Gep type: Local root: %r100
+Aliases: 
+         %r184
+se_gep_offset: 0
+-----------
+REG: %r101
+source: Gep type: Local root: %r100
+Aliases: 
+         %r101
+se_gep_offset: 0
+-----------
+REG: %r93
+source: Gep type: Param root: %r0
+Aliases: 
+         %r93
+se_gep_offset: 0
+-----------
+REG: %r85
+source: Gep type: Param root: %r0
+Aliases: 
+         %r85
+se_gep_offset: 0
+-----------
+REG: %r144
+source: Gep type: Param root: %r0
+Aliases: 
+         %r144
+se_gep_offset: 0
+-----------
+REG: %r173
+source: Gep type: Local root: %r100
+Aliases: 
+         %r173
+se_gep_offset: 0
+-----------
+REG: %r178
+source: Gep type: Local root: %r100
+Aliases: 
+         %r178
+se_gep_offset: 0
+-----------
+REG: %r2
+source: Undef type: Param root: %r2
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r156
+source: Gep type: Param root: %r0
+Aliases: 
+         %r156
+se_gep_offset: 0
+-----------
+REG: %r301
+source: Gep type: Param root: %r2
+Aliases: 
+         %r301
+se_gep_offset: 0
+-----------
+REG: %r42
+source: Gep type: Param root: %r0
+Aliases: 
+         %r42
+se_gep_offset: 0
+-----------
+REG: %r100
+source: Undef type: Local root: %r100
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r309
+source: Gep type: Param root: %r2
+Aliases: 
+         %r309
+se_gep_offset: 0
+-----------
+REG: %r305
+source: Gep type: Param root: %r2
+Aliases: 
+         %r305
+se_gep_offset: 0
+-----------
+REG: %r65
+source: Gep type: Param root: %r0
+Aliases: 
+         %r65
+se_gep_offset: 0
+-----------
+REG: %r297
+source: Gep type: Param root: %r2
+Aliases: 
+         %r297
+se_gep_offset: 0
+-----------
+REG: %r293
+source: Gep type: Param root: %r2
+Aliases: 
+         %r293
+se_gep_offset: 0
+-----------
+REG: %r0
+source: Undef type: Param root: %r0
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r261
+source: Gep type: Local root: %r100
+Aliases: 
+         %r261
+se_gep_offset: 0
+-----------
+REG: %r121
+source: Gep type: Param root: %r0
+Aliases: 
+         %r121
+se_gep_offset: 0
+-----------
+REG: %r132
+source: Gep type: Param root: %r0
+Aliases: 
+         %r132
+se_gep_offset: 0
+-----------
+REG: %r190
+source: Gep type: Local root: %r100
+Aliases: 
+         %r190
+se_gep_offset: 0
+-----------
+ ----------- RWInfo -------------- 
+define i32 @main()
+read :   @buffer 
+write :   %r4 @buffer 
+
+define void @pseudo_sha1(ptr %r0,i32 %r1,ptr %r2)
+read :   %r0 
+write :   %r2 %r0 
+
+ ----------- Leafs -------------- 
+pseudo_sha1
+ ----------- Globalvar Info -------------- 
+define i32 @main()
+read :   @state 
+write :   @state 
+define void @pseudo_sha1(ptr %r0,i32 %r1,ptr %r2)
+read :   
+write :   
+ ----------------------------------------- 
+---------------------
+NoModRef: 
+Ref: 
+Mod: 
+ModRef: state  
+---------------------
+------------------ In Function main-----------------
+In Block : 0
+In Block : 1
+    store 0 to %r5
+    store 0 to %r7
+    store 0 to %r9
+    store 0 to %r11
+    store 0 to %r13
+    call func: getint ; deal with global: %r11
+        Donnot need loading 
+    call func: getint ; deal with global: %r9
+        Donnot need loading 
+    call func: getint ; deal with global: %r7
+        Donnot need loading 
+    call func: getint ; deal with global: %r13
+        Donnot need loading 
+    call func: getint ; deal with global: %r5
+        Donnot need loading 
+    store %r16 to @state
+    call func: getint ; deal with global: %r11
+        Donnot need loading 
+    call func: getint ; deal with global: @state
+        Donnot need loading 
+    call func: getint ; deal with global: %r9
+        Donnot need loading 
+    call func: getint ; deal with global: %r7
+        Donnot need loading 
+    call func: getint ; deal with global: %r13
+        Donnot need loading 
+    call func: getint ; deal with global: %r5
+        Donnot need loading 
+    call func: _sysy_starttime ; deal with global: %r11
+        Donnot need loading 
+    call func: _sysy_starttime ; deal with global: @state
+        Donnot need loading 
+    call func: _sysy_starttime ; deal with global: %r9
+        Donnot need loading 
+    call func: _sysy_starttime ; deal with global: %r7
+        Donnot need loading 
+    call func: _sysy_starttime ; deal with global: %r13
+        Donnot need loading 
+    call func: _sysy_starttime ; deal with global: %r5
+        Donnot need loading 
+    store 0 to %r21
+    store 0 to %r25
+    store 0 to %r29
+    store 0 to %r33
+    store 0 to %r37
+In Block : 2
+In Block : 6
+In Block : 10
+In Block : 11
+In Block : 14
+    load %r67 from %r66
+    load %r70 from %r69
+In Block : 15
+In Block : 16
+In Block : 18
+    load %r90 from @state
+    load again, delete!
+    store %r93 to @state
+    stored just now, use it and delete this.
+    stored just now, use it and delete this.
+    store %r97 to @state
+    stored just now, use it and delete this.
+    stored just now, use it and delete this.
+    store %r101 to @state
+    stored just now, use it and delete this.
+    store %r51 to %r53
+In Block : 22
+In Block : 24
+    store %r71 to %r73
+------------------ In Function pseudo_sha1-----------------
+In Block : 0
+In Block : 1
+    store 128 to %r42
+In Block : 2
+In Block : 5
+    store 0 to %r54
+In Block : 6
+    store %r63 to %r65
+    store %r71 to %r75
+    store %r81 to %r85
+    store %r89 to %r93
+    call func: llvm.memset.p0.i32 ; deal with global: %r93
+        Donnot need loading 
+    call func: llvm.memset.p0.i32 ; deal with global: %r85
+        Donnot need loading 
+    call func: llvm.memset.p0.i32 ; deal with global: %r75
+        Donnot need loading 
+    call func: llvm.memset.p0.i32 ; deal with global: %r65
+        Donnot need loading 
+    store 0 to %r101
+In Block : 7
+In Block : 11
+In Block : 14
+    load %r122 from %r121
+    load %r133 from %r132
+    load %r145 from %r144
+    load %r157 from %r156
+    store %r160 to %r162
+In Block : 16
+In Block : 19
+    load %r174 from %r173
+    load %r179 from %r178
+In Block : 21
+In Block : 25
+In Block : 30
+In Block : 35
+In Block : 40
+In Block : 44
+In Block : 45
+In Block : 46
+In Block : 47
+In Block : 48
+In Block : 49
+    store %r342 to %r293
+    store %r341 to %r297
+    store %r340 to %r301
+    store %r339 to %r305
+    store %r338 to %r309
+In Block : 53
+In Block : 57
+In Block : 61
+    load %r262 from %r261
+In Block : 63
+In Block : 65
+In Block : 67
+In Block : 69
+In Block : 71
+In Block : 73
+In Block : 75
+    load %r185 from %r184
+In Block : 77
+In Block : 79
+In Block : 83
+In Block : 95
+In Block : 99
+In Block : 101
+In Block : 103
+In Block : 105
+    load %r191 from %r190
+In Block : 107
+In Block : 109
+In Block : 111
+In Block : 113
+In Block : 117
+In Block : 119
+In Block : 121
+In Block : 123
+In Block : 127
+In Block : 131
+In Block : 133
+    store %r193 to %r195
+In Block : 135
+In Block : 137
+In Block : 139
+In Block : 141
+In Block : 147
+In Block : 149
+In Block : 151
+In Block : 155
+In Block : 157
+[in globalopt.cc] func_name: pseudo_sha1
+ ------------- In Function main------------
+ ------------- In Function pseudo_sha1------------
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @buffer  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : @buffer  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r66  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r69  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r53  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r73  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r42  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r54  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r65  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r75  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r85  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r93  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r101  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r121  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r132  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r144  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r156  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r173  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r178  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r261  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r184  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r190  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r195  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r58  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r60  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r58  . This is a reg 
+ ----------- CallInfo ------------- 
+define i32 @main()
+para_order:  
+callers:  
+
+-------------
+define void @pseudo_sha1(ptr %r0,i32 %r1,ptr %r2)
+para_order:  
+Operand: %r2 order: 2
+Operand: %r0 order: 0
+callers:  
+main    
+-------------
+ ----------- PtrInfo ------------- 
+define i32 @main()
+REG: %r5
+source: Gep type: Local root: %r4
+Aliases: 
+         %r5
+se_gep_offset: 0
+-----------
+REG: %r7
+source: Gep type: Local root: %r4
+Aliases: 
+         %r7
+se_gep_offset: 0
+-----------
+REG: %r37
+source: Gep type: Local root: %r15
+Aliases: 
+         %r37
+se_gep_offset: 0
+-----------
+REG: %r66
+source: Gep type: Local root: %r15
+Aliases: 
+         %r66
+se_gep_offset: 0
+-----------
+REG: %r33
+source: Gep type: Local root: %r15
+Aliases: 
+         %r33
+se_gep_offset: 0
+-----------
+REG: %r4
+source: Undef type: Local root: %r4
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r15
+source: Undef type: Local root: %r15
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r73
+source: Gep type: Local root: %r15
+Aliases: 
+         %r73
+se_gep_offset: 0
+-----------
+REG: %r60
+source: Gep type: Local root: %r4
+Aliases: 
+         %r60
+se_gep_offset: 0
+-----------
+REG: %r21
+source: Gep type: Local root: %r15
+Aliases: 
+         %r21
+se_gep_offset: 0
+-----------
+REG: %r29
+source: Gep type: Local root: %r15
+Aliases: 
+         %r29
+se_gep_offset: 0
+-----------
+REG: %r58
+source: Gep type: Global root: @buffer
+Aliases: 
+         %r58
+se_gep_offset: 0
+-----------
+REG: %r53
+source: Gep type: Global root: @buffer
+Aliases: 
+         %r53
+se_gep_offset: 0
+-----------
+REG: %r83
+source: Gep type: Local root: %r15
+Aliases: 
+         %r83
+se_gep_offset: 0
+-----------
+REG: %r25
+source: Gep type: Local root: %r15
+Aliases: 
+         %r25
+se_gep_offset: 0
+-----------
+REG: %r13
+source: Gep type: Local root: %r4
+Aliases: 
+         %r13
+se_gep_offset: 0
+-----------
+REG: %r69
+source: Gep type: Local root: %r4
+Aliases: 
+         %r69
+se_gep_offset: 0
+-----------
+REG: %r11
+source: Gep type: Local root: %r4
+Aliases: 
+         %r11
+se_gep_offset: 0
+-----------
+REG: %r9
+source: Gep type: Local root: %r4
+Aliases: 
+         %r9
+se_gep_offset: 0
+-----------
+define void @pseudo_sha1(ptr %r0,i32 %r1,ptr %r2)
+REG: %r195
+source: Gep type: Local root: %r100
+Aliases: 
+         %r195
+se_gep_offset: 0
+-----------
+REG: %r75
+source: Gep type: Param root: %r0
+Aliases: 
+         %r75
+se_gep_offset: 0
+-----------
+REG: %r162
+source: Gep type: Local root: %r100
+Aliases: 
+         %r162
+se_gep_offset: 0
+-----------
+REG: %r54
+source: Gep type: Param root: %r0
+Aliases: 
+         %r54
+se_gep_offset: 0
+-----------
+REG: %r184
+source: Gep type: Local root: %r100
+Aliases: 
+         %r184
+se_gep_offset: 0
+-----------
+REG: %r101
+source: Gep type: Local root: %r100
+Aliases: 
+         %r101
+se_gep_offset: 0
+-----------
+REG: %r93
+source: Gep type: Param root: %r0
+Aliases: 
+         %r93
+se_gep_offset: 0
+-----------
+REG: %r85
+source: Gep type: Param root: %r0
+Aliases: 
+         %r85
+se_gep_offset: 0
+-----------
+REG: %r144
+source: Gep type: Param root: %r0
+Aliases: 
+         %r144
+se_gep_offset: 0
+-----------
+REG: %r173
+source: Gep type: Local root: %r100
+Aliases: 
+         %r173
+se_gep_offset: 0
+-----------
+REG: %r178
+source: Gep type: Local root: %r100
+Aliases: 
+         %r178
+se_gep_offset: 0
+-----------
+REG: %r2
+source: Undef type: Param root: %r2
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r156
+source: Gep type: Param root: %r0
+Aliases: 
+         %r156
+se_gep_offset: 0
+-----------
+REG: %r301
+source: Gep type: Param root: %r2
+Aliases: 
+         %r301
+se_gep_offset: 0
+-----------
+REG: %r42
+source: Gep type: Param root: %r0
+Aliases: 
+         %r42
+se_gep_offset: 0
+-----------
+REG: %r100
+source: Undef type: Local root: %r100
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r309
+source: Gep type: Param root: %r2
+Aliases: 
+         %r309
+se_gep_offset: 0
+-----------
+REG: %r305
+source: Gep type: Param root: %r2
+Aliases: 
+         %r305
+se_gep_offset: 0
+-----------
+REG: %r65
+source: Gep type: Param root: %r0
+Aliases: 
+         %r65
+se_gep_offset: 0
+-----------
+REG: %r297
+source: Gep type: Param root: %r2
+Aliases: 
+         %r297
+se_gep_offset: 0
+-----------
+REG: %r293
+source: Gep type: Param root: %r2
+Aliases: 
+         %r293
+se_gep_offset: 0
+-----------
+REG: %r0
+source: Undef type: Param root: %r0
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r261
+source: Gep type: Local root: %r100
+Aliases: 
+         %r261
+se_gep_offset: 0
+-----------
+REG: %r121
+source: Gep type: Param root: %r0
+Aliases: 
+         %r121
+se_gep_offset: 0
+-----------
+REG: %r132
+source: Gep type: Param root: %r0
+Aliases: 
+         %r132
+se_gep_offset: 0
+-----------
+REG: %r190
+source: Gep type: Local root: %r100
+Aliases: 
+         %r190
+se_gep_offset: 0
+-----------
+ ----------- RWInfo -------------- 
+define i32 @main()
+read :   @buffer 
+write :   %r4 @buffer 
+
+define void @pseudo_sha1(ptr %r0,i32 %r1,ptr %r2)
+read :   %r0 
+write :   %r2 %r0 
+
+ ----------- Leafs -------------- 
+pseudo_sha1
+ ----------- Globalvar Info -------------- 
+define i32 @main()
+read :   @state 
+write :   @state 
+define void @pseudo_sha1(ptr %r0,i32 %r1,ptr %r2)
+read :   
+write :   
+ ----------------------------------------- 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r53  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r53  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r53  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r53  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r53  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r73  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r53  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r66  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r53  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r66  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r65  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r75  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r75  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r85  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r85  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r93  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r121  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r121  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r132  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r132  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r144  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r144  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r156  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r156  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r65  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r75  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r75  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r85  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r85  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r93  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r121  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r121  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r132  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r132  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r144  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r144  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r156  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r156  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r65  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r75  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r75  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r85  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r85  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r93  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r121  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r121  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r132  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r132  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r144  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r144  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r156  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r156  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r53  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r66  . This is a reg 
+LoopInfo: Loop Hierarchy
+├── [1;36mLoop (Depth 1)[0m header [2], preheader [none]
+    [1;33m      Blocks: [0m2 15 11 10 6 18 24 22 14 
+    [1;33m     Latches: [0m15 
+    [1;33m    Exitings: [0m2 
+    [1;33m       Exits: [0m16 
+│   └── [1;36mLoop (Depth 2)[0m header [6], preheader [none]
+│       [1;33m      Blocks: [0m6 18 
+│       [1;33m     Latches: [0m18 
+│       [1;33m    Exitings: [0m6 
+│       [1;33m       Exits: [0m10 
+└── [1;36mLoop (Depth 1)[0m header [11], preheader [none]
+    [1;33m      Blocks: [0m11 24 22 14 
+    [1;33m     Latches: [0m24 
+    [1;33m    Exitings: [0m11 
+    [1;33m       Exits: [0m15 
+LoopInfo: Loop Hierarchy
+├── [1;36mLoop (Depth 1)[0m header [2], preheader [none]
+    [1;33m      Blocks: [0m2 5 
+    [1;33m     Latches: [0m5 
+    [1;33m    Exitings: [0m2 
+    [1;33m       Exits: [0m6 
+└── [1;36mLoop (Depth 1)[0m header [7], preheader [none]
+    [1;33m      Blocks: [0m7 48 21 73 61 47 139 135 117 107 77 65 53 25 46 109 99 79 67 30 45 157 155 149 147 141 137 131 111 101 69 57 35 44 113 103 83 71 40 16 133 127 121 105 95 75 63 19 11 14 
+    [1;33m     Latches: [0m48 
+    [1;33m    Exitings: [0m7 
+    [1;33m       Exits: [0m49 
+│   ├── [1;36mLoop (Depth 2)[0m header [11], preheader [none]
+│       [1;33m      Blocks: [0m11 14 
+│       [1;33m     Latches: [0m14 
+│       [1;33m    Exitings: [0m11 
+│       [1;33m       Exits: [0m16 
+│   ├── [1;36mLoop (Depth 2)[0m header [21], preheader [none]
+│       [1;33m      Blocks: [0m21 73 61 47 139 135 117 107 77 65 53 25 46 109 99 79 67 30 45 157 155 149 147 141 137 131 111 101 69 57 35 44 113 103 83 71 40 
+│       [1;33m     Latches: [0m73 
+│       [1;33m    Exitings: [0m21 
+│       [1;33m       Exits: [0m48 
+│   └── [1;36mLoop (Depth 2)[0m header [16], preheader [none]
+│       [1;33m      Blocks: [0m16 133 127 121 105 95 75 63 19 
+│       [1;33m     Latches: [0m133 
+│       [1;33m    Exitings: [0m16 
+│       [1;33m       Exits: [0m21 
+LoopInfo: Loop Hierarchy
+├── [1;36mLoop (Depth 1)[0m header [2], preheader [1]
+    [1;33m      Blocks: [0m2 15 11 10 6 18 24 22 14 25 
+    [1;33m     Latches: [0m15 
+    [1;33m    Exitings: [0m2 
+    [1;33m       Exits: [0m16 
+│   └── [1;36mLoop (Depth 2)[0m header [6], preheader [25]
+│       [1;33m      Blocks: [0m6 18 
+│       [1;33m     Latches: [0m18 
+│       [1;33m    Exitings: [0m6 
+│       [1;33m       Exits: [0m10 
+└── [1;36mLoop (Depth 1)[0m header [11], preheader [10]
+    [1;33m      Blocks: [0m11 24 22 14 
+    [1;33m     Latches: [0m24 
+    [1;33m    Exitings: [0m11 
+    [1;33m       Exits: [0m15 
+LoopInfo: Loop Hierarchy
+├── [1;36mLoop (Depth 1)[0m header [2], preheader [1]
+    [1;33m      Blocks: [0m2 5 
+    [1;33m     Latches: [0m5 
+    [1;33m    Exitings: [0m2 
+    [1;33m       Exits: [0m6 
+└── [1;36mLoop (Depth 1)[0m header [7], preheader [6]
+    [1;33m      Blocks: [0m7 48 21 73 61 47 139 135 117 107 77 65 53 25 46 109 99 79 67 30 45 157 155 149 147 141 137 131 111 101 69 57 35 44 113 103 83 71 40 16 133 127 121 105 95 75 63 19 11 14 158 160 161 
+    [1;33m     Latches: [0m161 
+    [1;33m    Exitings: [0m11 7 
+    [1;33m       Exits: [0m159 49 
+│   ├── [1;36mLoop (Depth 2)[0m header [11], preheader [158]
+│       [1;33m      Blocks: [0m11 14 
+│       [1;33m     Latches: [0m14 
+│       [1;33m    Exitings: [0m11 
+│       [1;33m       Exits: [0m159 
+│   ├── [1;36mLoop (Depth 2)[0m header [21], preheader [160]
+│       [1;33m      Blocks: [0m21 73 61 47 139 135 117 107 77 65 53 25 46 109 99 79 67 30 45 157 155 149 147 141 137 131 111 101 69 57 35 44 113 103 83 71 40 
+│       [1;33m     Latches: [0m73 
+│       [1;33m    Exitings: [0m21 
+│       [1;33m       Exits: [0m48 
+│   └── [1;36mLoop (Depth 2)[0m header [16], preheader [159]
+│       [1;33m      Blocks: [0m16 133 127 121 105 95 75 63 19 
+│       [1;33m     Latches: [0m133 
+│       [1;33m    Exitings: [0m16 
+│       [1;33m       Exits: [0m160 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : @buffer  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : @buffer  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r15  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r4  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r100  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r5  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r7  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r9  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r11  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r13  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r21  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r25  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r29  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r33  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r37  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r66  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r69  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r53  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r66  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r42  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r54  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r65  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r75  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r85  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r93  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r101  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r121  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r132  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r144  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r156  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r162  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r173  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r178  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r293  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r297  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r301  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r305  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r309  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r261  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r184  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r190  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r195  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r58  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r60  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r0  . This is a reg 
+[GetPtrInfo] GetPtrInfo of op : %r58  . This is a reg 
+ ----------- CallInfo ------------- 
+define i32 @main()
+para_order:  
+callers:  
+
+-------------
+define void @pseudo_sha1(ptr %r0,i32 %r1,ptr %r2)
+para_order:  
+Operand: %r2 order: 2
+Operand: %r0 order: 0
+callers:  
+main    
+-------------
+ ----------- PtrInfo ------------- 
+define i32 @main()
+REG: %r5
+source: Gep type: Local root: %r4
+Aliases: 
+         %r5
+se_gep_offset: 0
+-----------
+REG: %r7
+source: Gep type: Local root: %r4
+Aliases: 
+         %r7
+se_gep_offset: 0
+-----------
+REG: %r9
+source: Gep type: Local root: %r4
+Aliases: 
+         %r9
+se_gep_offset: 0
+-----------
+REG: %r15
+source: Undef type: Local root: %r15
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r11
+source: Gep type: Local root: %r4
+Aliases: 
+         %r11
+se_gep_offset: 0
+-----------
+REG: %r69
+source: Gep type: Local root: %r4
+Aliases: 
+         %r69
+se_gep_offset: 0
+-----------
+REG: %r60
+source: Gep type: Local root: %r4
+Aliases: 
+         %r60
+se_gep_offset: 0
+-----------
+REG: %r21
+source: Gep type: Local root: %r15
+Aliases: 
+         %r21
+se_gep_offset: 0
+-----------
+REG: %r53
+source: Gep type: Global root: @buffer
+Aliases: 
+         %r53
+se_gep_offset: 0
+-----------
+REG: %r66
+source: Gep type: Local root: %r15
+Aliases: 
+         %r66
+se_gep_offset: 0
+-----------
+REG: %r37
+source: Gep type: Local root: %r15
+Aliases: 
+         %r37
+se_gep_offset: 0
+-----------
+REG: %r4
+source: Undef type: Local root: %r4
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r33
+source: Gep type: Local root: %r15
+Aliases: 
+         %r33
+se_gep_offset: 0
+-----------
+REG: %r58
+source: Gep type: Global root: @buffer
+Aliases: 
+         %r58
+se_gep_offset: 0
+-----------
+REG: %r29
+source: Gep type: Local root: %r15
+Aliases: 
+         %r29
+se_gep_offset: 0
+-----------
+REG: %r83
+source: Gep type: Local root: %r15
+Aliases: 
+         %r83
+se_gep_offset: 0
+-----------
+REG: %r25
+source: Gep type: Local root: %r15
+Aliases: 
+         %r25
+se_gep_offset: 0
+-----------
+REG: %r13
+source: Gep type: Local root: %r4
+Aliases: 
+         %r13
+se_gep_offset: 0
+-----------
+define void @pseudo_sha1(ptr %r0,i32 %r1,ptr %r2)
+REG: %r54
+source: Gep type: Param root: %r0
+Aliases: 
+         %r54
+se_gep_offset: 0
+-----------
+REG: %r85
+source: Gep type: Param root: %r0
+Aliases: 
+         %r85
+se_gep_offset: 0
+-----------
+REG: %r93
+source: Gep type: Param root: %r0
+Aliases: 
+         %r93
+se_gep_offset: 0
+-----------
+REG: %r101
+source: Gep type: Local root: %r100
+Aliases: 
+         %r101
+se_gep_offset: 0
+-----------
+REG: %r121
+source: Gep type: Param root: %r0
+Aliases: 
+         %r121
+se_gep_offset: 0
+-----------
+REG: %r75
+source: Gep type: Param root: %r0
+Aliases: 
+         %r75
+se_gep_offset: 0
+-----------
+REG: %r162
+source: Gep type: Local root: %r100
+Aliases: 
+         %r162
+se_gep_offset: 0
+-----------
+REG: %r144
+source: Gep type: Param root: %r0
+Aliases: 
+         %r144
+se_gep_offset: 0
+-----------
+REG: %r173
+source: Gep type: Local root: %r100
+Aliases: 
+         %r173
+se_gep_offset: 0
+-----------
+REG: %r195
+source: Gep type: Local root: %r100
+Aliases: 
+         %r195
+se_gep_offset: 0
+-----------
+REG: %r2
+source: Undef type: Param root: %r2
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r156
+source: Gep type: Param root: %r0
+Aliases: 
+         %r156
+se_gep_offset: 0
+-----------
+REG: %r301
+source: Gep type: Param root: %r2
+Aliases: 
+         %r301
+se_gep_offset: 0
+-----------
+REG: %r184
+source: Gep type: Local root: %r100
+Aliases: 
+         %r184
+se_gep_offset: 0
+-----------
+REG: %r42
+source: Gep type: Param root: %r0
+Aliases: 
+         %r42
+se_gep_offset: 0
+-----------
+REG: %r100
+source: Undef type: Local root: %r100
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r178
+source: Gep type: Local root: %r100
+Aliases: 
+         %r178
+se_gep_offset: 0
+-----------
+REG: %r309
+source: Gep type: Param root: %r2
+Aliases: 
+         %r309
+se_gep_offset: 0
+-----------
+REG: %r305
+source: Gep type: Param root: %r2
+Aliases: 
+         %r305
+se_gep_offset: 0
+-----------
+REG: %r65
+source: Gep type: Param root: %r0
+Aliases: 
+         %r65
+se_gep_offset: 0
+-----------
+REG: %r297
+source: Gep type: Param root: %r2
+Aliases: 
+         %r297
+se_gep_offset: 0
+-----------
+REG: %r293
+source: Gep type: Param root: %r2
+Aliases: 
+         %r293
+se_gep_offset: 0
+-----------
+REG: %r0
+source: Undef type: Param root: %r0
+Aliases: 
+se_gep_offset: 0
+-----------
+REG: %r261
+source: Gep type: Local root: %r100
+Aliases: 
+         %r261
+se_gep_offset: 0
+-----------
+REG: %r132
+source: Gep type: Param root: %r0
+Aliases: 
+         %r132
+se_gep_offset: 0
+-----------
+REG: %r190
+source: Gep type: Local root: %r100
+Aliases: 
+         %r190
+se_gep_offset: 0
+-----------
+ ----------- RWInfo -------------- 
+define i32 @main()
+read :   @buffer 
+write :   %r4 @buffer 
+
+define void @pseudo_sha1(ptr %r0,i32 %r1,ptr %r2)
+read :   %r0 
+write :   %r2 %r0 
+
+ ----------- Leafs -------------- 
+pseudo_sha1
+ ----------- Globalvar Info -------------- 
+define i32 @main()
+read :   @state 
+write :   @state 
+define void @pseudo_sha1(ptr %r0,i32 %r1,ptr %r2)
+read :   
+write :   
+ ----------------------------------------- 
+[GetPtrInfo] GetPtrInfo of op : @state  . This is a global 
+[GetPtrInfo] GetPtrInfo of op : %r2  . This is a reg 
