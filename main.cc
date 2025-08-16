@@ -287,7 +287,7 @@ int main(int argc, char** argv) {
         AA.Execute();
         SimpleDSEPass(&llvmIR,&inv_dom,&AA).Execute();
         SimplifyCFGPass(&llvmIR).EOBB();
-		SimplifyCFGPass(&llvmIR).RebuildCFG();	
+		SimplifyCFGPass(&llvmIR).RebuildCFG();
 
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();

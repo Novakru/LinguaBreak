@@ -191,8 +191,8 @@ void SimpleDSEPass::EliminateNotUsedStore(CFG *C) {
             if (ptr->GetOperandType() == BasicOperand::REG&&PtrRegMemMap[C][((RegOperand *)ptr)->GetRegNo()].type==PtrInfo::Local) {
                 tflag=true;
             }
-            //4. 若地址是局部指针，或当前函数是main函数
-            if ( (tflag|| C->function_def->GetFunctionName() == "main")&&memdep_analyser->isStoreNotUsed(I, C)) {
+            //4. 若地址是局部指针，或当前函数是main函数(排除main函数)
+            if ( (tflag)&&memdep_analyser->isStoreNotUsed(I, C)) {
                 // 5.若判断该存储未被使用,将该存储指令加入待删除集合
                erase_set.insert(I);
             }

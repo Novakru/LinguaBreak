@@ -1,7 +1,7 @@
 #include "ScalarEvolution.h"
 #include <iostream>
 
-#define scev_debug
+//#define scev_debug
 
 #ifdef scev_debug 
 #define SCEV_DEBUG_PRINT(x) do { x; } while(0)
