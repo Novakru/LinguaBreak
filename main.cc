@@ -256,8 +256,7 @@ int main(int argc, char** argv) {
 		SCCPPass(&llvmIR).Execute();			// need to follow cse
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         SimplifyCFGPass(&llvmIR).EOBB(); 
-		SimplifyCFGPass(&llvmIR).RebuildCFG();
-								
+		SimplifyCFGPass(&llvmIR).RebuildCFG();		
 
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
