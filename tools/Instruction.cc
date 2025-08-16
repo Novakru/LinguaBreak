@@ -1128,3 +1128,48 @@ int GetElementptrInstruction::ComputeIndex(){
 
     return res;
 }
+
+// BitCastInstruction 实现
+void BitCastInstruction::PrintIR(std::ostream &s) {
+    s << result->GetFullName() << " = bitcast " << from_type << " " << value->GetFullName() << " to " << to_type;
+}
+
+int BitCastInstruction::GetDefRegno() {
+    if(result->GetOperandType() == BasicOperand::REG) {
+        return ((RegOperand*)result)->GetRegNo();
+    }
+    return -1;
+}
+
+std::set<int> BitCastInstruction::GetUseRegno() {
+    std::set<int> regno_set;
+    if(value->GetOperandType() == BasicOperand::REG) {
+        regno_set.insert(((RegOperand*)value)->GetRegNo());
+    }
+    return regno_set;
+}
+
+void BitCastInstruction::ChangeReg(const std::map<int, int> &store_map, const std::map<int, int> &use_map) {
+    if(value->GetOperandType() == BasicOperand::REG) {
+        int regno = ((RegOperand*)value)->GetRegNo();
+        if(use_map.find(regno) != use_map.end()) {
+            int new_regno = use_map.at(regno);
+            value = GetNewRegOperand(new_regno);
+        }
+    }
+}
+
+void BitCastInstruction::ChangeResult(const std::map<int, int> &regNo_map) {
+    if(result->GetOperandType() == BasicOperand::REG) {
+        int old_regno = ((RegOperand*)result)->GetRegNo();
+        if(regNo_map.find(old_regno) != regNo_map.end()) {
+            result = GetNewRegOperand(regNo_map.at(old_regno));
+        }
+    }
+}
+
+BasicInstruction* BitCastInstruction::Clone() const {
+    Operand new_value = value->Clone();
+    Operand new_result = result->Clone();
+    return new BitCastInstruction(new_result, new_value, from_type, to_type);
+}
