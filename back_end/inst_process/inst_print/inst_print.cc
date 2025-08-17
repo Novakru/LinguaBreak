@@ -385,7 +385,8 @@ void RiscV64Printer::emit() {
     s << "\t.attribute arch, \"rv64gc\"\n";
 
 	// 添加并行循环运行时库函数
-	add_parallel_loop_constant_100(s);
+	// add_parallel_loop_constant_100(s);
+	// 裸机不支持 pthread, 需要使用系统调用实现轻量化并行库
 
 	for (auto func : printee->functions) {
         current_func = func;

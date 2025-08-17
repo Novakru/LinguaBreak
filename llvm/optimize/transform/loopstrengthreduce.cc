@@ -393,12 +393,12 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                     }
 
                     // 跳过加法指令 (本身就不需要强度削弱)
-                    // if (dynamic_cast<ArithmeticInstruction *>(Inst)) {
-                    //     if (Inst->GetOpcode() == BasicInstruction::ADD || Inst->GetOpcode() == BasicInstruction::SUB) {
-                    //         LSR_DEBUG_PRINT(std::cerr << "[LSR] 跳过加法/减法指令: " << Inst->GetResult()->GetFullName() << std::endl);
-                    //         continue;
-                    //     }
-                    // }
+                    if (dynamic_cast<ArithmeticInstruction *>(Inst)) {
+                        if (Inst->GetOpcode() == BasicInstruction::ADD || Inst->GetOpcode() == BasicInstruction::SUB) {
+                            LSR_DEBUG_PRINT(std::cerr << "[LSR] 跳过加法/减法指令: " << Inst->GetResult()->GetFullName() << std::endl);
+                            continue;
+                        }
+                    }
                     
                     // 处理GEP指令
                     if (auto *GEP = dynamic_cast<GetElementptrInstruction *>(Inst)) {

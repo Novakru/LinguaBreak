@@ -14,7 +14,6 @@
 #include "llvm/optimize/analysis/AliasAnalysis.h"
 #include "llvm/optimize/analysis/ScalarEvolution.h"
 #include "llvm/optimize/analysis/memdep.h"
-#include "llvm/optimize/analysis/LoopDependenceAnalysis.h"
 
 #include "llvm/optimize/transform/simplify_cfg.h"
 #include "llvm/optimize/transform/mem2reg.h"
@@ -35,7 +34,6 @@
 #include "llvm/optimize/transform/instCombine.h"
 #include "llvm/optimize/transform/invarelim.h"
 #include "llvm/optimize/transform/LoopParallelism.h"
-
 
 //-target
 #include"back_end/basic/riscv_def.h"
@@ -72,29 +70,6 @@ void print_usage() {
     std::cerr << "  compiler -semant [-o output_file] input_file\n";
     std::cerr << "  compiler -llvm [-o output_file] input_file\n";
     std::cerr << "  compiler -select [-o output_file] input_file\n";
-}
-
-void redundency_elimination(DomAnalysis inv_dom) {
-	llvmIR.SyncMaxInfo();     
-	inv_dom.invExecute();
-	(ADCEPass(&llvmIR, &inv_dom)).Execute();
-	//ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
-	SimplifyCFGPass(&llvmIR).RebuildCFG();
-	SimplifyCFGPass(&llvmIR).EOBB();  
-	SimplifyCFGPass(&llvmIR).MergeBlocks();		
-	PeepholePass(&llvmIR).ImmResultReplaceExecute();
-	PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
-	PeepholePass(&llvmIR).NegMulAddToSubExecute();
-	LoopStrengthReducePass(&llvmIR).GepStrengthReduce();	// GEP指令强度削弱中端部分
-	InstCombinePass(&llvmIR).Execute();
-	SimplifyCFGPass(&llvmIR).RebuildCFG();
-	PeepholePass(&llvmIR).IdentitiesEliminateExecute();
-	SCCPPass(&llvmIR).Execute();			
-	SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-
-	SimplifyCFGPass(&llvmIR).EOBB();  
-	SimplifyCFGPass(&llvmIR).MergeBlocks();		
-	SimplifyCFGPass(&llvmIR).RebuildCFG();
 }
 
 int main(int argc, char** argv) {
@@ -239,16 +214,14 @@ int main(int argc, char** argv) {
     // 【5】优化
 	// 提交到 oj 时需要默认优化全开
     // if (optimize) {
+		AliasAnalysisPass AA(&llvmIR); 
+		DomAnalysis dom(&llvmIR);
+		DomAnalysis inv_dom(&llvmIR);
+
 		TailCallElimPass(&llvmIR).Execute();
-        DomAnalysis dom(&llvmIR);
         dom.Execute();
         (Mem2RegPass(&llvmIR, &dom)).Execute();
-        DomAnalysis inv_dom(&llvmIR);
         inv_dom.invExecute();
-
-        AliasAnalysisPass AA(&llvmIR); 
-		AA.Execute();
-        // SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
 
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
@@ -263,52 +236,57 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         SimplifyCFGPass(&llvmIR).EOBB();   
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
-        inv_dom.invExecute();
 		AA.Execute();
         GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
 
+        dom.Execute();
+		AA.Execute();
+        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+		SimplifyCFGPass(&llvmIR).EOBB();
+		SimplifyCFGPass(&llvmIR).RebuildCFG();							
+		SCCPPass(&llvmIR).Execute();			// need to follow cse
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        SimplifyCFGPass(&llvmIR).EOBB(); 
+		SimplifyCFGPass(&llvmIR).RebuildCFG();		
+		
+		LoopAnalysisPass(&llvmIR).Execute();
+		LoopSimplifyPass(&llvmIR).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
 		// AA.Execute();
-        // SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
-        // SimplifyCFGPass(&llvmIR).EOBB();
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();							
-		// SCCPPass(&llvmIR).Execute();			// need to follow cse
-        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        // SimplifyCFGPass(&llvmIR).EOBB(); 
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();		
-
-		LoopAnalysisPass(&llvmIR).Execute();
-		LoopSimplifyPass(&llvmIR).Execute();
-		SimplifyCFGPass(&llvmIR).TOPPhi();
+		// LoopRotate(&llvmIR, &AA).Execute();
+		// LoopAnalysisPass(&llvmIR).Execute();
+		// LoopSimplifyPass(&llvmIR).Execute();
 		AA.Execute();
 		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
-		LoopIdiomRecognizePass(&llvmIR).Execute();                // memset recognize, do not parallel
-		redundency_elimination(inv_dom);
+		// InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
+		// LoopStrengthReducePass(&llvmIR).Execute();
+		// LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
 
-		LoopAnalysisPass(&llvmIR).Execute();
-		LoopSimplifyPass(&llvmIR).Execute();
-		SimplifyCFGPass(&llvmIR).TOPPhi();
-		AA.Execute();
-		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		SimplifyCFGPass(&llvmIR).TOPPhi();
-		SCEVPass(&llvmIR).Execute();
-		LoopDependenceAnalysisPass loopDepAnalysis(&llvmIR, &AA); // must before lsr
-		loopDepAnalysis.Execute();
-		LoopParallelismPass(&llvmIR, &loopDepAnalysis).Execute(); 
-		redundency_elimination(inv_dom);
+		llvmIR.SyncMaxInfo();     
+        inv_dom.invExecute();
+        (ADCEPass(&llvmIR, &inv_dom)).Execute();
+		SimplifyCFGPass(&llvmIR).RebuildCFG();
+		SimplifyCFGPass(&llvmIR).EOBB();  
+        SimplifyCFGPass(&llvmIR).MergeBlocks();		
+		PeepholePass(&llvmIR).ImmResultReplaceExecute();
+        PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
+		PeepholePass(&llvmIR).NegMulAddToSubExecute();
+        LoopStrengthReducePass(&llvmIR).GepStrengthReduce();	// GEP指令强度削弱中端部分
+        InstCombinePass(&llvmIR).Execute();
+        SimplifyCFGPass(&llvmIR).RebuildCFG();
+        PeepholePass(&llvmIR).IdentitiesEliminateExecute();
+        SCCPPass(&llvmIR).Execute();			
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        
+        dom.Execute();
+        AA.Execute();
+        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
 
-		LoopAnalysisPass(&llvmIR).Execute();
-		LoopSimplifyPass(&llvmIR).Execute();
-		SimplifyCFGPass(&llvmIR).TOPPhi();
-		AA.Execute();
-		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		SimplifyCFGPass(&llvmIR).TOPPhi();
-		SCEVPass(&llvmIR).Execute();
-		InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
-		LoopStrengthReducePass(&llvmIR).Execute();
-
-		redundency_elimination(inv_dom);
+		SimplifyCFGPass(&llvmIR).EOBB();  
+        SimplifyCFGPass(&llvmIR).MergeBlocks();		
+		SimplifyCFGPass(&llvmIR).RebuildCFG();
 
     // }
 
@@ -324,15 +302,18 @@ int main(int argc, char** argv) {
         MachineUnit* m_unit = new RiscV64Unit(&llvmIR);
         m_unit->SelectInstructionAndBuildCFG();
 
+        //MachineStrengthReducePass(m_unit).Execute();
+
         if (option == 5) {
             RiscV64RegisterAllocTools regs;
             FastLinearScan(m_unit, &regs).Execute();
             m_unit->LowerStack();
         }
 
-        // optimizer
+        //optimizer
         MachinePeepholePass(m_unit).Execute();
         MachineStrengthReducePass(m_unit).Execute();
+
         
         RiscV64Printer(out, m_unit).emit();
         fclose(input);
