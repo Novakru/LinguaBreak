@@ -113,9 +113,13 @@ opt -opaque-pointers=1 -passes=tailcallelim ./test_output/example/temp.ll -S -o 
 ```bash
 ./compiler -S -o ./test_output/example/temp.out.S ./test_output/example/temp.sy -O1
 riscv64-unknown-linux-gnu-gcc  "test_output/example/temp.out.S" -c -o "test_output/example/tmp.o"
-riscv64-unknown-linux-gnu-gcc -mcmodel=medany -static "test_output/example/tmp.o" lib/libsysy_riscv.a
+riscv64-unknown-linux-gnu-gcc -mcmodel=medany -static "test_output/example/tmp.o" lib/libsysy_riscv.a lib/libloop_parallel_riscv.a
 qemu-riscv64 ./a.out (< ./testcase/functional_test/Advanced/lisp2.in)
 echo $?
+```
+利用clang生成riscv汇编代码
+``` bash
+llc -mtriple=riscv64-unknown-linux-gnu -mattr=+m,+a,+f,+d,+c -opaque-pointers test_output/example/temp.out.ll -o test_output/example/temp.out.S
 ```
 
 ### generate CFG bash

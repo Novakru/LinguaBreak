@@ -21,6 +21,7 @@ template <> void RiscV64Unit::ConvertAndAppend<FptosiInstruction*>(FptosiInstruc
 template <> void RiscV64Unit::ConvertAndAppend<GetElementptrInstruction*>(GetElementptrInstruction* inst);
 template <> void RiscV64Unit::ConvertAndAppend<CallInstruction*>(CallInstruction* inst);
 template <> void RiscV64Unit::ConvertAndAppend<SitofpInstruction*>(SitofpInstruction* inst);
+template <> void RiscV64Unit::ConvertAndAppend<BitCastInstruction*>(BitCastInstruction* inst);
 
 void RiscV64Unit::SelectInstructionAndBuildCFG()
 {
@@ -755,6 +756,9 @@ template <> void RiscV64Unit::ConvertAndAppend<Instruction>(Instruction inst) {
     case BasicInstruction::PHI:
         ConvertAndAppend<PhiInstruction *>((PhiInstruction *)inst);
         break;
+	case BasicInstruction::BITCAST:
+		ConvertAndAppend<BitCastInstruction *>((BitCastInstruction *)inst);
+		break;
     default:
         ERROR("Unknown LLVM IR instruction");
     }
@@ -1513,27 +1517,47 @@ template <> void RiscV64Unit::ConvertAndAppend<CallInstruction *>(CallInstructio
 				now_float_num++;
             }
         }else{
-            auto reg = (RegOperand*)para;
-            auto regno = reg->GetRegNo();
-            Register originpara_register;
             if(type == BasicInstruction::I32 || type == BasicInstruction::PTR){
-                originpara_register = GetNewRegister(regno, INT64);
                 if(now_int_num < 8){
-                    pararegister = GetI32A(now_int_num++);
-					auto addw_instr = rvconstructor->ConstructR(RISCV_ADD, pararegister, originpara_register, GetPhysicalReg(RISCV_x0));
-                	cur_block->push_back(addw_instr);
+					if(para->GetOperandType() == BasicOperand::REG){
+						auto reg = (RegOperand*)para;
+						auto regno = reg->GetRegNo();
+						pararegister = GetI32A(now_int_num);
+						if(llvmReg_offset_map.find(regno) != llvmReg_offset_map.end()){
+							auto sp_offset = llvmReg_offset_map[regno];
+							auto mid_reg = GetNewTempRegister(INT64);
+							InsertImmI32Instruction(mid_reg, new ImmI32Operand(sp_offset), cur_block);
+							auto addw_instr = rvconstructor->ConstructR(RISCV_ADD, pararegister, mid_reg, GetPhysicalReg(RISCV_sp));
+							cur_block->push_back(addw_instr);
+						}else{
+							std::cerr << "regno: " << regno << " not found in llvmReg_offset_map" << std::endl;
+							std::cerr << "now_int_num: " << now_int_num << std::endl;
+							auto originpara_register = GetNewRegister(regno, INT64);
+							auto addw_instr = rvconstructor->ConstructR(RISCV_ADD, pararegister, originpara_register, GetPhysicalReg(RISCV_x0));
+							cur_block->push_back(addw_instr);
+						}
+					} else if(para->GetOperandType() == BasicOperand::GLOBAL){
+						pararegister = GetI32A(now_int_num);
+						auto para_global = (GlobalOperand *)para;
+						auto la_inst = rvconstructor->ConstructULabel(RISCV_LA, pararegister, RiscVLabel(para_global->GetName(), true));
+						cur_block->push_back(la_inst);
+					}
+					now_int_num++;
                 }else{
                     // pararegister = GetNewTempRegister(INT64);
 					// do nothing but now_int_num++
 					now_int_num++;
                 }
-            }else{
-                originpara_register = GetNewRegister(regno, FLOAT64);
+            } else if(type == BasicInstruction::FLOAT32){
                 if(now_float_num < 8){
-					pararegister = GetF32A(now_float_num++);
-					// std::cerr << "pararegister: " << pararegister.get_reg_no() << " originpara_register: " << originpara_register.get_reg_no() << std::endl;
-					auto fmvwx_instr = rvconstructor->ConstructR2(RISCV_FMV_S, pararegister, originpara_register);
-					cur_block->push_back(fmvwx_instr);
+					if(para->GetOperandType() == BasicOperand::REG){
+						auto reg = (RegOperand*)para;
+						auto regno = reg->GetRegNo();
+						auto originpara_register = GetNewRegister(regno, FLOAT64);
+						pararegister = GetF32A(now_float_num++);
+						auto fmvwx_instr = rvconstructor->ConstructR2(RISCV_FMV_S, pararegister, originpara_register);
+						cur_block->push_back(fmvwx_instr);
+					}
                 }else{
                     // pararegister = GetNewTempRegister(FLOAT64);
 					// do nothing but now_float_num++
@@ -2078,8 +2102,6 @@ template <> void RiscV64Unit::ConvertAndAppend<PhiInstruction *>(PhiInstruction 
     // std::cerr<<llvm2rv_regmap[resultreg->GetRegNo()].get_reg_no()<<'\n';
 }
 
-
-
 void RiscV64Unit::BuildPhiWeb(CFG *C){
     std::map<int, int> UnionFindMap;
     std::function<int(int)> UnionFind = [&](int RegToFindNo) -> int {
@@ -2139,4 +2161,26 @@ void RiscV64Unit::BuildPhiWeb(CFG *C){
 			// std::cerr<<resultregno<<" "<<rootregno<<" "<<phiseq<<" "<<phi_temp_phiseqmap[rootregno]<<'\n';
         }
     }
+}
+
+template <> void RiscV64Unit::ConvertAndAppend<BitCastInstruction *>(BitCastInstruction *ins) {
+    Assert(ins->GetResult()->GetOperandType() == BasicOperand::REG);
+	Assert(ins->GetFromType() == BasicInstruction::FLOAT32);
+	Assert(ins->GetType() == BasicInstruction::I32);
+
+    auto rd_op = (RegOperand *)ins->GetResult();
+    auto result_reg = GetNewRegister(rd_op->GetRegNo(), INT64);
+    auto src_op = ins->GetSrc();
+
+    if (src_op->GetOperandType() == BasicOperand::REG) {
+        auto rs_op = (RegOperand *)src_op;
+        auto src_reg = GetNewRegister(rs_op->GetRegNo(), FLOAT64);
+        auto fmv_inst = rvconstructor->ConstructR2(RISCV_FMV_X_W, result_reg, src_reg);
+        cur_block->push_back(fmv_inst);
+    } else if (src_op->GetOperandType() == BasicOperand::IMMF32) {
+        auto float_imm = (ImmF32Operand *)src_op;
+        float fimm = float_imm->GetFloatVal();
+        int bit_pattern = *((int *)(&fimm));
+		InsertImmI32Instruction(result_reg, new ImmI32Operand(bit_pattern), cur_block);
+	}
 }

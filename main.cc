@@ -331,7 +331,7 @@ int main(int argc, char** argv) {
             m_unit->LowerStack();
         }
 
-        //optimizer
+        // optimizer
         MachinePeepholePass(m_unit).Execute();
         MachineStrengthReducePass(m_unit).Execute();
         

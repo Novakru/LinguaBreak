@@ -230,8 +230,10 @@ void RiscV64Printer::SyncBlock(MachineBlock *block) { cur_block = block; }
 
 void RiscV64Printer::emit() {
     s << "\t.text\n\t.globl main\n";
+	// to support loop parallelism, we need use more instructions
+    // s << "\t.attribute arch, \"rv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0_zba1p0_zbb1p0\"\n";
     s << "\t.attribute arch, \"rv64gc\"\n";
-    for (auto func : printee->functions) {
+	for (auto func : printee->functions) {
         current_func = func;
         s << func->getFunctionName() << ":\n";
 

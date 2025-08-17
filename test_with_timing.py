@@ -108,7 +108,7 @@ def execute_asm(input_file, output_file, stdin, stdout, testout, opt_level, time
         print(f"\033[93mOutput Error on \033[0m{input_file}")
         return 0, 0, 0
 
-    if execute(["riscv64-unknown-linux-gnu-gcc", "-static", "tmp.o", "lib/libsysy_riscv.a"]).returncode != 0:
+    if execute(["riscv64-unknown-linux-gnu-gcc", "-static", "tmp.o", "lib/libsysy_riscv.a", "lib/libloop_parallel_riscv.a"]).returncode != 0:
         execute(["rm", "-rf", "tmp.o"])
         print(f"\033[93mLink Error on \033[0m{input_file}")
         return 0, 0, 0

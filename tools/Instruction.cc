@@ -1129,11 +1129,6 @@ int GetElementptrInstruction::ComputeIndex(){
     return res;
 }
 
-// BitCastInstruction 实现
-void BitCastInstruction::PrintIR(std::ostream &s) {
-    s << result->GetFullName() << " = bitcast " << from_type << " " << value->GetFullName() << " to " << to_type;
-}
-
 int BitCastInstruction::GetDefRegno() {
     if(result->GetOperandType() == BasicOperand::REG) {
         return ((RegOperand*)result)->GetRegNo();

@@ -251,7 +251,7 @@ void LoopParallelismPass::AddFunctionParameters(FunctionDefineInstruction* func_
         
         // 将变量添加到映射中，供后续寄存器映射替换使用
         reg_mapping[regno] = max_reg;
-		std::cout << "[arg_i32] regno: " << regno << ", max_reg: " << max_reg << std::endl;
+		// std::cout << "[arg_i32] regno: " << regno << ", max_reg: " << max_reg << std::endl;
 		bias += 1;
     }
     
@@ -268,7 +268,7 @@ void LoopParallelismPass::AddFunctionParameters(FunctionDefineInstruction* func_
         
         // 将变量添加到映射中
         reg_mapping[regno] = max_reg;
-		std::cout << "[arg_ptr] regno: " << regno << ", max_reg: " << max_reg << std::endl;
+		// std::cout << "[arg_ptr] regno: " << regno << ", max_reg: " << max_reg << std::endl;
 		bias += 2; // PTR变量占用8字节
     }
 }

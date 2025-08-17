@@ -4,11 +4,10 @@
 
 bool isInductionVariable(Operand op, Loop* loop);
 
-
-// TODO check: 
-// 1. while(i > 0) i--
-// 2. while(i < n) i *= 2
-// 3. while(i > n) i /= 2 ...
+// not support:
+// 1. while(i > n) i /= 2 ...
+// 2. while(i > n) i %= 2 ...
+// 3. float loop
 
 #define lsr_debug 
 
@@ -478,7 +477,7 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                                     if (latch) {
                                         br = latch->Instruction_list.back();
                                         latch->Instruction_list.pop_back();
-                                        auto* gepStep = new GetElementptrInstruction(BasicInstruction::I32, gepStepRes, gepRes, new ImmI32Operand(step), BasicInstruction::I32);
+                                        auto* gepStep = new GetElementptrInstruction(GEP->GetType(), gepStepRes, gepRes, new ImmI32Operand(step), BasicInstruction::I32);
                                         latch->Instruction_list.push_back(gepStep);
                                         latch->Instruction_list.push_back(br);
                                     }
@@ -517,7 +516,7 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                                     if (latch) {
                                         br = latch->Instruction_list.back();
                                         latch->Instruction_list.pop_back();
-                                        auto* gepStep = new GetElementptrInstruction(BasicInstruction::I32, gepStepRes, gepRes, stepReg, BasicInstruction::I32);
+                                        auto* gepStep = new GetElementptrInstruction(GEP->GetType(), gepStepRes, gepRes, stepReg, BasicInstruction::I32);
                                         latch->Instruction_list.push_back(gepStep);
                                         latch->Instruction_list.push_back(br);
                                     }
