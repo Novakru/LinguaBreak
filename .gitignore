@@ -9,6 +9,9 @@ debug.ll
 graphviz/*
 tmp.o
 
+testcase/
+test_output/
+
 # Debug files
 debug.S
 debug1.S
