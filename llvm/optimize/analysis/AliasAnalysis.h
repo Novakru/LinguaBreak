@@ -3,6 +3,7 @@
 #include "../../include/ir.h"
 #include "../pass.h"
 #include "../lib_function_names.h"
+#include <cmath>
 
 /*
    README：
@@ -33,13 +34,15 @@ struct PtrInfo{//根类型的PtrInfo的AliasOps一定为空； 非根类型的Pt
     enum sources{ Undef=0, Gep=1, Phi=2 }source;
     enum types{ Undefed=0, Global=1, Param=2, Local=3 }type;
     Operand root;//祖先指针，Global/Param/Local定义的数组基址
+    GetElementptrInstruction* gep; //记录初次索引的GEP指令，初次！！
+    double se_gep_offset;//若经过了二代GEP指令，记录相对初次GEP的总偏移量
     std::unordered_set<Operand> AliasOps;//别名集，仅记录本身及其祖先
 
-    PtrInfo(){ source=sources::Undef; type=types::Undefed; }
-    PtrInfo(types ty){source=sources::Undef;  type=ty;}//用于根信息的创建
-    PtrInfo(types ty, Operand op){ source=sources::Undef;  type=ty;  AliasOps.emplace(op);  }
-    PtrInfo(sources so,types ty,  Operand op){ source=so;  type=ty;  AliasOps.emplace(op);  }
-    void AddAliass(std::unordered_set<Operand> newOps){ AliasOps.insert(newOps.begin(),newOps.end());}
+    PtrInfo(){ source=sources::Undef; type=types::Undefed; se_gep_offset=0; root=nullptr;gep=nullptr;}
+    PtrInfo(types ty){source=sources::Undef;  type=ty; se_gep_offset=0; se_gep_offset=0;root=nullptr;gep=nullptr;}//用于根信息的创建
+    PtrInfo(types ty, Operand op){ source=sources::Undef;  type=ty;  AliasOps.emplace(op); se_gep_offset=0;root=nullptr;gep=nullptr; }
+    PtrInfo(sources so,types ty,  Operand op){ source=so;  type=ty;  AliasOps.emplace(op); se_gep_offset=0;root=nullptr;gep=nullptr;}
+    void AddAliass(std::unordered_set<Operand> newOps){ AliasOps.insert(newOps.begin(),newOps.end());gep=nullptr;}
 
     void PrintDebugInfo();
 };
@@ -72,7 +75,7 @@ struct GlobalValInfo{//每个函数读/写的global val（不含global array)
 
 class AliasAnalysisPass : public IRPass { 
 private:
-    std::unordered_map<CFG*,std::unordered_map<int,PtrInfo>>ptrmap;//regno-->PtrInfo (only for RegOperand)
+    std::unordered_map<CFG*,std::unordered_map<int,PtrInfo*>>ptrmap;//regno-->PtrInfo (only for RegOperand)
     std::unordered_map<CFG*,RWInfo>rwmap;//ref_operands,mod_operands
     std::unordered_map<std::string,CallInfo>ReCallGraph;
     std::unordered_set<std::string>LeafFuncs;
@@ -80,14 +83,14 @@ private:
     void FindPhi();
     void DefineLibFuncStatus();
 
-    PtrInfo GetPtrInfo(Operand op, CFG* cfg);
+    PtrInfo* GetPtrInfo(Operand op, CFG* cfg);
     Operand CalleeParamToCallerArgu(Operand op, CFG* callee_cfg, CallInstruction* CallI);
     void RWInfoAnalysis();
     void GatherRWInfos(std::string func_name);
 
     void GatherPtrInfos(CFG* cfg, int regno);
     void PtrPropagationAnalysis();
-    bool IsSameArraySameConstIndex(GetElementptrInstruction* inst1,GetElementptrInstruction* inst2);
+    bool IsSameArraySameConstIndex(GetElementptrInstruction* inst1,GetElementptrInstruction* inst2 ,double offset1, double offset2);
     
 public:
     std::unordered_map<CFG*,GlobalValInfo*> globalmap;
@@ -97,7 +100,7 @@ public:
     ModRefStatus QueryInstModRef(Instruction inst, Operand op, CFG* cfg);
     void Execute();
 
-    std::unordered_map<CFG*,std::unordered_map<int,PtrInfo>>& GetPtrMap() { return ptrmap; }
+    std::unordered_map<CFG*,std::unordered_map<int,PtrInfo*>>& GetPtrMap(){return ptrmap;}
 	std::unordered_map<CFG*,RWInfo>& GetRWMap() { return rwmap; }
     std::unordered_map<std::string,CallInfo>& GetReCallGraph() { return ReCallGraph; }
     ModRefStatus QueryCallGlobalModRef(CallInstruction* callI, std::string global_name);//基于globalmap，查询call指令是否mod/ref某全局非Array变量

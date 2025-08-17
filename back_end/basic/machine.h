@@ -8,6 +8,7 @@
 #include"../include/Instruction.h"
 #include"register.h"
 #include"../inst_process/machine_instruction.h"
+#include"../../llvm/optimize/analysis/dominator_tree.h"
 
 class RiscV64Printer;
 
@@ -140,6 +141,17 @@ public:
     void SetMachineCFG(MachineCFG *mcfg) { this->mcfg = mcfg; }
 };
 
+class MachineDominatorTree {
+public:
+    MachineCFG *C;
+    std::vector<std::vector<MachineBlock *>> dom_tree{};
+    std::map<int, int> sdom_map{};
+
+    MachineDominatorTree(){}
+    bool IsDominate(int id1, int id2);
+};
+
+
 class MachineCFG {
 
 public:
@@ -148,46 +160,31 @@ public:
         MachineBlock *Mblock;
     };
 
-// private:
     std::map<int, MachineCFGNode *> block_map{};
-    
     std::vector<std::vector<MachineCFGNode *>> G{}, invG{};
     int max_label;
 
-     // 用于 DFS 的状态变量
-     std::map<int, int> dfs_visited;
-     std::stack<int> dfs_stk;
- 
-     // 用于 BFS 的状态变量
-     std::map<int, int> bfs_visited;
-     std::queue<int> bfs_que;
- 
-     // 用于 SeqScan 的状态变量
-     decltype(block_map.begin()) seqscan_current;
- 
-     // 用于 Reverse 的状态变量
-     std::vector<MachineCFGNode*> reverse_cache;
-     decltype(reverse_cache.rbegin()) reverse_current_pos;
-     
+    MachineDominatorTree* DomTree;
+    void SetMachineDomTree(DominatorTree* domtree);
 
-public:
-    class Iterator {
-    protected:
-        MachineCFG *mcfg;
-
-    public:
-        Iterator(MachineCFG *mcfg) : mcfg(mcfg) {}
-        MachineCFG *getMachineCFG() { return mcfg; }
-        virtual void open() = 0;
-        virtual MachineCFGNode *next() = 0;
-        virtual bool hasNext() = 0;
-        virtual void rewind() = 0;
-        virtual void close() = 0;
-    };
+    // 用于 DFS 的状态变量
+    std::map<int, int> dfs_visited;
+    std::stack<int> dfs_stk;
+ 
+    // 用于 BFS 的状态变量
+    std::map<int, int> bfs_visited;
+    std::queue<int> bfs_que;
+ 
+    // 用于 SeqScan 的状态变量
+    decltype(block_map.begin()) seqscan_current;
+ 
+    // 用于 Reverse 的状态变量
+    std::vector<MachineCFGNode*> reverse_cache;
+    decltype(reverse_cache.rbegin()) reverse_current_pos;
 
 
     MachineCFGNode *ret_block;//新增
-    MachineCFG() : max_label(0){};
+    MachineCFG() : max_label(0){ DomTree = new MachineDominatorTree; };
     void AssignEmptyNode(int id, MachineBlock *Mblk);
 
     // Just modify CFG edge, no change on branch instructions
@@ -197,14 +194,14 @@ public:
     MachineCFGNode *GetNodeByBlockId(int id) { return block_map[id]; }
     std::vector<MachineCFGNode *> GetSuccessorsByBlockId(int id) { return G[id]; }
     std::vector<MachineCFGNode *> GetPredecessorsByBlockId(int id) { return invG[id]; }
-    // DFS 相关成员函数
+
+    // DFS 遍历
     void dfs_open() {
         dfs_visited.clear();
         while (!dfs_stk.empty())
             dfs_stk.pop();
         dfs_stk.push(0);
     }
-
     MachineCFGNode* dfs_next() {
         auto return_idx = dfs_stk.top();
         dfs_visited[return_idx] = 1;
@@ -217,25 +214,21 @@ public:
         }
         return block_map[return_idx];
     }
-
     bool dfs_hasNext() { return !dfs_stk.empty(); }
-
     void dfs_rewind() { dfs_open(); }
-
     void dfs_close() {
         dfs_visited.clear();
         while (!dfs_stk.empty())
             dfs_stk.pop();
     }
 
-    // BFS 相关成员函数
+    // BFS 遍历
     void bfs_open() {
         bfs_visited.clear();
         while (!bfs_que.empty())
             bfs_que.pop();
         bfs_que.push(0);
     }
-
     MachineCFGNode* bfs_next() {
         auto return_idx = bfs_que.front();
         bfs_visited[return_idx] = 1;
@@ -248,31 +241,25 @@ public:
         }
         return block_map[return_idx];
     }
-
     bool bfs_hasNext() { return !bfs_que.empty(); }
-
     void bfs_rewind() { bfs_open(); }
-
     void bfs_close() {
         bfs_visited.clear();
         while (!bfs_que.empty())
             bfs_que.pop();
     }
 
-    // SeqScan 相关成员函数
+    // SeqScan 遍历
     void seqscan_open() { seqscan_current = block_map.begin(); }
-
     MachineCFGNode* seqscan_next() { return (seqscan_current++)->second; }
-
     bool seqscan_hasNext() { return seqscan_current != block_map.end(); }
-
     void seqscan_rewind() {
         seqscan_close();
         seqscan_open();
     }
 
     void seqscan_close() { seqscan_current = block_map.end(); }
-
+    // reverse 遍历
     void reverse_open() {
         bfs_open();
         reverse_cache.clear();
@@ -282,14 +269,11 @@ public:
         reverse_current_pos = reverse_cache.rbegin();
     }
     MachineCFGNode* reverse_next() { return *(reverse_current_pos++); }
-
     bool reverse_hasNext() { return reverse_current_pos != reverse_cache.rend(); }
-
     void reverse_rewind() {
         reverse_close();
         reverse_open();
     }
-
     void reverse_close() {
         bfs_close();
         reverse_cache.clear();

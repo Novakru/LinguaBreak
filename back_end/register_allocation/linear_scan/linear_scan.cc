@@ -161,16 +161,89 @@ bool FastLinearScan::DoAllocInCurrentFunc() {
     return spilled;
 }
 
+//reference:https://github.com/yuhuifishash/SysY/target/common/machine_instruction_structures/machine.cc  line 308~333
+std::set<MachineBlock *> FindNodesInLoop(MachineCFG *C, MachineBlock *n, MachineBlock *d)    // backedge n->d
+{
+    std::set<MachineBlock *> loop_nodes;
+
+    std::stack<MachineBlock *> S;
+
+    loop_nodes.insert(n);
+    loop_nodes.insert(d);
+
+    if (n == d) {
+        return loop_nodes;
+    }
+
+    S.push(n);
+    while (!S.empty()) {
+        MachineBlock *x = S.top();
+        S.pop();
+        for (auto preBB : C->GetPredecessorsByBlockId(x->getLabelId())) {
+            if (loop_nodes.find(preBB->Mblock) == loop_nodes.end()) {
+                loop_nodes.insert(preBB->Mblock);
+                S.push(preBB->Mblock);
+            }
+        }
+    }
+    return loop_nodes;
+}
+
+void FastLinearScan::ComputeLoopDepth(MachineCFG* C) {
+
+    // (1) 收集块并清零 loop_depth
+    std::vector<MachineBlock*> blocks;
+    {
+        C->seqscan_open();
+        while (C->seqscan_hasNext()) {
+            auto *block = C->seqscan_next()->Mblock;
+            block->loop_depth = 0;
+            blocks.push_back(block);
+        }
+    }
+
+    // (2) 以 header 为键，聚合(并集)该 header 的自然环节点
+    //    这样同一 header 由多条回边产生的环不会被重复计数
+    std::unordered_map<MachineBlock*, std::unordered_set<MachineBlock*>> header2nodes;
+
+    for (auto *tail : blocks) {
+        auto tail_id = tail->getLabelId();
+        for (auto succ : C->GetSuccessorsByBlockId(tail_id)) { // tail -> head 候选回边
+            auto *head = succ->Mblock;
+            if (C->DomTree->IsDominate(head->getLabelId(), tail_id)) {
+                // 自然环节点（以该回边为依据）
+                auto nodes = FindNodesInLoop(C, tail, head);
+                auto &bucket = header2nodes[head]; // 并集累加
+                for (auto *n : nodes) bucket.insert(n);
+            }
+        }
+    }
+
+    // (3) 每个 header 的环并集算作一个 loop：对其中每个块 loop_depth += 1
+    for (auto &kv : header2nodes) {
+        const auto &nodes = kv.second;
+        for (auto *bb : nodes) {
+            bb->loop_depth += 1;
+        }
+    }
+}
+
 // 计算溢出权重
 double FastLinearScan::CalculateSpillWeight(LiveInterval interval) {
     return (double)interval.getReferenceCount() / interval.getIntervalLength();
 }
 
 void FastLinearScan::Execute() {
-    // 你需要保证此时不存在phi指令
+    // 需要保证此时不存在phi指令
     for (auto func : unit->functions) {
         not_allocated_funcs.push(func);
     }
+    // 计算循环深度，为UpdateIntervalsInCurrentFunc中计算引用次数做准备
+    for (auto &func: unit->functions){
+        auto C = func->getMachineCFG();
+        ComputeLoopDepth(C);
+    }
+    
     //1.逐一处理函数
 	int spill_size=0;
     while (!not_allocated_funcs.empty()) {
@@ -339,7 +412,7 @@ void FastLinearScan::UpdateIntervalsInCurrentFunc() {
                         ins->getNumber()   // 结束（定义即结束）
                     );
                 }
-                intervals[*reg].IncreaseReferenceCount(1); // 增加引用计数（用于溢出优先级）
+                intervals[*reg].IncreaseReferenceCount(mblock->loop_depth);//引用计数（用于溢出优先级）
             }
 
             // 处理指令的读寄存器（使用操作）
@@ -358,7 +431,7 @@ void FastLinearScan::UpdateIntervalsInCurrentFunc() {
                     );
                 }
                 last_use[*reg] = ins->getNumber(); // 更新最后一次使用位置
-                intervals[*reg].IncreaseReferenceCount(1); // 增加引用计数
+                intervals[*reg].IncreaseReferenceCount(mblock->loop_depth);
             }
         } // 结束指令遍历
 

@@ -43,7 +43,6 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
 
         auto cur_mcfg = new MachineCFG;
         cur_func->SetMachineCFG(cur_mcfg);
-
         cur_cfg = cfg;
 
         ClearFunctionSelectState();
@@ -130,8 +129,13 @@ void RiscV64Unit::SelectInstructionAndBuildCFG()
                 }
             }
         }
+
+    //按照中端支配树建立后端支配树
+    cur_mcfg->SetMachineDomTree((DominatorTree*)(cfg->DomTree));
+    cur_mcfg->DomTree->C=cur_mcfg;
     }
-	
+
+
     LowerFrame(); //最后调用LowerFrame
 }
 void RiscV64Unit::LowerFrame()
@@ -697,6 +701,7 @@ void RiscV64Unit::DomtreeDfs(BasicBlock* ubb, CFG *C){
 		DomtreeDfs(vbb, C);
 	}
 }
+
 
 // 模板特化实现
 template <> void RiscV64Unit::ConvertAndAppend<Instruction>(Instruction inst) {

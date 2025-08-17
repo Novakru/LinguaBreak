@@ -606,8 +606,7 @@ void BasicBlockCSEOptimizer::removeDeadInstructions() {
     // }
     // std::cerr<<"======\n";
     for (auto [id, bb] : *C->block_map) {
-        std::deque<Instruction> new_instructions;
-        
+        std::deque<Instruction> new_instructions; 
         for (auto I : bb->Instruction_list) {
             if (erase_set.find(I) == erase_set.end()) {
                 new_instructions.push_back(I);

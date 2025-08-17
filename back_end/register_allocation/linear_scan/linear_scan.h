@@ -16,6 +16,7 @@ private:
     // 计算溢出权重
     double CalculateSpillWeight(LiveInterval);
     void UpdateIntervalsInCurrentFunc();
+    void ComputeLoopDepth(MachineCFG* C);
     std::queue<MachineFunction *> not_allocated_funcs;
 
     std::map<Register, LiveInterval> intervals;

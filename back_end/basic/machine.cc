@@ -367,3 +367,35 @@ std::list<MachineBaseInstruction *>::iterator RiscV64Block::getInsertBeforeBrIt(
     return it;
 }
 
+
+void MachineCFG::SetMachineDomTree(DominatorTree* domtree){
+
+    DomTree->sdom_map.insert(domtree->sdom_map.begin(), domtree->sdom_map.end());
+    
+    for(auto &llvmblocks:domtree->dom_tree){
+        std::vector<MachineBlock*> vecs;
+        for(auto llvmblock:llvmblocks){
+            int block_id=llvmblock->block_id;
+            vecs.push_back(GetNodeByBlockId(block_id)->Mblock);
+        }
+        DomTree->dom_tree.push_back(vecs);
+    }
+
+    return ;
+}
+
+bool MachineDominatorTree::IsDominate(int id1, int id2){
+    MachineBlock* a = C->GetNodeByBlockId(id1)->Mblock;
+    MachineBlock* b = C->GetNodeByBlockId(id1)->Mblock;
+    if (a == nullptr || b == nullptr) {
+		return false;
+	}
+	
+	int current_id = id2;
+	while (current_id != -1) {
+		if (current_id == id1) return true;
+		if (current_id == 0) break;  // no exit loop
+		current_id = sdom_map.count(current_id) ? sdom_map[current_id] : -1;
+	}
+	return false;
+}
