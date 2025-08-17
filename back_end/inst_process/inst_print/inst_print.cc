@@ -229,6 +229,9 @@ void RiscV64Printer::SyncFunction(MachineFunction *func) { current_func = func; 
 void RiscV64Printer::SyncBlock(MachineBlock *block) { cur_block = block; }
 
 void add_parallel_loop_constant_100(std::ostream &s) {	
+	s << "\t.extern\tmemcpy\n";
+	s << "\t.extern\tpthread_create\n";
+	s << "\t.extern\tpthread_join\n";
 	s << "\t.globl\t___parallel_loop_constant_100\n";
 	s << "\t.type\t___parallel_loop_constant_100, @function\n";
 	s << "___parallel_loop_constant_100:\n";
