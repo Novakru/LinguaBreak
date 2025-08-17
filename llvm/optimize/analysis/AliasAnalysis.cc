@@ -356,6 +356,10 @@ void AliasAnalysisPass::PtrPropagationAnalysis(){
         }
         //【2】汇聚非根ptr的所有别名——从初代GEP指令开始
         for(auto &[regno,info]:ptrmap[cfg]){
+			if(info==nullptr){
+				std::cout<<"[in PtrPropagationAnalysis]  info is nullptr"<<std::endl;
+				continue;
+			}
             if(info->source==PtrInfo::sources::Gep && info->root!=nullptr){
                 GatherPtrInfos(cfg,regno);
             }
