@@ -1,6 +1,8 @@
 #include "loopstrengthreduce.h"
 #include <unordered_set>
 
+// 定义LSR_SUBLOOP宏，用于控制是否启用子循环处理
+#define LSR_SUBLOOP 1 // set 1 to use subloop in loopstrengthreduce
 
 bool isInductionVariable(Operand op, Loop* loop);
 
@@ -636,11 +638,13 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                 }
             }
             
+			#if LSR_SUBLOOP == 1
             // 递归处理子循环
             for (auto &subloop_pair : curLoop->getSubLoops()) {
                 LSR_DEBUG_PRINT(std::cerr << "[LSR] 发现子循环，加入工作队列" << std::endl);
                 worklist.push_back(subloop_pair);
             }
+			#endif
         }
     }
 }

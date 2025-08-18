@@ -1,0 +1,17 @@
+---------------------
+NoModRef: 
+Ref: 
+Mod: 
+ModRef: 
+---------------------
+------------------ In Function main-----------------
+In Block : 0
+In Block : 1
+    store 1 to %r3
+ ------------- In Function main------------
+LoopInfo: Loop Hierarchy
+LoopInfo: Loop Hierarchy
+ScalarEvolution Analysis for function main
+LoopInfo: Loop Hierarchy
+LoopInfo: Loop Hierarchy
+ScalarEvolution Analysis for function main

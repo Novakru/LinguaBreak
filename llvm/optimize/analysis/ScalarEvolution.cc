@@ -177,6 +177,9 @@ SCEV *ScalarEvolution::createSCEV(Operand V, Loop *L) {
         auto Dims = GEP->GetDims();
         auto Indexes = GEP->GetIndexes();
         
+		// SCEV* BaseSCEV = getSCEV(Ptr, L);
+        // SCEV* TotalOffsetSCEV = getSCEVConstant(new ImmI32Operand(0));
+    
         // 检查ptr是否为循环不变量
         SCEV* BaseSCEV = nullptr;
         if (isLoopInvariant(Ptr, L)) {

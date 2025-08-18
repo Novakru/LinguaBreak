@@ -1,6 +1,6 @@
 #include "globalopt.h"
 
-#define GLOBALOPT_DEBUG 0
+// #define GLOBALOPT_DEBUG
 
 #ifdef GLOBALOPT_DEBUG
 #define GLOBALOPT_DEBUG_PRINT(x) do { x; } while(0)
@@ -192,7 +192,7 @@ void GlobalOptPass::EliminateRedundantLS(){
                             delete load_store_map[ptr];
                         }
                         load_store_map[ptr]=new LSInfo(false,((LoadInstruction*)inst)->GetResult());
-                        std::cout<<"    load "<<((LoadInstruction*)inst)->GetResult()->GetFullName()<<" from "<<ptr<<std::endl;
+                        // std::cout<<"    load "<<((LoadInstruction*)inst)->GetResult()->GetFullName()<<" from "<<ptr<<std::endl;
                         
                     }else if(inst->GetOpcode()==BasicInstruction::CALL){//为了方便起见，我们认为call指令对所有ptr都起到def作用
                         for(auto &[str,info]:load_store_map){

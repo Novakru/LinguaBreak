@@ -1,6 +1,7 @@
 #include "simplify_cfg.h"
 #include "mem2reg.h"
 #include "assert.h"
+#include <algorithm>
 #include <stack>
 void SimplifyCFGPass::Execute() {
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
@@ -569,5 +570,178 @@ void SimplifyCFGPass::MergeBlocks() {
                 }
             }
         }
+    }
+}
+
+// 1. 最终我们可以将基本块 0 和其唯一后继合并（如果唯一才合并， 0 block 的后继需要保证只有一个前驱）
+// 2. 遍历控制流图，对于br_uncond直接跳转，对于直接跳转并重新编号；对于 br_cond 先跳转 true 分支，然后跳转 false 分支，依次重新编号
+// 3. 统计新的 max_label_no, 更新 maxinfo
+void SimplifyCFGPass::BasicBlockLayoutOptimize() {
+    for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+        // 1. 尝试将基本块0与其唯一后继合并
+        LLVMBlock entry_block = (*(cfg->block_map))[0];
+        if (entry_block != nullptr) {
+            auto successors = cfg->GetSuccessor(0);
+            if (successors.size() == 1) {
+                LLVMBlock succ_block = *(successors.begin());
+                auto preds_of_succ = cfg->GetPredecessor(succ_block);
+                // 只有当后继块只有一个前驱（即基本块0）时才合并
+                if (preds_of_succ.size() == 1) {
+                    // 合并基本块0和其唯一后继
+                    // 将后继块的指令移动到基本块0中
+                    auto last_inst = entry_block->Instruction_list.back();
+                    if (last_inst->GetOpcode() == BasicInstruction::LLVMIROpcode::BR_UNCOND) {
+                        // 删除基本块0的最后一条无条件跳转指令
+                        entry_block->Instruction_list.pop_back();
+                    }
+                    
+                    // 将后继块的所有指令添加到基本块0
+                    entry_block->Instruction_list.insert(
+                        entry_block->Instruction_list.end(),
+                        succ_block->Instruction_list.begin(),
+                        succ_block->Instruction_list.end()
+                    );
+                    
+                    // 更新CFG结构
+                    auto succs_of_succ = cfg->GetSuccessor(succ_block);
+                    for (auto &succ_of_succ : succs_of_succ) {
+                        cfg->G[0].insert(succ_of_succ);
+                        cfg->invG[succ_of_succ->block_id].insert(entry_block);
+                        cfg->invG[succ_of_succ->block_id].erase(succ_block);
+                    }
+                    
+                    // 更新后继块的phi指令
+                    for (auto &succ_of_succ : succs_of_succ) {
+                        for (auto &intr : succ_of_succ->Instruction_list) {
+                            if (intr->GetOpcode() == BasicInstruction::LLVMIROpcode::PHI) {
+                                PhiInstruction *phi_intr = (PhiInstruction *)intr;
+                                auto phi_list = phi_intr->GetPhiList();
+                                for (int i = 0; i < phi_list.size(); i++) {
+                                    if (((LabelOperand *)phi_list[i].first)->GetLabelNo() == succ_block->block_id) {
+                                        Operand val = phi_list[i].second;
+                                        phi_intr->ChangePhiPair(i, std::make_pair(GetNewLabelOperand(0), val));
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 删除后继块
+                    cfg->G.erase(succ_block->block_id);
+                    cfg->invG.erase(succ_block->block_id);
+                    cfg->block_map->erase(succ_block->block_id);
+                }
+            }
+        }
+        
+        // 2. 重新编号所有基本块，从0开始依次+1
+        std::vector<std::pair<int, LLVMBlock>> blocks_to_renumber;
+        for (auto &[old_id, block] : *(cfg->block_map)) {
+            blocks_to_renumber.push_back({old_id, block});
+        }
+        
+        // 按原ID排序，确保重新编号的一致性
+        std::sort(blocks_to_renumber.begin(), blocks_to_renumber.end());
+        
+        std::unordered_map<int, int> id_mapping;
+        std::map<int, LLVMBlock> new_block_map;
+        
+        // 创建新的ID映射
+        for (int i = 0; i < blocks_to_renumber.size(); i++) {
+            int old_id = blocks_to_renumber[i].first;
+            LLVMBlock block = blocks_to_renumber[i].second;
+            int new_id = i;
+            
+            id_mapping[old_id] = new_id;
+            block->block_id = new_id;
+            new_block_map[new_id] = block;
+        }
+        
+        // 更新CFG的block_map
+        *(cfg->block_map) = new_block_map;
+        
+        // 更新CFG的G和invG
+        std::unordered_map<int, std::set<LLVMBlock>> new_G;
+        std::unordered_map<int, std::set<LLVMBlock>> new_invG;
+        
+        for (auto &[old_id, successors] : cfg->G) {
+            if (id_mapping.count(old_id)) {
+                int new_id = id_mapping[old_id];
+                new_G[new_id] = successors;
+            }
+        }
+        
+        for (auto &[old_id, predecessors] : cfg->invG) {
+            if (id_mapping.count(old_id)) {
+                int new_id = id_mapping[old_id];
+                new_invG[new_id] = predecessors;
+            }
+        }
+        
+        cfg->G = new_G;
+        cfg->invG = new_invG;
+        
+        // 更新所有跳转指令中的标签
+        for (auto &[new_id, block] : *(cfg->block_map)) {
+            for (auto &intr : block->Instruction_list) {
+                intr->SetBlockID(new_id);
+                
+                if (intr->GetOpcode() == BasicInstruction::LLVMIROpcode::BR_UNCOND) {
+                    BrUncondInstruction *br_intr = (BrUncondInstruction *)intr;
+                    auto dest_label = br_intr->GetDestLabel();
+                    if (dest_label->GetOperandType() == BasicOperand::LABEL) {
+                        int old_label_no = ((LabelOperand *)dest_label)->GetLabelNo();
+                        if (id_mapping.count(old_label_no)) {
+                            int new_label_no = id_mapping[old_label_no];
+                            br_intr->ChangeDestLabel(GetNewLabelOperand(new_label_no));
+                        }
+                    }
+                } else if (intr->GetOpcode() == BasicInstruction::LLVMIROpcode::BR_COND) {
+                    BrCondInstruction *br_intr = (BrCondInstruction *)intr;
+                    auto true_label = br_intr->GetTrueLabel();
+                    auto false_label = br_intr->GetFalseLabel();
+                    
+                    if (true_label->GetOperandType() == BasicOperand::LABEL) {
+                        int old_label_no = ((LabelOperand *)true_label)->GetLabelNo();
+                        if (id_mapping.count(old_label_no)) {
+                            int new_label_no = id_mapping[old_label_no];
+                            br_intr->ChangeTrueLabel(GetNewLabelOperand(new_label_no));
+                        }
+                    }
+                    
+                    if (false_label->GetOperandType() == BasicOperand::LABEL) {
+                        int old_label_no = ((LabelOperand *)false_label)->GetLabelNo();
+                        if (id_mapping.count(old_label_no)) {
+                            int new_label_no = id_mapping[old_label_no];
+                            br_intr->ChangeFalseLabel(GetNewLabelOperand(new_label_no));
+                        }
+                    }
+                } else if (intr->GetOpcode() == BasicInstruction::LLVMIROpcode::PHI) {
+                    PhiInstruction *phi_intr = (PhiInstruction *)intr;
+                    auto phi_list = phi_intr->GetPhiList();
+                    std::vector<std::pair<Operand, Operand>> new_phi_list;
+                    
+                    for (const auto &pair : phi_list) {
+                        if (pair.first->GetOperandType() == BasicOperand::LABEL) {
+                            int old_label_no = ((LabelOperand *)pair.first)->GetLabelNo();
+                            if (id_mapping.count(old_label_no)) {
+                                int new_label_no = id_mapping[old_label_no];
+                                new_phi_list.emplace_back(GetNewLabelOperand(new_label_no), pair.second);
+                            } else {
+                                new_phi_list.push_back(pair);
+                            }
+                        } else {
+                            new_phi_list.push_back(pair);
+                        }
+                    }
+                    
+                    phi_intr->SetPhiList(new_phi_list);
+                }
+            }
+        }
+        
+        // 3. 更新max_label
+        cfg->max_label = blocks_to_renumber.size() - 1;
     }
 }

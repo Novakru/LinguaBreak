@@ -3,6 +3,15 @@
 #include <cassert>
 #include<functional>
 #include <stack>
+
+// #define CSE_DEBUG
+
+#ifdef CSE_DEBUG
+#define CSE_DEBUG_PRINT(x) do { x; } while(0)
+#else
+#define CSE_DEBUG_PRINT(x)
+#endif
+
 //记得修改cse_init!!!以及注意GetCSEInfo
 //DomAnalysis *domtrees;
 //AliasAnalysisPass *alias_analyser;
@@ -1154,8 +1163,11 @@ void DomTreeCSEOptimizer::optimize() {
 
     while (changed) {
         changed = false;
+		CSE_DEBUG_PRINT(std::cout<<"changed"<<std::endl);
         dfs(0);
+		CSE_DEBUG_PRINT(std::cout<<"dfs"<<std::endl);
         removeDeadInstructions();
+		CSE_DEBUG_PRINT(std::cout<<"removeDeadInstructions"<<std::endl);
         applyRegisterReplacements();
     }
 
@@ -1245,6 +1257,7 @@ void DomTreeCSEOptimizer::branch_end()
 //     cleanupTemporaryEntries(regularCseSet,cmpCseSet);
 // }
 void DomTreeCSEOptimizer::dfs(int bbid) {
+	CSE_DEBUG_PRINT(std::cout<<"dfs bbid: "<<bbid<<std::endl);
     LLVMBlock now = (*C->block_map)[bbid];
     std::set<InstCSEInfo> tmpCSESet;
     std::map<InstCSEInfo, int> tmpLoadNumMap;
@@ -1253,19 +1266,35 @@ void DomTreeCSEOptimizer::dfs(int bbid) {
 
         switch (I->GetOpcode()) {
             case BasicInstruction::LOAD:
+				CSE_DEBUG_PRINT(std::cout<<"load"<<std::endl);
                 processLoadInstruction(static_cast<LoadInstruction*>(I), tmpLoadNumMap);
+				CSE_DEBUG_PRINT(std::cout<<"load end"<<std::endl);
                 break;
             case BasicInstruction::STORE:
+				CSE_DEBUG_PRINT(std::cout<<"store"<<std::endl);
                 processStoreInstruction(static_cast<StoreInstruction*>(I), tmpLoadNumMap);
+				CSE_DEBUG_PRINT(std::cout<<"store end"<<std::endl);
                 break;
             case BasicInstruction::CALL:
+				CSE_DEBUG_PRINT(std::cout<<"call"<<std::endl);
                 processCallInstruction(static_cast<CallInstruction*>(I),tmpCSESet);
+				CSE_DEBUG_PRINT(std::cout<<"call end"<<std::endl);
                 break;
             default:
                 processRegularInstruction(I, tmpCSESet);
                 break;
         }
     }
+
+	CSE_DEBUG_PRINT(std::cout<<"dfs bbid: "<<bbid<<" end"<<std::endl);
+
+	if(bbid==1){
+		// 打印当前eraseSet中的所有指令信息
+		std::cout << "当前eraseSet中的指令如下：" << std::endl;
+		for (const auto& inst : eraseSet) {
+			inst->PrintIR(std::cout);
+		}
+	}
     
     for (auto v : C->getDomTree()->dom_tree[bbid]) {
         dfs(v->block_id);
@@ -1398,9 +1427,9 @@ void DomTreeCSEOptimizer::processLoadInstruction(LoadInstruction* LoadI, std::ma
     if (CSEiter != LoadCSEMap.end()) {
         //3.遍历映射中存储的等价load指令，记为I2
         for (auto I2 : LoadCSEMap[info]) {
-            // I->PrintIR(std::cerr);I2->PrintIR(std::cerr);
             if(memdep_analyser->isLoadSameMemory(LoadI, I2, C) == false){continue;}
-            continue;//tmp
+			LoadI->PrintIR(std::cout);I2->PrintIR(std::cout);
+			std::cout<<"-----------------------------\n";
             //4.如果I2与该条load2加载同一块内存
             //1)该条load指令插入删除集合
             eraseSet.insert(LoadI);
@@ -1575,13 +1604,19 @@ void SimpleCSEPass::Execute() {
 		std::string funcName = defI->GetFunctionName();
 		cfgTable[funcName] = cfg;
     }
+	CSE_DEBUG_PRINT(std::cout<<"SimpleCSEPass::Execute"<<std::endl);
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+		CSE_DEBUG_PRINT(std::cout<<"defI: "<<defI->GetFunctionName()<<std::endl);
         CSEInit(cfg);
+		CSE_DEBUG_PRINT(std::cout<<"CSEInit"<<std::endl);
         BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser,domtrees,memdep_analyser);
         optimizer.optimize();
+		CSE_DEBUG_PRINT(std::cout<<"optimize"<<std::endl);
         DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
         optimizer2.optimize();
+		CSE_DEBUG_PRINT(std::cout<<"optimize2"<<std::endl);
     }
+	CSE_DEBUG_PRINT(std::cout<<"SimpleCSEPass::Execute2"<<std::endl);
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         //CSEInit(cfg);
         for (auto [id, bb] : *cfg->block_map) {
@@ -1592,6 +1627,7 @@ void SimpleCSEPass::Execute() {
         DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
         optimizer2.branch_optimize();
     }
+	CSE_DEBUG_PRINT(std::cout<<"SimpleCSEPass::Execute3"<<std::endl);
 }
 void SimpleCSEPass::BNExecute() {
     memdep_analyser = new SimpleMemDepAnalyser(llvmIR,alias_analyser,domtrees);
