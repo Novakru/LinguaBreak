@@ -105,6 +105,10 @@ public:
     std::unordered_map<std::string,CallInfo>& GetReCallGraph() { return ReCallGraph; }
     ModRefStatus QueryCallGlobalModRef(CallInstruction* callI, std::string global_name);//基于globalmap，查询call指令是否mod/ref某全局非Array变量
 
+    // 判断函数是否有副作用（side effect）
+    bool HasSideEffect(CFG* cfg);
+    bool HasSideEffect(const std::string& func_name);
+
     void Test();
     void PrintAAResult();
 

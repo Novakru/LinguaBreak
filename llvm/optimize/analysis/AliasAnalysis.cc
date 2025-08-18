@@ -725,3 +725,42 @@ void AliasAnalysisPass::Test() {
         }
     }
 }   
+
+// 判断函数是否有副作用（side effect）
+bool AliasAnalysisPass::HasSideEffect(CFG* cfg) {
+    if (cfg == nullptr) {
+        return false;
+    }
+    
+    // 检查 RWInfo 中的写操作
+    auto& rwinfo = rwmap[cfg];
+    if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) {
+        return true;
+    }
+    
+    // 检查全局变量的写操作
+    auto global_info = globalmap[cfg];
+    if (global_info != nullptr && !global_info->mod_ops.empty()) {
+        return true;
+    }
+    
+    return false;
+}
+
+bool AliasAnalysisPass::HasSideEffect(const std::string& func_name) {
+    // 检查是否是库函数
+    if (lib_function_names.count(func_name)) {
+        // 库函数根据其状态判断是否有副作用
+        auto status = lib_function_status[func_name];
+        return (status == Mod || status == ModRef);
+    }
+    
+    // 查找对应的 CFG
+    auto func_defI = llvmIR->FunctionNameTable.find(func_name);
+    if (func_defI == llvmIR->FunctionNameTable.end()) {
+        return false; // 找不到函数定义，保守地认为有副作用
+    }
+    
+    auto cfg = llvmIR->llvm_cfg[func_defI->second];
+    return HasSideEffect(cfg);
+}   

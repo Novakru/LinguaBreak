@@ -358,10 +358,10 @@ bool BasicBlockCSEOptimizer::processBlock(LLVMBlock bb) {
 }
 
 void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
-    //std::cout<<"processCallInstruction\n";
+    std::cout<<"[CSE] Processing call instruction: "<<CallI->GetFunctionName()<<std::endl;
     //1.不处理外部调用（lib_func），清理即可
     if (cfgTable.find(CallI->GetFunctionName()) == cfgTable.end()) {
-       // std::cout<<"extern call\n";
+        std::cout<<"[CSE] External call detected, clearing all CSE info"<<std::endl;
         clearAllCSEInfo();
         return;    // external call, clear all instructions
     }
@@ -376,8 +376,10 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
     }
     const RWInfo& rwinfo = it->second;
     //std::cout<<"getrwinfo\n";
-    if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) // write memory, can not CSE, and will kill some Load and Call
+	if(alias_analyser->HasSideEffect(cfg))
+    // if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) // write memory, can not CSE, and will kill some Load and Call
     {
+        std::cout<<"[CSE] Call has side effects - WriteRoots: "<<rwinfo.WriteRoots.size()<<", has_lib_func_call: "<<rwinfo.has_lib_func_call<<std::endl;
         inst_map.clear();//新增，清除普通指令
         InstSet.clear();
         //std::cout<<"write call\n";
@@ -397,6 +399,7 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
         const RWInfo& rwinfo = it->second;
         //2.如果当前控制流图中有外部函数调用，也清理后直接返回
         if (rwinfo.has_lib_func_call) {
+            std::cout<<"[CSE] Call contains lib function call, clearing all CSE info"<<std::endl;
             // for simple, we do not consider independent call there, this can be CSE in DomTreeWalkCSE
             // I->PrintIR(std::cerr);std::cerr<<"kill everything\n";
             inst_clear();
@@ -463,6 +466,7 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
             }
             //2)将冲突的call指令从callinstmap中删除
             if (is_needkill) {
+                std::cout<<"[CSE] Killing conflicting call instruction due to memory conflict"<<std::endl;
                 // I->PrintIR(std::cerr);std::cerr<<"kill ";(*it)->PrintIR(std::cerr);
                 CallInstMap.erase(GetCSEInfo(*it));
                 it = CallInstSet.erase(it);
@@ -473,14 +477,18 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
     }
     else    // only read memory, we can CSE
     {
+        std::cout<<"[CSE] Call is read-only, attempting CSE"<<std::endl;
         //std::cout<<"read call\n";
         auto Info = GetCSEInfo(CallI);
         auto CSEiter = CallInstMap.find(Info);
         if (CSEiter != CallInstMap.end()) {
+            std::cout<<"[CSE] *** CSE ELIMINATION: Eliminating duplicate call instruction ***"<<std::endl;
+            std::cout<<"[CSE] Original call result reg: "<<CSEiter->second<<", Current call result reg: "<<GetResultRegNo(CallI)<<std::endl;
             erase_set.insert(CallI);
             reg_replace_map[GetResultRegNo(CallI)] = CSEiter->second;
             flag= true;
         } else {
+            std::cout<<"[CSE] Adding call to CSE map for future elimination"<<std::endl;
             CallInstSet.insert(CallI);
             CallInstMap.insert({Info, GetResultRegNo(CallI)});
         }
@@ -1505,6 +1513,7 @@ void DomTreeCSEOptimizer::processCallInstruction(CallInstruction* CallI, std::se
     const RWInfo& rwinfo = it->second;
     //2.如果存在读写内存的操作，无法处理，直接返回
     // we only CSE independent call in this Pass
+	// if(alias_analyser->HasSideEffect(cfg))
     if( (rwinfo.has_lib_func_call) || rwinfo.ReadRoots.size() !=0 || rwinfo.WriteRoots.size() != 0) {
         return;
     }
