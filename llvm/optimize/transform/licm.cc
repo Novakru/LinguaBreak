@@ -209,9 +209,9 @@ bool LoopInvariantCodeMotionPass::isInvariant(Instruction inst, Loop* loop, CFG*
         case BasicInstruction::LLVMIROpcode::RET:
         case BasicInstruction::LLVMIROpcode::PHI:
             return false;
-		// case BasicInstruction::LLVMIROpcode::STORE:
-		// case BasicInstruction::LLVMIROpcode::LOAD:
-		// case BasicInstruction::LLVMIROpcode::CALL:
+		case BasicInstruction::LLVMIROpcode::STORE:
+		case BasicInstruction::LLVMIROpcode::LOAD:
+		case BasicInstruction::LLVMIROpcode::CALL:
 			return false;
         default:
             break;

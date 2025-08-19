@@ -42,7 +42,7 @@ elif(args.lab == 3):
     if(args.is_advance==False):
         os.system(f"python3 test_with_timing.py testcase/{test_dir}/Basic test_output/functional_testIR 0 llvm")
     else:
-        os.system(f"python3 test_with_timing.py testcase/{test_dir}/Advanced test_output/functional_testIR 0 llvm")
+        os.system(f"python3 test_with_timing.py testcase/{test_dir}/Advanced test_output/functional_testIR 1 llvm")
 elif(args.lab == 4):
     os.system("rm -rf test_output/functional_testIR/*.ll")
     if(args.is_advance==False):
