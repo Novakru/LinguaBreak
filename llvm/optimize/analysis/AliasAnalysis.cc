@@ -202,9 +202,16 @@ ModRefStatus AliasAnalysisPass::QueryInstModRef(Instruction inst, Operand op, CF
         return NoModRef;
 
     }else if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::CALL){
-        CallInstruction* callI=(CallInstruction*)inst;
+        CallInstruction* callI=(CallInstruction*)inst;  
+        //【1】若op为全局变量
+        if(op->GetOperandType()==BasicOperand::GLOBAL){
+            auto global_name = op->GetFullName();
+            return QueryCallGlobalModRef(callI, global_name);
+        }
+
+        //【2】若op为其它变量
         auto callee_name = callI->GetFunctionName();
-        //（1）若是库函数，特殊处理
+        // 【2.1】若是库函数，特殊处理
         if(lib_function_names.count(callee_name)){
             for(auto &[type,argu]:callI->GetParameterList()){
                 if(type==BasicInstruction::LLVMType::PTR){
@@ -215,7 +222,7 @@ ModRefStatus AliasAnalysisPass::QueryInstModRef(Instruction inst, Operand op, CF
             }
             return NoModRef;
         }
-        //（2）非库函数，考虑该函数的读写情况
+        //【2.2】非库函数，考虑该函数的读写情况
         auto callee_defI=llvmIR->FunctionNameTable[callee_name];
         CFG* callee_cfg=llvmIR->llvm_cfg[callee_defI];
         RWInfo rwinfo=rwmap[callee_cfg];
@@ -247,6 +254,7 @@ ModRefStatus AliasAnalysisPass::QueryInstModRef(Instruction inst, Operand op, CF
     }
     return NoModRef;
 }
+
 
 
 //根据SSA def-use链，从前往后，将别名汇聚
@@ -357,7 +365,7 @@ void AliasAnalysisPass::PtrPropagationAnalysis(){
         //【2】汇聚非根ptr的所有别名——从初代GEP指令开始
         for(auto &[regno,info]:ptrmap[cfg]){
 			if(info==nullptr){
-				std::cout<<"[in PtrPropagationAnalysis]  info is nullptr"<<std::endl;
+				//std::cout<<"[in PtrPropagationAnalysis]  info is nullptr"<<std::endl;
 				continue;
 			}
             if(info->source==PtrInfo::sources::Gep && info->root!=nullptr){

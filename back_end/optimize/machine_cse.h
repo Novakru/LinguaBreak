@@ -8,8 +8,13 @@
 //     MachineBlock *cur_block;
 //     void CSEInCurrFunc();
 
+//     // std::set<MachineBaseInstruction *> CSESet;
+//     // std::map<int, int> regreplace_map;
+//     // bool is_changed;
+
 // public:
-//     RiscV64CSE(MachineUnit *u) : unit(u) {}
+//     RiscV64CSE(MachineUnit *u) : unit(u),is_changed(true) {}
+//     void dfs(int bbid);
 //     void Execute();
 // };
 // #endif
