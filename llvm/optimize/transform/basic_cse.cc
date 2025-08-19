@@ -1215,6 +1215,7 @@ void DomTreeCSEOptimizer::optimize() {
     while (changed) {
         changed = false;
         tmp=changed;
+        currentRecursionDepth=0;
 		CSE_DEBUG_PRINT(std::cout<<"changed"<<std::endl);
         dfs(0);
 		CSE_DEBUG_PRINT(std::cout<<"dfs"<<std::endl);
@@ -1231,6 +1232,7 @@ void DomTreeCSEOptimizer::branch_optimize()
     while (changed) {
         CmpMap.clear();
         changed = false;
+        currentRecursionDepth = 0;
         branch_dfs(0);
         branch_end();
     }
@@ -1359,6 +1361,13 @@ void DomTreeCSEOptimizer::dfs(int bbid) {
 
 void DomTreeCSEOptimizer::branch_dfs(int bbid)
 {
+    // 检查递归深度
+    if (currentRecursionDepth > MAX_RECURSION_DEPTH) {
+        std::cerr << "递归深度超过限制，可能出现死循环。退出优化过程。" << std::endl;
+        return;
+    }
+
+    currentRecursionDepth++; // 进入递归，深度增加
     // 安全地获取基本块
     if (C->block_map->find(bbid) == C->block_map->end()) {
         return;
@@ -1414,6 +1423,7 @@ void DomTreeCSEOptimizer::branch_dfs(int bbid)
     for (auto info : cmpCseSet) {
         CmpMap[info].pop_back();
     }
+     currentRecursionDepth--; // 退出递归，深度减少
 }
 
 
