@@ -35,21 +35,25 @@ std::set<Instruction> SimpleMemDepAnalyser::GetLoadClobbers(Instruction I, CFG *
     } else if (I->GetOpcode() == BasicInstruction::STORE) {
         ptr = ((StoreInstruction *)I)->GetPointer();
     }
+    //I->PrintIR(std::cerr);
     //2.在load指令所在基本块中反向遍历
     // first search all the Instructions before I in I's block
     auto IBB = (*C->block_map)[I->GetBlockID()];
     //std::cout<<"load_block_id= "<<I->GetBlockID()<<"\n";
     
     int Iindex = -1;
+    //std::cerr<<"IBB_size()="<<IBB->Instruction_list.size()<<"\n";
     for (int i = IBB->Instruction_list.size() - 1; i >= 0; --i) {
         
         //3.找到load指令所在位置
         auto tmpI = IBB->Instruction_list[i];
+        //tmpI->PrintIR(std::cerr);
         if (tmpI == I) {
             Iindex = i;
             break;
         }
     }
+    if(Iindex==-1){return res;}
     assert(Iindex != -1);
     //4.从该load指令开始向前遍历
     for (int i = Iindex; i >= 0; --i) {
@@ -75,12 +79,18 @@ std::set<Instruction> SimpleMemDepAnalyser::GetLoadClobbers(Instruction I, CFG *
             auto& rwmap = alias_analyser->GetRWMap();
             auto it = rwmap.find(target_cfg);
             assert(it != rwmap.end());
-            const RWInfo& rwinfo = it->second;
-            if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) 
-            {    // may def memory
+            assert(target_cfg!=nullptr);
+            if(alias_analyser->HasSideEffect(target_cfg))
+            {
                 res.insert(CallI);
                 return res;
             }
+            // const RWInfo& rwinfo = it->second;
+            // if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) 
+            // {    // may def memory
+            //     res.insert(CallI);
+            //     return res;
+            // }
         }
     }
     //9.获取当前块的所有前驱块
@@ -129,13 +139,19 @@ std::set<Instruction> SimpleMemDepAnalyser::GetLoadClobbers(Instruction I, CFG *
                 auto& rwmap = alias_analyser->GetRWMap();
                 auto it = rwmap.find(target_cfg);
                 assert(it != rwmap.end());
-                const RWInfo& rwinfo = it->second;
-                if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) 
-                {    // may def memory
+                if(alias_analyser->HasSideEffect(target_cfg))
+                {
                     res.insert(CallI);
                     is_find = true;
                     break;
                 }
+                // const RWInfo& rwinfo = it->second;
+                // if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) 
+                // {    // may def memory
+                //     res.insert(CallI);
+                //     is_find = true;
+                //     break;
+                // }
             }
         }
         //13.如果还没有找到最近的内存存值指令，继续压入当前块的前驱块
@@ -230,10 +246,15 @@ std::set<Instruction> SimpleMemDepAnalyser::GetStorePostClobbers(Instruction I, 
             auto it = rwmap.find(target_cfg);
             assert(it != rwmap.end());
             const RWInfo& rwinfo = it->second;
-            if (!rwinfo.WriteRoots.empty() ||!rwinfo.ReadRoots.empty()|| rwinfo.has_lib_func_call) {    // may use memory
+            if(alias_analyser->HasSideEffect(target_cfg)||!rwinfo.ReadRoots.empty())
+            {
                 res.insert(CallI);
                 return res;
             }
+            // if (!rwinfo.WriteRoots.empty() ||!rwinfo.ReadRoots.empty()|| rwinfo.has_lib_func_call) {    // may use memory
+            //     res.insert(CallI);
+            //     return res;
+            // }
         }
     }
     //5.加入当前块的所有后继块
@@ -287,11 +308,17 @@ std::set<Instruction> SimpleMemDepAnalyser::GetStorePostClobbers(Instruction I, 
                 auto it = rwmap.find(target_cfg);
                 assert(it != rwmap.end());
                 const RWInfo& rwinfo = it->second;
-                if (!rwinfo.WriteRoots.empty() ||!rwinfo.ReadRoots.empty()|| rwinfo.has_lib_func_call) {    // may use memory
+                if(alias_analyser->HasSideEffect(target_cfg)||!rwinfo.ReadRoots.empty())
+                {
                     res.insert(CallI);
                     is_find = true;
                     break;
                 }
+                // if (!rwinfo.WriteRoots.empty() ||!rwinfo.ReadRoots.empty()|| rwinfo.has_lib_func_call) {    // may use memory
+                //     res.insert(CallI);
+                //     is_find = true;
+                //     break;
+                // }
             }
         }
         //2)如果没找到，还需要加入后继块的后继块
@@ -427,11 +454,15 @@ bool SimpleMemDepAnalyser::IsNoStore(Instruction I1, Instruction I2, CFG *C) {
                 auto& rwmap = alias_analyser->GetRWMap();
                 auto it = rwmap.find(target_cfg);
                 assert(it != rwmap.end());
-                const RWInfo& rwinfo = it->second;
-                if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) 
-                {    // may def memory
+                //const RWInfo& rwinfo = it->second;
+                if(alias_analyser->HasSideEffect(target_cfg))
+                {
                     return false;
                 }
+                // if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) 
+                // {    // may def memory
+                //     return false;
+                // }
             }
         }
     }
@@ -473,15 +504,15 @@ bool SimpleMemDepAnalyser::isLoadSameMemory(Instruction a, Instruction b, CFG *C
     // {
     //     return false;
     // }
-    if(ptr1->GetOperandType()==BasicOperand::GLOBAL&&ptr2->GetOperandType()==BasicOperand::GLOBAL
-    &&ptr1->GetFullName()==ptr2->GetFullName())
-    {
-        // if(alias_analyser->QueryAlias(ptr1, ptr2, C) != AliasStatus::MustAlias)//如果处理的内存不同，直接返回假
-        // {
-        //     return false;
-        // }
-        return false;
-    }
+    // if(ptr1->GetOperandType()==BasicOperand::GLOBAL&&ptr2->GetOperandType()==BasicOperand::GLOBAL
+    // &&ptr1->GetFullName()==ptr2->GetFullName())
+    // {
+    //     // if(alias_analyser->QueryAlias(ptr1, ptr2, C) != AliasStatus::MustAlias)//如果处理的内存不同，直接返回假
+    //     // {
+    //     //     return false;
+    //     // }
+    //     return false;
+    // }
     int id1 = a->GetBlockID();
     int id2 = b->GetBlockID();
     auto bb1=(*C->block_map)[id1];

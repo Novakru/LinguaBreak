@@ -17,27 +17,27 @@ void GlobalOptPass::Execute(){
 
     GlobalValTypeDef();
 
-    std::cout<<"---------------------"<<std::endl;
-    std::cout<<"NoModRef: ";
-    for(auto &inst:NoModRefGlobals){
-        std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
-    }std::cout<<std::endl;
+    // std::cout<<"---------------------"<<std::endl;
+    // std::cout<<"NoModRef: ";
+    // for(auto &inst:NoModRefGlobals){
+    //     std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
+    // }std::cout<<std::endl;
 
-    std::cout<<"Ref: ";
-    for(auto &inst:RefOnlyGlobals){
-        std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
-    }std::cout<<std::endl;
+    // std::cout<<"Ref: ";
+    // for(auto &inst:RefOnlyGlobals){
+    //     std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
+    // }std::cout<<std::endl;
 
-    std::cout<<"Mod: ";
-    for(auto &inst:ModOnlyGlobals){
-        std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
-    }std::cout<<std::endl;
+    // std::cout<<"Mod: ";
+    // for(auto &inst:ModOnlyGlobals){
+    //     std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
+    // }std::cout<<std::endl;
 
-    std::cout<<"ModRef: ";
-    for(auto &inst:ModRefGlobals){
-        std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
-    }std::cout<<std::endl;
-    std::cout<<"---------------------"<<std::endl;
+    // std::cout<<"ModRef: ";
+    // for(auto &inst:ModRefGlobals){
+    //     std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
+    // }std::cout<<std::endl;
+    // std::cout<<"---------------------"<<std::endl;
 
     ProcessGlobals();
 
