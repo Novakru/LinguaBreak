@@ -251,7 +251,7 @@ int main(int argc, char** argv) {
 
         AliasAnalysisPass AA(&llvmIR); 
 		AA.Execute();
-        SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
+        //SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
 
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
