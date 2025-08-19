@@ -1198,12 +1198,14 @@ void DomTreeCSEOptimizer::optimize() {
 
     while (changed) {
         changed = false;
+        tmp=changed;
 		CSE_DEBUG_PRINT(std::cout<<"changed"<<std::endl);
         dfs(0);
 		CSE_DEBUG_PRINT(std::cout<<"dfs"<<std::endl);
         removeDeadInstructions();
 		CSE_DEBUG_PRINT(std::cout<<"removeDeadInstructions"<<std::endl);
         applyRegisterReplacements();
+        changed=tmp;
     }
 
 }
@@ -1488,7 +1490,7 @@ void DomTreeCSEOptimizer::processLoadInstruction(LoadInstruction* LoadI, std::ma
                 assert(false);
             }
 
-            changed|= true;//很可能需要改成flag
+            tmp|= true;//很可能需要改成flag
             is_cse = true;
             break;
         }
@@ -1550,7 +1552,7 @@ void DomTreeCSEOptimizer::processCallInstruction(CallInstruction* CallI, std::se
     if (cseIter != instCSEMap.end()) {
         eraseSet.insert(CallI);
         regReplaceMap[GetResultRegNo(CallI)] = cseIter->second;
-        changed|= true;
+        tmp|= true;
     } else {
         instCSEMap[info] = GetResultRegNo(CallI);
         regularCseSet.insert(info);
@@ -1564,7 +1566,7 @@ void DomTreeCSEOptimizer::processRegularInstruction(BasicInstruction* I, std::se
     if (cseIter != instCSEMap.end()) {
         eraseSet.insert(I);
         regReplaceMap[GetResultRegNo(I)] = cseIter->second;
-        changed|= true;
+        tmp|= true;
     } else {
         instCSEMap[info] = GetResultRegNo(I);
         regularCseSet.insert(info);
