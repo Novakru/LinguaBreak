@@ -91,6 +91,8 @@ private:
     AliasAnalysisPass *alias_analyser;
     SimpleMemDepAnalyser* memdep_analyser;
     bool tmp;
+    static const int MAX_RECURSION_DEPTH = 1000; // 最大递归深度
+    int currentRecursionDepth = 0;              // 当前递归深度
 
 public:
     DomTreeCSEOptimizer(CFG* cfg,AliasAnalysisPass * aa,SimpleMemDepAnalyser* ma, DomAnalysis * dom) : C(cfg),alias_analyser(aa), memdep_analyser(ma),domtrees(dom),changed(true),branch_changed(true),hasMemOp(true) {}

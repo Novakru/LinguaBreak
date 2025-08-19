@@ -249,8 +249,8 @@ int main(int argc, char** argv) {
         DomAnalysis inv_dom(&llvmIR);
         inv_dom.invExecute();
 
-        //AliasAnalysisPass AA(&llvmIR); 
-		// AA.Execute();
+        AliasAnalysisPass AA(&llvmIR); 
+		AA.Execute();
         // SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
 
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
@@ -284,53 +284,33 @@ int main(int argc, char** argv) {
         // SimplifyCFGPass(&llvmIR).EOBB(); 
 		// SimplifyCFGPass(&llvmIR).RebuildCFG();		
 
-		// LoopAnalysisPass(&llvmIR).Execute();
-		// LoopSimplifyPass(&llvmIR).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
-		// // AA.Execute();
-		// // LoopRotate(&llvmIR, &AA).Execute();
-		// // LoopAnalysisPass(&llvmIR).Execute();
-		// // LoopSimplifyPass(&llvmIR).Execute();
-		// AA.Execute();
-		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		LoopAnalysisPass(&llvmIR).Execute();
+		LoopSimplifyPass(&llvmIR).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
+		AA.Execute();
+		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
 		// SCEVPass(&llvmIR).Execute();
 		// InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
 		// LoopStrengthReducePass(&llvmIR).Execute();
 		// LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
 
-		// llvmIR.SyncMaxInfo();     
-        // inv_dom.invExecute();
-        // (ADCEPass(&llvmIR, &inv_dom)).Execute();
-        // //ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();
-		// SimplifyCFGPass(&llvmIR).EOBB();  
-        // SimplifyCFGPass(&llvmIR).MergeBlocks();		
-		// PeepholePass(&llvmIR).ImmResultReplaceExecute();
-        // PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
-		// PeepholePass(&llvmIR).NegMulAddToSubExecute();
-        // LoopStrengthReducePass(&llvmIR).GepStrengthReduce();	// GEP指令强度削弱中端部分
-        // InstCombinePass(&llvmIR).Execute();
-        // SimplifyCFGPass(&llvmIR).RebuildCFG();
-        // PeepholePass(&llvmIR).IdentitiesEliminateExecute();
-        // SCCPPass(&llvmIR).Execute();			
-        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-
-		// SimplifyCFGPass(&llvmIR).EOBB();  
-        // SimplifyCFGPass(&llvmIR).MergeBlocks();		
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();
-
-		// LoopAnalysisPass(&llvmIR).Execute();
-		// LoopSimplifyPass(&llvmIR).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
-		// AA.Execute();
-		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
-		// SCEVPass(&llvmIR).Execute();
-		// InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
-		// LoopStrengthReducePass(&llvmIR).Execute();
-		// LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
-		// redundency_elimination(inv_dom);
+		llvmIR.SyncMaxInfo();     
+        inv_dom.invExecute();
+        (ADCEPass(&llvmIR, &inv_dom)).Execute();
+        //ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
+		SimplifyCFGPass(&llvmIR).RebuildCFG();
+		SimplifyCFGPass(&llvmIR).EOBB();  
+        SimplifyCFGPass(&llvmIR).MergeBlocks();		
+		PeepholePass(&llvmIR).ImmResultReplaceExecute();
+        PeepholePass(&llvmIR).SrcEqResultInstEliminateExecute();   
+		PeepholePass(&llvmIR).NegMulAddToSubExecute();
+        LoopStrengthReducePass(&llvmIR).GepStrengthReduce();	// GEP指令强度削弱中端部分
+        InstCombinePass(&llvmIR).Execute();
+        SimplifyCFGPass(&llvmIR).RebuildCFG();
+        PeepholePass(&llvmIR).IdentitiesEliminateExecute();
+        SCCPPass(&llvmIR).Execute();			
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
 
         // dom.Execute();
 		// AA.Execute();
