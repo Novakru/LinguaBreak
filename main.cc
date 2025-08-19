@@ -239,19 +239,22 @@ int main(int argc, char** argv) {
     llvmIR.CFGInit();
     SimplifyCFGPass(&llvmIR).Execute();
 
+    TailCallElimPass(&llvmIR).Execute();
+    DomAnalysis dom(&llvmIR);
+    dom.Execute();
+    (Mem2RegPass(&llvmIR, &dom)).Execute();
+    DomAnalysis inv_dom(&llvmIR);
+    inv_dom.invExecute();
+
+    (ADCEPass(&llvmIR, &inv_dom)).Execute();
+
     // 【5】优化
 	// 提交到 oj 时需要默认优化全开
-    // if (optimize) {
-		TailCallElimPass(&llvmIR).Execute();
-        DomAnalysis dom(&llvmIR);
-        dom.Execute();
-        (Mem2RegPass(&llvmIR, &dom)).Execute();
-        DomAnalysis inv_dom(&llvmIR);
-        inv_dom.invExecute();
+    if (optimize) {
 
         AliasAnalysisPass AA(&llvmIR); 
 		AA.Execute();
-        // SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
+        SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
 
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
@@ -269,7 +272,9 @@ int main(int argc, char** argv) {
         inv_dom.invExecute();
 		AA.Execute();
         GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
-
+        
+        AA.Execute();
+        SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
         inv_dom.invExecute();	
         AA.Execute();
         SimpleDSEPass(&llvmIR,&inv_dom,&AA).Execute();
@@ -284,12 +289,16 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).EOBB(); 
 		SimplifyCFGPass(&llvmIR).RebuildCFG();		
 
-		LoopAnalysisPass(&llvmIR).Execute();
-		LoopSimplifyPass(&llvmIR).Execute();
-		SimplifyCFGPass(&llvmIR).TOPPhi();
-		AA.Execute();
-		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		SimplifyCFGPass(&llvmIR).TOPPhi();
+		// LoopAnalysisPass(&llvmIR).Execute();
+		// LoopSimplifyPass(&llvmIR).Execute();
+		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		// // AA.Execute();
+		// // LoopRotate(&llvmIR, &AA).Execute();
+		// // LoopAnalysisPass(&llvmIR).Execute();
+		// // LoopSimplifyPass(&llvmIR).Execute();
+		// AA.Execute();
+		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
+		// SimplifyCFGPass(&llvmIR).TOPPhi();
 		// SCEVPass(&llvmIR).Execute();
 		// InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
 		// LoopStrengthReducePass(&llvmIR).Execute();
@@ -312,14 +321,18 @@ int main(int argc, char** argv) {
         SCCPPass(&llvmIR).Execute();			
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
 
+		SimplifyCFGPass(&llvmIR).EOBB();  
+        SimplifyCFGPass(&llvmIR).MergeBlocks();		
+		SimplifyCFGPass(&llvmIR).RebuildCFG();
+
         dom.Execute();
 		AA.Execute();
 		SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
 		redundency_elimination(inv_dom);
 
-		// SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
+		SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
 
-    // }
+    }
 
     if (option == 3) {
         llvmIR.printIR(out);

@@ -42,23 +42,23 @@ elif(args.lab == 3):
     if(args.is_advance==False):
         os.system(f"python3 test_with_timing.py testcase/{test_dir}/Basic test_output/functional_testIR 0 llvm")
     else:
-        os.system(f"python3 test_with_timing.py testcase/{test_dir}/Advanced test_output/functional_testIR 0 llvm")
+        os.system(f"python3 test_with_timing.py testcase/{test_dir}/Advanced test_output/functional_testIR 1 llvm")
 elif(args.lab == 4):
     os.system("rm -rf test_output/functional_testIR/*.ll")
     if(args.is_advance==False):
-        os.system(f"python3 test_with_timing.py testcase/{test_dir}/Basic test_output/functional_testIR 1 llvm")
+        os.system(f"python3 test_with_timing.py testcase/{test_dir}/Basic test_output/functional_testIR 0 llvm")
     else:
         os.system(f"python3 test_with_timing.py testcase/{test_dir}/Advanced test_output/functional_testIR 1 llvm")
 elif(args.lab == 5):
     os.system("rm -rf test_output/functional_testAsm/*.s")
     if(args.is_advance==False):
-        os.system(f"python3 test_with_timing.py testcase/{test_dir}/Basic test_output/functional_testSelect 1 select")
+        os.system(f"python3 test_with_timing.py testcase/{test_dir}/Basic test_output/functional_testSelect 0 select")
     else:
         os.system(f"python3 test_with_timing.py testcase/{test_dir}/Advanced test_output/functional_testSelect 1 select")
 elif(args.lab == 6):
     os.system("rm -rf test_output/functional_testAsm/*.s")
     if(args.is_advance==False):
-        os.system(f"python3 test_with_timing.py testcase/{test_dir}/Basic test_output/functional_testAsm 1 target")
+        os.system(f"python3 test_with_timing.py testcase/{test_dir}/Basic test_output/functional_testAsm 0 target")
     else:
         os.system(f"python3 test_with_timing.py testcase/{test_dir}/Advanced test_output/functional_testAsm 1 target")
 else:
