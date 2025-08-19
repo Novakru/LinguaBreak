@@ -29,6 +29,7 @@
 #include "llvm/optimize/transform/loopSimplify.h"
 #include "llvm/optimize/transform/loopRotate.h"
 #include "llvm/optimize/transform/basic_cse.h"
+#include "llvm/optimize/transform/basic_dse.h"
 #include "llvm/optimize/transform/loopstrengthreduce.h"
 #include "llvm/optimize/transform/globalopt.h"
 #include "llvm/optimize/transform/lcssa.h"
@@ -268,6 +269,11 @@ int main(int argc, char** argv) {
 		AA.Execute();
         GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
 
+
+		inv_dom.invExecute();	
+        AA.Execute();
+        SimpleDSEPass(&llvmIR,&inv_dom,&AA).Execute();
+        SimplifyCFGPass(&llvmIR).EOBB();
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
 		AA.Execute();
         SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
