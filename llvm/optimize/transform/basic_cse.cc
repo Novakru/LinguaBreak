@@ -358,10 +358,10 @@ bool BasicBlockCSEOptimizer::processBlock(LLVMBlock bb) {
 }
 
 void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
-    std::cout<<"[CSE] Processing call instruction: "<<CallI->GetFunctionName()<<std::endl;
+    //std::cout<<"[CSE] Processing call instruction: "<<CallI->GetFunctionName()<<std::endl;
     //1.不处理外部调用（lib_func），清理即可
     if (cfgTable.find(CallI->GetFunctionName()) == cfgTable.end()) {
-        std::cout<<"[CSE] External call detected, clearing all CSE info"<<std::endl;
+        //std::cout<<"[CSE] External call detected, clearing all CSE info"<<std::endl;
         clearAllCSEInfo();
         return;    // external call, clear all instructions
     }
@@ -379,7 +379,7 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
 	if(alias_analyser->HasSideEffect(cfg))
     // if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) // write memory, can not CSE, and will kill some Load and Call
     {
-        std::cout<<"[CSE] Call has side effects - WriteRoots: "<<rwinfo.WriteRoots.size()<<", has_lib_func_call: "<<rwinfo.has_lib_func_call<<std::endl;
+        //std::cout<<"[CSE] Call has side effects - WriteRoots: "<<rwinfo.WriteRoots.size()<<", has_lib_func_call: "<<rwinfo.has_lib_func_call<<std::endl;
         inst_map.clear();//新增，清除普通指令
         InstSet.clear();
         //std::cout<<"write call\n";
@@ -399,7 +399,7 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
         const RWInfo& rwinfo = it->second;
         //2.如果当前控制流图中有外部函数调用，也清理后直接返回
         if (rwinfo.has_lib_func_call) {
-            std::cout<<"[CSE] Call contains lib function call, clearing all CSE info"<<std::endl;
+            //std::cout<<"[CSE] Call contains lib function call, clearing all CSE info"<<std::endl;
             // for simple, we do not consider independent call there, this can be CSE in DomTreeWalkCSE
             // I->PrintIR(std::cerr);std::cerr<<"kill everything\n";
             inst_clear();
@@ -466,7 +466,7 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
             }
             //2)将冲突的call指令从callinstmap中删除
             if (is_needkill) {
-                std::cout<<"[CSE] Killing conflicting call instruction due to memory conflict"<<std::endl;
+                //std::cout<<"[CSE] Killing conflicting call instruction due to memory conflict"<<std::endl;
                 // I->PrintIR(std::cerr);std::cerr<<"kill ";(*it)->PrintIR(std::cerr);
                 CallInstMap.erase(GetCSEInfo(*it));
                 it = CallInstSet.erase(it);
@@ -477,18 +477,18 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
     }
     else    // only read memory, we can CSE
     {
-        std::cout<<"[CSE] Call is read-only, attempting CSE"<<std::endl;
+        //std::cout<<"[CSE] Call is read-only, attempting CSE"<<std::endl;
         //std::cout<<"read call\n";
         auto Info = GetCSEInfo(CallI);
         auto CSEiter = CallInstMap.find(Info);
         if (CSEiter != CallInstMap.end()) {
-            std::cout<<"[CSE] *** CSE ELIMINATION: Eliminating duplicate call instruction ***"<<std::endl;
-            std::cout<<"[CSE] Original call result reg: "<<CSEiter->second<<", Current call result reg: "<<GetResultRegNo(CallI)<<std::endl;
+            //std::cout<<"[CSE] *** CSE ELIMINATION: Eliminating duplicate call instruction ***"<<std::endl;
+            //std::cout<<"[CSE] Original call result reg: "<<CSEiter->second<<", Current call result reg: "<<GetResultRegNo(CallI)<<std::endl;
             erase_set.insert(CallI);
             reg_replace_map[GetResultRegNo(CallI)] = CSEiter->second;
             flag= true;
         } else {
-            std::cout<<"[CSE] Adding call to CSE map for future elimination"<<std::endl;
+            //std::cout<<"[CSE] Adding call to CSE map for future elimination"<<std::endl;
             CallInstSet.insert(CallI);
             CallInstMap.insert({Info, GetResultRegNo(CallI)});
         }
@@ -1275,17 +1275,17 @@ void DomTreeCSEOptimizer::dfs(int bbid) {
         switch (I->GetOpcode()) {
             case BasicInstruction::LOAD:
 				CSE_DEBUG_PRINT(std::cout<<"load"<<std::endl);
-                processLoadInstruction(static_cast<LoadInstruction*>(I), tmpLoadNumMap);
+                if(hasMemOp){processLoadInstruction(static_cast<LoadInstruction*>(I), tmpLoadNumMap);}
 				CSE_DEBUG_PRINT(std::cout<<"load end"<<std::endl);
                 break;
             case BasicInstruction::STORE:
 				CSE_DEBUG_PRINT(std::cout<<"store"<<std::endl);
-                processStoreInstruction(static_cast<StoreInstruction*>(I), tmpLoadNumMap);
+                if(hasMemOp){processStoreInstruction(static_cast<StoreInstruction*>(I), tmpLoadNumMap);}
 				CSE_DEBUG_PRINT(std::cout<<"store end"<<std::endl);
                 break;
             case BasicInstruction::CALL:
 				CSE_DEBUG_PRINT(std::cout<<"call"<<std::endl);
-                processCallInstruction(static_cast<CallInstruction*>(I),tmpCSESet);
+                if(hasMemOp){processCallInstruction(static_cast<CallInstruction*>(I),tmpCSESet);}
 				CSE_DEBUG_PRINT(std::cout<<"call end"<<std::endl);
                 break;
             default:
@@ -1298,9 +1298,9 @@ void DomTreeCSEOptimizer::dfs(int bbid) {
 
 	// if(bbid==1){
 	// 	// 打印当前eraseSet中的所有指令信息
-	// 	std::cout << "当前eraseSet中的指令如下：" << std::endl;
+	// 	//std::cout << "当前eraseSet中的指令如下：" << std::endl;
 	// 	for (const auto& inst : eraseSet) {
-	// 		inst->PrintIR(std::cout);
+	// 		inst->PrintIR(//std::cout);
 	// 	}
 	// }
     
@@ -1436,7 +1436,7 @@ void DomTreeCSEOptimizer::processLoadInstruction(LoadInstruction* LoadI, std::ma
         //3.遍历映射中存储的等价load指令，记为I2
         for (auto I2 : LoadCSEMap[info]) {
             if(memdep_analyser->isLoadSameMemory(LoadI, I2, C) == false){continue;}
-			//LoadI->PrintIR(std::cout);I2->PrintIR(std::cout);
+			//LoadI->PrintIR(//std::cout);I2->PrintIR(//std::cout);
 			//std::cout<<"-----------------------------\n";
             //4.如果I2与该条load2加载同一块内存
             //1)该条load指令插入删除集合
@@ -1613,15 +1613,25 @@ void SimpleCSEPass::Execute() {
 		std::string funcName = defI->GetFunctionName();
 		cfgTable[funcName] = cfg;
     }
-	CSE_DEBUG_PRINT(std::cout<<"SimpleCSEPass::Execute"<<std::endl);
+    
+    // 构建函数调用映射，检测多指针参数函数
+    buildFuncCallMap();
+    
+		CSE_DEBUG_PRINT(std::cout<<"SimpleCSEPass::Execute"<<std::endl);
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
 		CSE_DEBUG_PRINT(std::cout<<"defI: "<<defI->GetFunctionName()<<std::endl);
         CSEInit(cfg);
 		CSE_DEBUG_PRINT(std::cout<<"CSEInit"<<std::endl);
         BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser,domtrees,memdep_analyser);
+        // 根据函数名设置是否进行内存优化
+        std::string funcName = defI->GetFunctionName();
+        //std::cout<<"funcName: "<<funcName<<std::endl;
+        //std::cout<<"canMemOp(funcName): "<<canMemOp(funcName)<<std::endl;
+        optimizer.setMemOp(canMemOp(funcName));
         optimizer.optimize();
-		CSE_DEBUG_PRINT(std::cout<<"optimize"<<std::endl);
+        CSE_DEBUG_PRINT(std::cout<<"optimize"<<std::endl);
         DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
+        optimizer2.setMemOp(canMemOp(funcName));
         optimizer2.optimize();
 		CSE_DEBUG_PRINT(std::cout<<"optimize2"<<std::endl);
     }
@@ -1634,6 +1644,8 @@ void SimpleCSEPass::Execute() {
             }
         }
         DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
+        std::string funcName = defI->GetFunctionName();
+        optimizer2.setMemOp(canMemOp(funcName));
         optimizer2.branch_optimize();
     }
 	CSE_DEBUG_PRINT(std::cout<<"SimpleCSEPass::Execute3"<<std::endl);
@@ -1645,6 +1657,10 @@ void SimpleCSEPass::BNExecute() {
 		std::string funcName = defI->GetFunctionName();
 		cfgTable[funcName] = cfg;
     }
+    
+    // 构建函数调用映射，检测多指针参数函数
+    buildFuncCallMap();
+    
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         CSEInit(cfg);
         BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser,domtrees,memdep_analyser);
@@ -1658,9 +1674,17 @@ void SimpleCSEPass::BlockExecute() {
 		std::string funcName = defI->GetFunctionName();
 		cfgTable[funcName] = cfg;
     }
+    
+    // 构建函数调用映射，检测多指针参数函数
+    buildFuncCallMap();
+    
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         CSEInit(cfg);
         BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser,domtrees,memdep_analyser);
+        // 根据函数名设置是否进行内存优化
+        std::string funcName = defI->GetFunctionName();
+
+        optimizer.setMemOp(canMemOp(funcName));
         optimizer.optimize();
     }
 }
@@ -1679,6 +1703,8 @@ void SimpleCSEPass::DomtreeExecute() {
         }
         //CSEInit(cfg);
         DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
+        std::string funcName = defI->GetFunctionName();
+        optimizer2.setMemOp(canMemOp(funcName));
         optimizer2.optimize();
     }
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
@@ -1692,3 +1718,82 @@ void SimpleCSEPass::DomtreeExecute() {
         optimizer2.branch_optimize();
     }
 }
+
+// 新增方法实现
+void SimpleCSEPass::buildFuncCallMap() {
+    funcCallMap.clear();
+    canMemOpMap.clear();
+    
+    // 初始化所有函数的调用列表和内存优化标志
+    for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+        std::string funcName = defI->GetFunctionName();
+        funcCallMap[funcName] = std::vector<CallInstruction*>();
+        canMemOpMap[funcName] = true; // 默认可以进行内存优化
+    }
+    
+    // 一次遍历所有CFG，收集所有call指令并检查指针参数别名
+    for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+        for (auto [id, bb] : *cfg->block_map) {
+            for (auto I : bb->Instruction_list) {
+                if (I->GetOpcode() == BasicInstruction::CALL) {
+                    auto callInst = static_cast<CallInstruction*>(I);
+                    std::string calledFuncName = callInst->GetFunctionName();
+                    
+                    // 如果被调用的函数在我们的CFG中，添加到其调用列表中
+                    if (funcCallMap.find(calledFuncName) != funcCallMap.end()) {
+                        funcCallMap[calledFuncName].push_back(callInst);
+                        
+                        // 在这里直接检查指针参数别名，避免后续重复遍历
+                        if (canMemOpMap[calledFuncName]) { // 只有还可以优化的函数才需要检查
+                            auto paramList = callInst->GetParameterList();
+                            std::vector<Operand> ptrArgs;
+                            
+                            // 收集所有指针参数
+                            for (auto [type, operand] : paramList) {
+                                if (type == BasicInstruction::PTR) {
+                                    ptrArgs.push_back(operand);
+                                }
+                            }
+                            
+                            // 检查是否有相同的指针参数
+                            bool hasSamePtrArgs = false;
+                            for (size_t i = 0; i < ptrArgs.size() && !hasSamePtrArgs; i++) {
+                                for (size_t j = i + 1; j < ptrArgs.size(); j++) {
+                                    // 使用当前CFG（调用者的CFG）进行别名分析
+                                    auto aliasResult = alias_analyser->QueryAlias(ptrArgs[i], ptrArgs[j], cfg);
+                                    if (aliasResult == MustAlias) {
+                                        hasSamePtrArgs = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            // 如果发现相同指针参数，禁用该函数的内存优化
+                            if (hasSamePtrArgs) {
+                                canMemOpMap[calledFuncName] = false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+	// for (auto [funcName, calls] : funcCallMap) {
+	// 	//std::cout<<"funcName: "<<funcName<<std::endl;
+	// 	for (auto callInst : calls) {
+	// 		//std::cout<<"callInst: "; callInst->PrintIR(//std::cout);
+	// 	}
+	// }
+}
+
+bool SimpleCSEPass::canMemOp(const std::string& funcName) {
+    auto it = canMemOpMap.find(funcName);
+    if (it != canMemOpMap.end()) {
+        return it->second;
+    }
+    // 如果函数不在映射中，默认可以进行内存优化
+    return true;
+}
+
+

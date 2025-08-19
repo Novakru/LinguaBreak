@@ -99,7 +99,7 @@ python grade.py 3 0 [curr/last]
 ```bash
 ./compiler -llvm -o ./test_output/example/temp.out.ll ./test_output/example/temp.sy
 clang test_output/example/temp.out.ll -c -o test_output/example/temp.o -w
-clang -static  test_output/example/temp.o ./lib/libsysy_x86.a ./lib/libloop_parallel_x86.a -o test_output/example/temp
+clang -static  test_output/example/temp.o ./lib/libsysy_x86.a -o test_output/example/temp
 ./test_output/example/temp (< ./testcase/functional_test/Advanced/lisp2.in)
 ```
 
