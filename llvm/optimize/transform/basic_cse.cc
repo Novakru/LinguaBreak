@@ -1296,13 +1296,13 @@ void DomTreeCSEOptimizer::dfs(int bbid) {
 
 	CSE_DEBUG_PRINT(std::cout<<"dfs bbid: "<<bbid<<" end"<<std::endl);
 
-	if(bbid==1){
-		// 打印当前eraseSet中的所有指令信息
-		std::cout << "当前eraseSet中的指令如下：" << std::endl;
-		for (const auto& inst : eraseSet) {
-			inst->PrintIR(std::cout);
-		}
-	}
+	// if(bbid==1){
+	// 	// 打印当前eraseSet中的所有指令信息
+	// 	std::cout << "当前eraseSet中的指令如下：" << std::endl;
+	// 	for (const auto& inst : eraseSet) {
+	// 		inst->PrintIR(std::cout);
+	// 	}
+	// }
     
     for (auto v : C->getDomTree()->dom_tree[bbid]) {
         dfs(v->block_id);

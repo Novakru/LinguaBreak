@@ -35,19 +35,19 @@ std::set<Instruction> SimpleMemDepAnalyser::GetLoadClobbers(Instruction I, CFG *
     } else if (I->GetOpcode() == BasicInstruction::STORE) {
         ptr = ((StoreInstruction *)I)->GetPointer();
     }
-    I->PrintIR(std::cerr);
+    //I->PrintIR(std::cerr);
     //2.在load指令所在基本块中反向遍历
     // first search all the Instructions before I in I's block
     auto IBB = (*C->block_map)[I->GetBlockID()];
     //std::cout<<"load_block_id= "<<I->GetBlockID()<<"\n";
     
     int Iindex = -1;
-    std::cerr<<"IBB_size()="<<IBB->Instruction_list.size()<<"\n";
+    //std::cerr<<"IBB_size()="<<IBB->Instruction_list.size()<<"\n";
     for (int i = IBB->Instruction_list.size() - 1; i >= 0; --i) {
         
         //3.找到load指令所在位置
         auto tmpI = IBB->Instruction_list[i];
-        tmpI->PrintIR(std::cerr);
+        //tmpI->PrintIR(std::cerr);
         if (tmpI == I) {
             Iindex = i;
             break;
@@ -504,15 +504,15 @@ bool SimpleMemDepAnalyser::isLoadSameMemory(Instruction a, Instruction b, CFG *C
     // {
     //     return false;
     // }
-    if(ptr1->GetOperandType()==BasicOperand::GLOBAL&&ptr2->GetOperandType()==BasicOperand::GLOBAL
-    &&ptr1->GetFullName()==ptr2->GetFullName())
-    {
-        // if(alias_analyser->QueryAlias(ptr1, ptr2, C) != AliasStatus::MustAlias)//如果处理的内存不同，直接返回假
-        // {
-        //     return false;
-        // }
-        return false;
-    }
+    // if(ptr1->GetOperandType()==BasicOperand::GLOBAL&&ptr2->GetOperandType()==BasicOperand::GLOBAL
+    // &&ptr1->GetFullName()==ptr2->GetFullName())
+    // {
+    //     // if(alias_analyser->QueryAlias(ptr1, ptr2, C) != AliasStatus::MustAlias)//如果处理的内存不同，直接返回假
+    //     // {
+    //     //     return false;
+    //     // }
+    //     return false;
+    // }
     int id1 = a->GetBlockID();
     int id2 = b->GetBlockID();
     auto bb1=(*C->block_map)[id1];
