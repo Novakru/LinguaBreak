@@ -87,7 +87,10 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
     // 对于立即数类型（IMMI32, IMMF32, IMMI64），它们不是指针，返回 NoAlias
     if(op1->GetOperandType() == BasicOperand::IMMI32 || 
        op1->GetOperandType() == BasicOperand::IMMF32 || 
-       op1->GetOperandType() == BasicOperand::IMMI64){
+       op1->GetOperandType() == BasicOperand::IMMI64 ||
+       op2->GetOperandType() == BasicOperand::IMMI32 || 
+       op2->GetOperandType() == BasicOperand::IMMF32 || 
+       op2->GetOperandType() == BasicOperand::IMMI64){
         return NoAlias;
     }
 
@@ -95,22 +98,6 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
     PtrInfo* info2=GetPtrInfo(op2,cfg); 
     // 对于非指针类型的REG，返回NoAlias
     if(info1 == nullptr || info2 == nullptr) { return NoAlias ;}
-
-    // std::cout<<"[in AA] op1: "<<op1->GetFullName()<<std::endl;
-    // std::cout<<"[in AA] op2: "<<op2->GetFullName()<<std::endl;
-
-    // std::cout<<"========================================"<<std::endl;
-    // std::cout<<"all the ptrmap info in this cfg: ";
-    // for(auto &[regno,ptrinfo]:ptrmap[cfg]){
-    //     std::cout<<regno<<" ";
-    //     if(ptrinfo==nullptr){std::cout<<"!! ";}
-    // }std::cout<<std::endl;
-    // std::cout<<"========================================"<<std::endl;
-    // if(ptrmap[cfg].count(2)){
-    //     std::cout<<"ptrmap[cfg][2].root: "<<std::endl;
-    // }
-    // std::cout<<"========================================"<<std::endl;
-
     
     // case 1. 不属于同一array，一定不存在别名冲突
     if(info1->root!=info2->root){
@@ -165,6 +152,7 @@ AliasStatus AliasAnalysisPass::QueryAlias(Operand op1, Operand op2, CFG* cfg){
     return NoAlias;
 
 }
+
 
 
 Operand AliasAnalysisPass::CalleeParamToCallerArgu(Operand op, CFG* callee_cfg, CallInstruction* CallI){
