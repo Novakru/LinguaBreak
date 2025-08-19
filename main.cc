@@ -266,23 +266,23 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         SimplifyCFGPass(&llvmIR).EOBB();   
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
-        // inv_dom.invExecute();
-		// AA.Execute();
-        // GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
+        inv_dom.invExecute();
+		AA.Execute();
+        GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
 
-        // inv_dom.invExecute();	
-        // AA.Execute();
-        // SimpleDSEPass(&llvmIR,&inv_dom,&AA).Execute();
-        // SimplifyCFGPass(&llvmIR).EOBB();
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();	
-		// AA.Execute();
-        // SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
-        // SimplifyCFGPass(&llvmIR).EOBB();
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();							
-		// SCCPPass(&llvmIR).Execute();			// need to follow cse
-        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        // SimplifyCFGPass(&llvmIR).EOBB(); 
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();		
+        inv_dom.invExecute();	
+        AA.Execute();
+        SimpleDSEPass(&llvmIR,&inv_dom,&AA).Execute();
+        SimplifyCFGPass(&llvmIR).EOBB();
+		SimplifyCFGPass(&llvmIR).RebuildCFG();	
+		AA.Execute();
+        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+        SimplifyCFGPass(&llvmIR).EOBB();
+		SimplifyCFGPass(&llvmIR).RebuildCFG();							
+		SCCPPass(&llvmIR).Execute();			// need to follow cse
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        SimplifyCFGPass(&llvmIR).EOBB(); 
+		SimplifyCFGPass(&llvmIR).RebuildCFG();		
 
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
@@ -312,10 +312,10 @@ int main(int argc, char** argv) {
         SCCPPass(&llvmIR).Execute();			
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
 
-        // dom.Execute();
-		// AA.Execute();
-		// SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
-		// redundency_elimination(inv_dom);
+        dom.Execute();
+		AA.Execute();
+		SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
+		redundency_elimination(inv_dom);
 
 		// SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
 

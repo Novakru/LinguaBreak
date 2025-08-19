@@ -1,6 +1,6 @@
 #include "globalopt.h"
 
-// #define GLOBALOPT_DEBUG
+//#define GLOBALOPT_DEBUG
 
 #ifdef GLOBALOPT_DEBUG
 #define GLOBALOPT_DEBUG_PRINT(x) do { x; } while(0)
@@ -140,33 +140,39 @@ void GlobalOptPass::ProcessGlobals(){
 
 
 // 全局变量、数组指针存在冗余的load，删除 --> 同一block内对同一def不会有重复的load； 保证同一block内store后不再有load; 
+/*
+优化目标: 删除【块内】冗余load指令
+    - 同一def不会有重复的load
+    - store后不再有load 
+    KPI：在保守与激进之间寻求平衡：
+        - global / local ptr：如果是不同的ptr，一定不会发生别名冲突          ---> store后不再load，直接用store的value
+        - param ptr: 根据调用时传参情况，有可能不同形参对应的实参是同一个指针  ---> 保守策略，不改变
+        
+*/
 void GlobalOptPass::EliminateRedundantLS(){
     for(auto &[defI,cfg]:llvmIR->llvm_cfg){
-        //std::cout<<"------------------ In Function "<<cfg->function_def->GetFunctionName()<<"-----------------"<<std::endl;
         for(auto &[id,block]:*(cfg->block_map)){
             std::unordered_map<std::string,LSInfo*> load_store_map;// ptr全名 ~ < 上一次是否为store, 上一次load的结果reg>
-            //std::cout<<"In Block : "<<id<<std::endl;
+
             for(auto it=block->Instruction_list.begin();it!=block->Instruction_list.end();){
                     auto &inst=*it;
                     if(inst->GetOpcode()==BasicInstruction::STORE){
                         std::string ptr=((StoreInstruction*)inst)->GetPointer()->GetFullName();
                         auto value = ((StoreInstruction*)inst)->GetValue();
                         load_store_map[ptr]=new LSInfo(true,value);
-                        //std::cout<<"    store "<<value->GetFullName()<<" to "<<ptr<<std::endl;
 
                     }else if(inst->GetOpcode()==BasicInstruction::LOAD){
+                        //跳过形参
+                        auto info=AA->GetPtrInfo(((LoadInstruction*)inst)->GetPointer(),cfg);
+                        if(info->type==PtrInfo::types::Param || info->type==PtrInfo::types::Undefed){
+                            ++it;
+                            continue;
+                        }
                         std::string ptr=((LoadInstruction*)inst)->GetPointer()->GetFullName();
                         if(load_store_map.count(ptr)){
-                            if(!load_store_map[ptr]->defed || //(1)已经load过，删去重复的load
-                            (load_store_map[ptr]->defed && load_store_map[ptr]->load_res!=nullptr)) { //（2）刚刚store过，可直接使用其value
-
-                                if(!load_store_map[ptr]->defed){
-                                    //std::cout<<"    load again, delete!"<<std::endl;
-                                }else{
-                                    //std::cout<<"    stored just now, use it and delete this."<<std::endl;
-                                }
-
-                                //用上一次load的res/刚刚store的value替代后续使用它的指令操作数
+                            //【1】已经load过，删去重复的load 【2】刚刚store过，可用store的value替换load
+                            if(!load_store_map[ptr]->defed ||
+                               load_store_map[ptr]->defed && load_store_map[ptr]->load_res!=nullptr){
                                 Operand value = load_store_map[ptr]->load_res;
                                 int regno_todlt=inst->GetDefRegno();
 
@@ -191,20 +197,15 @@ void GlobalOptPass::EliminateRedundantLS(){
                             }
                             delete load_store_map[ptr];
                         }
-                        load_store_map[ptr]=new LSInfo(false,((LoadInstruction*)inst)->GetResult());
-                        // //std::cout<<"    load "<<((LoadInstruction*)inst)->GetResult()->GetFullName()<<" from "<<ptr<<std::endl;
+                        load_store_map[ptr]=new LSInfo(false,((LoadInstruction*)inst)->GetResult());//保留此次load
                         
-                    }else if(inst->GetOpcode()==BasicInstruction::CALL){//为了方便起见，我们认为call指令对所有ptr都起到def作用
+                    }else if(inst->GetOpcode()==BasicInstruction::CALL){
                         for(auto &[str,info]:load_store_map){
                             auto effect = AA->QueryCallGlobalModRef((CallInstruction*)inst,str);
-                            //std::cout<<"    call func: "<<((CallInstruction*)inst)->GetFunctionName()<<" ; deal with global: ";
-                            //std::cout<<str<<std::endl;
                             if(effect==Mod || effect==ModRef){
-                                //std::cout<<"        need loading "<<std::endl;
                                 info->defed=true;
                                 info->load_res=nullptr;
                             }else{
-                                //std::cout<<"        Donnot need loading "<<std::endl;
                             }
                         }
                     }
@@ -347,10 +348,14 @@ void GlobalOptPass::ApproxiMem2reg(){
                         auto info=AA->globalmap[son_cfg];
                         assert(info!=nullptr);
                         for(auto &op:info->ref_ops){
-                            use_blocks[op].push_back({id,inst});
+                            if(global_map.count(op)){//info中的信息当前已经删去了RefOnly，因此这里需要用ModRefGlobals过滤
+                                use_blocks[op].push_back({id,inst});
+                            }
                         }
                         for(auto &op:info->mod_ops){
-                            def_blocks[op].push_back({id,inst});
+                            if(global_map.count(op)){//info中的信息当前已经删去了RefOnly，因此这里需要用ModRefGlobals过滤
+                                def_blocks[op].push_back({id,inst});
+                            }
                         }
                     }
                 }
@@ -364,23 +369,23 @@ void GlobalOptPass::ApproxiMem2reg(){
             }
         }
 
-        // GLOBALOPT_DEBUG_PRINT(std::cerr << "=== GlobalOpt def/use Analysis ===" << std::endl);
-        // GLOBALOPT_DEBUG_PRINT(std::cerr << "def_blocks: "<< std::endl);
-        // for(auto &[op,set]:def_blocks){
-        //     GLOBALOPT_DEBUG_PRINT(std::cerr << op<<" is defed in block ");
-        //     for(auto &id_pair:set){
-        //         GLOBALOPT_DEBUG_PRINT(std::cerr << id_pair.first<<" ");
-        //     }
-        //     GLOBALOPT_DEBUG_PRINT(std::cerr<<std::endl);
-        // }
-        // GLOBALOPT_DEBUG_PRINT(std::cerr << "use_blocks: "<< std::endl);
-        // for(auto &[op,set]:use_blocks){
-        //     GLOBALOPT_DEBUG_PRINT(std::cerr << op<<" is used in block ");
-        //     for(auto &id_pair:set){
-        //         GLOBALOPT_DEBUG_PRINT(std::cerr << id_pair.first<<" ");
-        //     }
-        //     GLOBALOPT_DEBUG_PRINT(std::cerr<<std::endl);
-        // }
+        GLOBALOPT_DEBUG_PRINT(std::cerr << "=== GlobalOpt def/use Analysis ===" << std::endl);
+        GLOBALOPT_DEBUG_PRINT(std::cerr << "def_blocks: "<< std::endl);
+        for(auto &[op,set]:def_blocks){
+            GLOBALOPT_DEBUG_PRINT(std::cerr << op<<" is defed in block ");
+            for(auto &id_pair:set){
+                GLOBALOPT_DEBUG_PRINT(std::cerr << id_pair.first<<" ");
+            }
+            GLOBALOPT_DEBUG_PRINT(std::cerr<<std::endl);
+        }
+        GLOBALOPT_DEBUG_PRINT(std::cerr << "use_blocks: "<< std::endl);
+        for(auto &[op,set]:use_blocks){
+            GLOBALOPT_DEBUG_PRINT(std::cerr << op<<" is used in block ");
+            for(auto &id_pair:set){
+                GLOBALOPT_DEBUG_PRINT(std::cerr << id_pair.first<<" ");
+            }
+            GLOBALOPT_DEBUG_PRINT(std::cerr<<std::endl);
+        }
 
         //【2】处理OneDefDomAllUses : 用该def的value替换所有load处的res
         ////std::cout<<"<================= OneDefDomAllUses =====================>"<<std::endl<<std::endl;
