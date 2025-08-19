@@ -83,7 +83,6 @@ private:
     void FindPhi();
     void DefineLibFuncStatus();
 
-    PtrInfo* GetPtrInfo(Operand op, CFG* cfg);
     Operand CalleeParamToCallerArgu(Operand op, CFG* callee_cfg, CallInstruction* CallI);
     void RWInfoAnalysis();
     void GatherRWInfos(std::string func_name);
@@ -96,6 +95,7 @@ public:
     std::unordered_map<CFG*,GlobalValInfo*> globalmap;
 
     AliasAnalysisPass(LLVMIR *IR) : IRPass(IR) {DefineLibFuncStatus();}
+    PtrInfo* GetPtrInfo(Operand op, CFG* cfg);
     AliasStatus QueryAlias(Operand op1,Operand op2, CFG* cfg);
     ModRefStatus QueryInstModRef(Instruction inst, Operand op, CFG* cfg);
     void Execute();
