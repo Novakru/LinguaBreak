@@ -228,18 +228,18 @@ int main(int argc, char** argv) {
         // SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
 
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
-        // PeepholePass(&llvmIR).ImmResultReplaceExecute();
-        // OneRetPass(&llvmIR).Execute();
-        // SCCPPass(&llvmIR).Execute();
-        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-		// PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is needed
-		// SimplifyCFGPass(&llvmIR).EOBB();  
-        // FunctionInlinePass(&llvmIR).Execute();
-        // SimplifyCFGPass(&llvmIR).RebuildCFG();
-        // SCCPPass(&llvmIR).Execute();
-        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        // SimplifyCFGPass(&llvmIR).EOBB();   
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();
+        PeepholePass(&llvmIR).ImmResultReplaceExecute();
+        OneRetPass(&llvmIR).Execute();
+        SCCPPass(&llvmIR).Execute();
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+		PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is needed
+		SimplifyCFGPass(&llvmIR).EOBB();  
+        FunctionInlinePass(&llvmIR).Execute();
+        SimplifyCFGPass(&llvmIR).RebuildCFG();
+        SCCPPass(&llvmIR).Execute();
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        SimplifyCFGPass(&llvmIR).EOBB();   
+		SimplifyCFGPass(&llvmIR).RebuildCFG();
         // inv_dom.invExecute();
 		// AA.Execute();
         // GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
