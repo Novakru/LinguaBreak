@@ -239,50 +239,65 @@ int main(int argc, char** argv) {
     llvmIR.CFGInit();
     SimplifyCFGPass(&llvmIR).Execute();
 
+    //TailCallElimPass(&llvmIR).Execute();
+    DomAnalysis dom(&llvmIR);
+    dom.Execute();
+    (Mem2RegPass(&llvmIR, &dom)).Execute();
+    DomAnalysis inv_dom(&llvmIR);
+    inv_dom.invExecute();
+
+    AliasAnalysisPass AA(&llvmIR); 
+    // AA.Execute();
+    //SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
+
+    (ADCEPass(&llvmIR, &inv_dom)).Execute();
+
     // 【5】优化
 	// 提交到 oj 时需要默认优化全开
-    // if (optimize) {
-		TailCallElimPass(&llvmIR).Execute();
-        DomAnalysis dom(&llvmIR);
-        dom.Execute();
-        (Mem2RegPass(&llvmIR, &dom)).Execute();
-        DomAnalysis inv_dom(&llvmIR);
-        inv_dom.invExecute();
+    if (optimize) {
+		// // TailCallElimPass(&llvmIR).Execute();
+        // // DomAnalysis dom(&llvmIR);
+        // // dom.Execute();
+        // // (Mem2RegPass(&llvmIR, &dom)).Execute();
+        // // DomAnalysis inv_dom(&llvmIR);
+        // // inv_dom.invExecute();
 
-        AliasAnalysisPass AA(&llvmIR); 
-		AA.Execute();
-        SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
+        // // AliasAnalysisPass AA(&llvmIR); 
+		// // AA.Execute();
+        // //SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
 
-        (ADCEPass(&llvmIR, &inv_dom)).Execute();
-        PeepholePass(&llvmIR).ImmResultReplaceExecute();
-        OneRetPass(&llvmIR).Execute();
-        SCCPPass(&llvmIR).Execute();
-        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-		PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is needed
-		SimplifyCFGPass(&llvmIR).EOBB();  
-        FunctionInlinePass(&llvmIR).Execute();
-        SimplifyCFGPass(&llvmIR).RebuildCFG();
-        SCCPPass(&llvmIR).Execute();
-        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        SimplifyCFGPass(&llvmIR).EOBB();   
-		SimplifyCFGPass(&llvmIR).RebuildCFG();
-        inv_dom.invExecute();
-		AA.Execute();
-        GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
-
-        inv_dom.invExecute();	
-        AA.Execute();
-        SimpleDSEPass(&llvmIR,&inv_dom,&AA).Execute();
-        SimplifyCFGPass(&llvmIR).EOBB();
-		SimplifyCFGPass(&llvmIR).RebuildCFG();	
-		AA.Execute();
-        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
-        SimplifyCFGPass(&llvmIR).EOBB();
-		SimplifyCFGPass(&llvmIR).RebuildCFG();							
-		SCCPPass(&llvmIR).Execute();			// need to follow cse
-        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        SimplifyCFGPass(&llvmIR).EOBB(); 
-		SimplifyCFGPass(&llvmIR).RebuildCFG();		
+        // //(ADCEPass(&llvmIR, &inv_dom)).Execute();
+        // PeepholePass(&llvmIR).ImmResultReplaceExecute();
+        // OneRetPass(&llvmIR).Execute();
+        // SCCPPass(&llvmIR).Execute();
+        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+		// PeepholePass(&llvmIR).DeadArgElim();  // mem2reg is needed
+		// SimplifyCFGPass(&llvmIR).EOBB();  
+        // FunctionInlinePass(&llvmIR).Execute();
+        // SimplifyCFGPass(&llvmIR).RebuildCFG();
+        // SCCPPass(&llvmIR).Execute();
+        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        // SimplifyCFGPass(&llvmIR).EOBB();   
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();
+        // inv_dom.invExecute();
+		// AA.Execute();
+        // GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
+        
+        // AA.Execute();
+        // SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
+        // inv_dom.invExecute();	
+        // AA.Execute();
+        // SimpleDSEPass(&llvmIR,&inv_dom,&AA).Execute();
+        // SimplifyCFGPass(&llvmIR).EOBB();
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();	
+		// AA.Execute();
+        // SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+        // SimplifyCFGPass(&llvmIR).EOBB();
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();							
+		// SCCPPass(&llvmIR).Execute();			// need to follow cse
+        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        // SimplifyCFGPass(&llvmIR).EOBB(); 
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();		
 
 		// LoopAnalysisPass(&llvmIR).Execute();
 		// LoopSimplifyPass(&llvmIR).Execute();
@@ -339,7 +354,7 @@ int main(int argc, char** argv) {
 
 		// SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
 
-    // }
+    }
 
     if (option == 3) {
         llvmIR.printIR(out);
