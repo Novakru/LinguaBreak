@@ -17,27 +17,27 @@ void GlobalOptPass::Execute(){
 
     GlobalValTypeDef();
 
-    // std::cout<<"---------------------"<<std::endl;
-    // std::cout<<"NoModRef: ";
+    // //std::cout<<"---------------------"<<std::endl;
+    // //std::cout<<"NoModRef: ";
     // for(auto &inst:NoModRefGlobals){
-    //     std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
-    // }std::cout<<std::endl;
+    //     //std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
+    // }//std::cout<<std::endl;
 
-    // std::cout<<"Ref: ";
+    // //std::cout<<"Ref: ";
     // for(auto &inst:RefOnlyGlobals){
-    //     std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
-    // }std::cout<<std::endl;
+    //     //std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
+    // }//std::cout<<std::endl;
 
-    // std::cout<<"Mod: ";
+    // //std::cout<<"Mod: ";
     // for(auto &inst:ModOnlyGlobals){
-    //     std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
-    // }std::cout<<std::endl;
+    //     //std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
+    // }//std::cout<<std::endl;
 
-    // std::cout<<"ModRef: ";
+    // //std::cout<<"ModRef: ";
     // for(auto &inst:ModRefGlobals){
-    //     std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
-    // }std::cout<<std::endl;
-    // std::cout<<"---------------------"<<std::endl;
+    //     //std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
+    // }//std::cout<<std::endl;
+    // //std::cout<<"---------------------"<<std::endl;
 
     ProcessGlobals();
 
@@ -142,17 +142,17 @@ void GlobalOptPass::ProcessGlobals(){
 // 全局变量、数组指针存在冗余的load，删除 --> 同一block内对同一def不会有重复的load； 保证同一block内store后不再有load; 
 void GlobalOptPass::EliminateRedundantLS(){
     for(auto &[defI,cfg]:llvmIR->llvm_cfg){
-        std::cout<<"------------------ In Function "<<cfg->function_def->GetFunctionName()<<"-----------------"<<std::endl;
+        //std::cout<<"------------------ In Function "<<cfg->function_def->GetFunctionName()<<"-----------------"<<std::endl;
         for(auto &[id,block]:*(cfg->block_map)){
             std::unordered_map<std::string,LSInfo*> load_store_map;// ptr全名 ~ < 上一次是否为store, 上一次load的结果reg>
-            std::cout<<"In Block : "<<id<<std::endl;
+            //std::cout<<"In Block : "<<id<<std::endl;
             for(auto it=block->Instruction_list.begin();it!=block->Instruction_list.end();){
                     auto &inst=*it;
                     if(inst->GetOpcode()==BasicInstruction::STORE){
                         std::string ptr=((StoreInstruction*)inst)->GetPointer()->GetFullName();
                         auto value = ((StoreInstruction*)inst)->GetValue();
                         load_store_map[ptr]=new LSInfo(true,value);
-                        std::cout<<"    store "<<value->GetFullName()<<" to "<<ptr<<std::endl;
+                        //std::cout<<"    store "<<value->GetFullName()<<" to "<<ptr<<std::endl;
 
                     }else if(inst->GetOpcode()==BasicInstruction::LOAD){
                         std::string ptr=((LoadInstruction*)inst)->GetPointer()->GetFullName();
@@ -161,9 +161,9 @@ void GlobalOptPass::EliminateRedundantLS(){
                             (load_store_map[ptr]->defed && load_store_map[ptr]->load_res!=nullptr)) { //（2）刚刚store过，可直接使用其value
 
                                 if(!load_store_map[ptr]->defed){
-                                    std::cout<<"    load again, delete!"<<std::endl;
+                                    //std::cout<<"    load again, delete!"<<std::endl;
                                 }else{
-                                    std::cout<<"    stored just now, use it and delete this."<<std::endl;
+                                    //std::cout<<"    stored just now, use it and delete this."<<std::endl;
                                 }
 
                                 //用上一次load的res/刚刚store的value替代后续使用它的指令操作数
@@ -192,19 +192,19 @@ void GlobalOptPass::EliminateRedundantLS(){
                             delete load_store_map[ptr];
                         }
                         load_store_map[ptr]=new LSInfo(false,((LoadInstruction*)inst)->GetResult());
-                        // std::cout<<"    load "<<((LoadInstruction*)inst)->GetResult()->GetFullName()<<" from "<<ptr<<std::endl;
+                        // //std::cout<<"    load "<<((LoadInstruction*)inst)->GetResult()->GetFullName()<<" from "<<ptr<<std::endl;
                         
                     }else if(inst->GetOpcode()==BasicInstruction::CALL){//为了方便起见，我们认为call指令对所有ptr都起到def作用
                         for(auto &[str,info]:load_store_map){
                             auto effect = AA->QueryCallGlobalModRef((CallInstruction*)inst,str);
-                            std::cout<<"    call func: "<<((CallInstruction*)inst)->GetFunctionName()<<" ; deal with global: ";
-                            std::cout<<str<<std::endl;
+                            //std::cout<<"    call func: "<<((CallInstruction*)inst)->GetFunctionName()<<" ; deal with global: ";
+                            //std::cout<<str<<std::endl;
                             if(effect==Mod || effect==ModRef){
-                                std::cout<<"        need loading "<<std::endl;
+                                //std::cout<<"        need loading "<<std::endl;
                                 info->defed=true;
                                 info->load_res=nullptr;
                             }else{
-                                std::cout<<"        Donnot need loading "<<std::endl;
+                                //std::cout<<"        Donnot need loading "<<std::endl;
                             }
                         }
                     }
@@ -224,12 +224,12 @@ void GlobalOptPass::EliminateRedundantLS(){
 void GlobalOptPass::OneDefDomAllUses(CFG* cfg){
     std::unordered_map<int,Operand> replace_map; // old_regno ~ new_Operand
     //std::unordered_set<std::string> globals_to_mem2reg;
-    std::cout<<" ------------- In Function "<<cfg->function_def->GetFunctionName()<<"------------"<<std::endl;
+    //std::cout<<" ------------- In Function "<<cfg->function_def->GetFunctionName()<<"------------"<<std::endl;
     //【1】识别one def 的global，记录替换map
     for(auto &[global,id_pairs]:def_blocks){
         //【1.1】Only Use ：将一个load提到最前，其余load删除
         if(id_pairs.size()==0){ 
-            std::cout<<global<<" is only used !"<<std::endl;
+            //std::cout<<global<<" is only used !"<<std::endl;
             auto global_name=global.substr(1);//去掉"@"
             cfg->max_reg+=1;
             auto def_value = GetNewRegOperand(cfg->max_reg);
@@ -253,7 +253,7 @@ void GlobalOptPass::OneDefDomAllUses(CFG* cfg){
             Operand def_value;
             if(def_inst->GetOpcode()==BasicInstruction::STORE){
                 def_value = ((StoreInstruction*)(*id_pairs.begin()).second)->GetValue();
-                std::cout<<" def "<<global<<" by STORE inst"<<std::endl;
+                //std::cout<<" def "<<global<<" by STORE inst"<<std::endl;
             }else if(def_inst->GetOpcode()==BasicInstruction::CALL){
                 auto global_name=global.substr(1);//去掉"@"
                 cfg->max_reg+=1;
@@ -263,7 +263,7 @@ void GlobalOptPass::OneDefDomAllUses(CFG* cfg){
                 cfg->GetBlockWithId(def_id)->Instruction_list.pop_back();
                 cfg->GetBlockWithId(def_id)->InsertInstruction(1,load_inst);
                 cfg->GetBlockWithId(def_id)->InsertInstruction(1,last_inst);
-                std::cout<<" def "<<global<<" by CALL inst "<<((CallInstruction*)def_inst)->GetFunctionName()<<std::endl;
+                //std::cout<<" def "<<global<<" by CALL inst "<<((CallInstruction*)def_inst)->GetFunctionName()<<std::endl;
             }
 
             // register use value to replace
@@ -273,7 +273,7 @@ void GlobalOptPass::OneDefDomAllUses(CFG* cfg){
                     if(inst->GetOpcode()==BasicInstruction::LOAD){//支配且非同一块，才替换
                         int use_regno=inst->GetDefRegno();
                         replace_map[use_regno]=def_value;
-                        //std::cout<<"需要将 "<<use_regno<<" 的寄存器替换为 "<<def_value->GetFullName()<<std::endl;
+                        ////std::cout<<"需要将 "<<use_regno<<" 的寄存器替换为 "<<def_value->GetFullName()<<std::endl;
                     }
                     // }else if(inst->GetOpcode()==BasicInstruction::CALL){//若同一块，则不删store了；非同一块，添加store
                     // }
@@ -317,12 +317,12 @@ void GlobalOptPass::ApproxiMem2reg(){
            %r3 = load  @a           
            use %r3                  use %r2
     */
-    //std::cout<<"<================= EliminateRedundantLS =====================>"<<std::endl<<std::endl;
+    ////std::cout<<"<================= EliminateRedundantLS =====================>"<<std::endl<<std::endl;
     EliminateRedundantLS();
 
     for(auto &[defI,cfg]:llvmIR->llvm_cfg){
         
-        //std::cout<<"<=================    Gather Infomation =====================>"<<std::endl<<std::endl;
+        ////std::cout<<"<=================    Gather Infomation =====================>"<<std::endl<<std::endl;
         //【1】收集信息
         def_blocks.clear();
         use_blocks.clear();
@@ -342,7 +342,7 @@ void GlobalOptPass::ApproxiMem2reg(){
                     auto func_name=((CallInstruction*)inst)->GetFunctionName();
                     if(!lib_function_names.count(func_name)){
                         auto son_cfg=llvmIR->llvm_cfg[llvmIR->FunctionNameTable[func_name]];
-                        std::cout<<"[in globalopt.cc] func_name: "<<func_name<<std::endl;
+                        //std::cout<<"[in globalopt.cc] func_name: "<<func_name<<std::endl;
                         assert(son_cfg!=nullptr);
                         auto info=AA->globalmap[son_cfg];
                         assert(info!=nullptr);
@@ -383,7 +383,7 @@ void GlobalOptPass::ApproxiMem2reg(){
         // }
 
         //【2】处理OneDefDomAllUses : 用该def的value替换所有load处的res
-        //std::cout<<"<================= OneDefDomAllUses =====================>"<<std::endl<<std::endl;
+        ////std::cout<<"<================= OneDefDomAllUses =====================>"<<std::endl<<std::endl;
         OneDefDomAllUses(cfg);
     }
 

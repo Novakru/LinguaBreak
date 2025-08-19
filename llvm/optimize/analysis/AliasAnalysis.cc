@@ -506,7 +506,7 @@ void AliasAnalysisPass::FindPhi(){
                 if(inst->GetOpcode()==BasicInstruction::LLVMIROpcode::PHI){
                     auto phi=(PhiInstruction*)inst;
                     if(phi->GetResultType()==BasicInstruction::LLVMType::PTR){
-                        std::cout<<" phi in function "<<defI->GetFunctionName()<<std::endl;
+                        //std::cout<<" phi in function "<<defI->GetFunctionName()<<std::endl;
                         return ;
                     }
 
@@ -514,7 +514,7 @@ void AliasAnalysisPass::FindPhi(){
             }
         }
     }
-    std::cout<<"No Phi"<<std::endl;
+    //std::cout<<"No Phi"<<std::endl;
     return ;
 }
 
@@ -571,90 +571,90 @@ std::string alias_status[2]={"NoAlias","MustAlias"};
 std::string modref_status[4]={"NoModRef","Ref","Mod","ModRef"};
 
 void PtrInfo::PrintDebugInfo(){
-    std::cout<<"source: "<<sour[source]<<" type: "<<tys[type]<<" root: ";
+    //std::cout<<"source: "<<sour[source]<<" type: "<<tys[type]<<" root: ";
     if(root!=nullptr){
-        std::cout<<root->GetFullName() <<std::endl;
+        //std::cout<<root->GetFullName() <<std::endl;
     }else{
-        std::cout<<"nullptr "<<std::endl;
+        //std::cout<<"nullptr "<<std::endl;
     }
-    std::cout<<"Aliases: "<<std::endl;
+    //std::cout<<"Aliases: "<<std::endl;
     for(auto& op:AliasOps){
-        std::cout<<"         "<<op->GetFullName()<<std::endl;
+        //std::cout<<"         "<<op->GetFullName()<<std::endl;
     }
-    std::cout<<"se_gep_offset: "<<se_gep_offset<<std::endl;
+    //std::cout<<"se_gep_offset: "<<se_gep_offset<<std::endl;
 
 }
 
 
 void AliasAnalysisPass::PrintAAResult() {
 
-    std::cout<<" ----------- CallInfo ------------- "<<std::endl;
+    //std::cout<<" ----------- CallInfo ------------- "<<std::endl;
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
-        defI->PrintIR(std::cout);
+        //defI->PrintIR(//std::cout);
         auto callinfo=ReCallGraph[defI->GetFunctionName()];
 
-        std::cout<<"para_order:  "<<std::endl;
+        //std::cout<<"para_order:  "<<std::endl;
         for(auto&[op,order]:callinfo.param_order){
-            std::cout<<"Operand: "<<op->GetFullName()<<" order: "<<std::to_string(order)<<std::endl;
+            //std::cout<<"Operand: "<<op->GetFullName()<<" order: "<<std::to_string(order)<<std::endl;
         }
 
-        std::cout<<"callers:  "<<std::endl;
+        //std::cout<<"callers:  "<<std::endl;
         for(auto&[caller,xx]:callinfo.callers){
-            std::cout<<caller->function_def->GetFunctionName()<<"    ";
-        }std::cout<<std::endl;
-        std::cout<<"-------------" <<std::endl;
+            //std::cout<<caller->function_def->GetFunctionName()<<"    ";
+        }//std::cout<<std::endl;
+        //std::cout<<"-------------" <<std::endl;
 
     }
 
-    std::cout<<" ----------- PtrInfo ------------- "<<std::endl;
+    //std::cout<<" ----------- PtrInfo ------------- "<<std::endl;
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
-        defI->PrintIR(std::cout);
+        //defI->PrintIR(std::cout);
         for (auto [regno, info] : ptrmap[cfg]) {
-            std::cout << "REG: %r" << regno << "\n";
+            //std::cout << "REG: %r" << regno << "\n";
             info->PrintDebugInfo();
-            std::cout<<"-----------"<<std::endl;
+            //std::cout<<"-----------"<<std::endl;
         }
     }
 
-    std::cout<<" ----------- RWInfo -------------- "<<std::endl;
+    //std::cout<<" ----------- RWInfo -------------- "<<std::endl;
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
-        defI->PrintIR(std::cout);
+        //defI->PrintIR(std::cout);
         auto cfgrwinfo = rwmap[cfg];
 
-        std::cout << "read :   ";
+        //std::cout << "read :   ";
         for (auto op : cfgrwinfo.ReadRoots) {
-            std::cout << op << " ";
+            //std::cout << op << " ";
         }
-        std::cout << "\n";
+        //std::cout << "\n";
 
-        std::cout << "write :   ";
+        //std::cout << "write :   ";
         for (auto op : cfgrwinfo.WriteRoots) {
-            std::cout << op << " ";
+            //std::cout << op << " ";
         }
-        std::cout << "\n" <<"\n";
+        //std::cout << "\n" <<"\n";
     }
 
-    std::cout<<" ----------- Leafs -------------- "<<std::endl;
+    //std::cout<<" ----------- Leafs -------------- "<<std::endl;
     for(auto func_name:LeafFuncs){
-        std::cout << func_name<<std::endl;
+        //std::cout << func_name<<std::endl;
     }
 
-    std::cout<<" ----------- Globalvar Info -------------- "<<std::endl;
+    //std::cout<<" ----------- Globalvar Info -------------- "<<std::endl;
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
-        defI->PrintIR(std::cout);
+        //defI->PrintIR(std::cout);
 
         auto globalinfo=globalmap[cfg];
-        std::cout << "read :   ";
+        //std::cout << "read :   ";
         for(auto op:globalinfo->ref_ops){
-            std::cout<<op<<" ";
-        }std::cout << "\n";
+            //std::cout<<op<<" ";
+        }//std::cout << "\n";
 
-        std::cout << "write :   ";
+        //std::cout << "write :   ";
         for(auto op:globalinfo->mod_ops){
-            std::cout<<op<<" ";
-        }std::cout << "\n";
+            //std::cout<<op<<" ";
+        }//std::cout << "\n";
     }
-    std::cout<<" ----------------------------------------- "<<std::endl;
+    //std::cout<<" ----------------------------------------- "<<std::endl;
 }
 
 
@@ -665,9 +665,9 @@ void AliasAnalysisPass::Test() {
             continue;
         }
 
-        defI->PrintIR(std::cout);
+        //defI->PrintIR(std::cout);
 
-        std::cout<<" ----------- AliasResult -------------- "<<std::endl;
+        //std::cout<<" ----------- AliasResult -------------- "<<std::endl;
         std::set<Operand> ptrset;
         for (auto [id, bb] : *(cfg->block_map)) {
             for (auto I : bb->Instruction_list) {
@@ -684,13 +684,13 @@ void AliasAnalysisPass::Test() {
             for (auto ptr2 : ptrset) {
                 auto res=QueryAlias(ptr1, ptr2, cfg);
                 if(res==MustAlias){
-                    std::cout << ptr1->GetFullName() << " " << ptr2->GetFullName() << " " << alias_status[res] << "\n";
+                    //std::cout << ptr1->GetFullName() << " " << ptr2->GetFullName() << " " << alias_status[res] << "\n";
                 }
                 
             }
         }
 
-        std::cout<<" ----------- ModRefResult -------------- "<<std::endl;
+        //std::cout<<" ----------- ModRefResult -------------- "<<std::endl;
         for (auto ptr : ptrset) {
             PtrInfo ptrinfo=*GetPtrInfo(ptr,cfg);
             if(ptrinfo.source==PtrInfo::sources::Undef&&ptrinfo.type!=PtrInfo::types::Global){
