@@ -4,7 +4,7 @@
 #include<functional>
 #include <stack>
 
-// #define CSE_DEBUG
+//#define CSE_DEBUG
 
 #ifdef CSE_DEBUG
 #define CSE_DEBUG_PRINT(x) do { x; } while(0)
@@ -446,6 +446,33 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
         // for (auto ptr : writeptrs) {
         //     real_writeptrs.push_back(ptr);
         // }
+        auto& glmap = alias_analyser->GetPtrMap();
+        auto glptrs=glmap[cfg];
+        for(auto [regno,ptrinfo]:glptrs)
+        {
+            for(auto ptr:ptrinfo->AliasOps)
+            {
+                if (ptr->GetOperandType() == BasicOperand::GLOBAL) {
+                    real_writeptrs.push_back(ptr);
+                }
+                else if (ptr->GetOperandType() == BasicOperand::REG) {
+                    int ptr_regno = ((RegOperand *)ptr)->GetRegNo();
+                    //std::cerr<<"ptr_regno= "<<ptr_regno<<"; call_param_size= "<< CallI->GetParameterList().size()<<"\n";
+                    //assert(ptr_regno < CallI->GetParameterList().size());
+                    if(ptr_regno< CallI->GetParameterList().size())
+                    {
+                        auto [type, real_ptr2] = CallI->GetParameterList()[ptr_regno];
+                        real_writeptrs.push_back(real_ptr2);
+                    }
+                    else
+                    {
+                        real_writeptrs.push_back(ptr);
+                    }
+                } else {    // should not reach here
+                    assert(false);
+                }
+            }
+        }
         for (auto ptr : writeptrs) {
             //1)如果为全局变量，直接加入向量
             if (ptr->GetOperandType() == BasicOperand::GLOBAL) {
@@ -1187,12 +1214,14 @@ void DomTreeCSEOptimizer::optimize() {
 
     while (changed) {
         changed = false;
+        tmp=changed;
 		CSE_DEBUG_PRINT(std::cout<<"changed"<<std::endl);
         dfs(0);
 		CSE_DEBUG_PRINT(std::cout<<"dfs"<<std::endl);
         removeDeadInstructions();
 		CSE_DEBUG_PRINT(std::cout<<"removeDeadInstructions"<<std::endl);
         applyRegisterReplacements();
+        changed=tmp;
     }
 
 }
@@ -1477,7 +1506,7 @@ void DomTreeCSEOptimizer::processLoadInstruction(LoadInstruction* LoadI, std::ma
                 assert(false);
             }
 
-            changed|= true;//很可能需要改成flag
+            tmp|= true;//很可能需要改成flag
             is_cse = true;
             break;
         }
@@ -1539,7 +1568,7 @@ void DomTreeCSEOptimizer::processCallInstruction(CallInstruction* CallI, std::se
     if (cseIter != instCSEMap.end()) {
         eraseSet.insert(CallI);
         regReplaceMap[GetResultRegNo(CallI)] = cseIter->second;
-        changed|= true;
+        tmp|= true;
     } else {
         instCSEMap[info] = GetResultRegNo(CallI);
         regularCseSet.insert(info);
@@ -1553,7 +1582,7 @@ void DomTreeCSEOptimizer::processRegularInstruction(BasicInstruction* I, std::se
     if (cseIter != instCSEMap.end()) {
         eraseSet.insert(I);
         regReplaceMap[GetResultRegNo(I)] = cseIter->second;
-        changed|= true;
+        tmp|= true;
     } else {
         instCSEMap[info] = GetResultRegNo(I);
         regularCseSet.insert(info);
