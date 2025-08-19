@@ -586,14 +586,14 @@ void BasicBlockCSEOptimizer::processLoadInstruction(LoadInstruction* loadI) {
     auto CSEiter = LoadInstMap.find(Info);
     //2.如果在load映射中找到：
     if (CSEiter != LoadInstMap.end()) {
-        //if(!memdep_analyser->isLoadSameMemory(loadI,CSEiter->second,C)){return;}
+        if(!memdep_analyser->isLoadSameMemory(loadI,CSEiter->second,C)){return;}
         //1)把当前load指令插入erase_set
-        // erase_set.insert(loadI);
-        // // I->PrintIR(std::cerr);
-        // //2)把当前load指令的寄存器编号修改成映射中存储的寄存器编号
-        // reg_replace_map[GetResultRegNo(loadI)] =GetResultRegNo( CSEiter->second);
-        // //3)标记flag为true(?)
-        // flag = true;
+        erase_set.insert(loadI);
+        // I->PrintIR(std::cerr);
+        //2)把当前load指令的寄存器编号修改成映射中存储的寄存器编号
+        reg_replace_map[GetResultRegNo(loadI)] =GetResultRegNo( CSEiter->second);
+        //3)标记flag为true(?)
+        flag = true;
         
     //3.如果没有在load映射中找到cse信息，则插入集合与映射中
     } else {
@@ -1436,8 +1436,8 @@ void DomTreeCSEOptimizer::processLoadInstruction(LoadInstruction* LoadI, std::ma
         //3.遍历映射中存储的等价load指令，记为I2
         for (auto I2 : LoadCSEMap[info]) {
             if(memdep_analyser->isLoadSameMemory(LoadI, I2, C) == false){continue;}
-			LoadI->PrintIR(std::cout);I2->PrintIR(std::cout);
-			std::cout<<"-----------------------------\n";
+			//LoadI->PrintIR(std::cout);I2->PrintIR(std::cout);
+			//std::cout<<"-----------------------------\n";
             //4.如果I2与该条load2加载同一块内存
             //1)该条load指令插入删除集合
             eraseSet.insert(LoadI);
@@ -1513,10 +1513,10 @@ void DomTreeCSEOptimizer::processCallInstruction(CallInstruction* CallI, std::se
     const RWInfo& rwinfo = it->second;
     //2.如果存在读写内存的操作，无法处理，直接返回
     // we only CSE independent call in this Pass
-	// if(alias_analyser->HasSideEffect(cfg))
-    if( (rwinfo.has_lib_func_call) || rwinfo.ReadRoots.size() !=0 || rwinfo.WriteRoots.size() != 0) {
-        return;
-    }
+	if(alias_analyser->HasSideEffect(cfg)|| rwinfo.ReadRoots.size() !=0){return;}
+    // if( (rwinfo.has_lib_func_call) || rwinfo.ReadRoots.size() !=0 || rwinfo.WriteRoots.size() != 0) {
+    //     return;
+    // }
     auto info = GetCSEInfo(CallI);
     auto cseIter = instCSEMap.find(info);
     //3.如果存在同等的call指令，加入删除队列中，并替换寄存器的值；如果不存在，存入信息中
