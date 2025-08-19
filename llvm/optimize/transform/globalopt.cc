@@ -17,27 +17,27 @@ void GlobalOptPass::Execute(){
 
     GlobalValTypeDef();
 
-    std::cout<<"---------------------"<<std::endl;
-    std::cout<<"NoModRef: ";
-    for(auto &inst:NoModRefGlobals){
-        std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
-    }std::cout<<std::endl;
+    // //std::cout<<"---------------------"<<std::endl;
+    // //std::cout<<"NoModRef: ";
+    // for(auto &inst:NoModRefGlobals){
+    //     //std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
+    // }//std::cout<<std::endl;
 
-    std::cout<<"Ref: ";
-    for(auto &inst:RefOnlyGlobals){
-        std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
-    }std::cout<<std::endl;
+    // //std::cout<<"Ref: ";
+    // for(auto &inst:RefOnlyGlobals){
+    //     //std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
+    // }//std::cout<<std::endl;
 
-    std::cout<<"Mod: ";
-    for(auto &inst:ModOnlyGlobals){
-        std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
-    }std::cout<<std::endl;
+    // //std::cout<<"Mod: ";
+    // for(auto &inst:ModOnlyGlobals){
+    //     //std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
+    // }//std::cout<<std::endl;
 
-    std::cout<<"ModRef: ";
-    for(auto &inst:ModRefGlobals){
-        std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
-    }std::cout<<std::endl;
-    std::cout<<"---------------------"<<std::endl;
+    // //std::cout<<"ModRef: ";
+    // for(auto &inst:ModRefGlobals){
+    //     //std::cout<<((GlobalVarDefineInstruction*)inst)->GetName()<<"  ";
+    // }//std::cout<<std::endl;
+    // //std::cout<<"---------------------"<<std::endl;
 
     ProcessGlobals();
 
@@ -274,7 +274,7 @@ void GlobalOptPass::OneDefDomAllUses(CFG* cfg){
                     if(inst->GetOpcode()==BasicInstruction::LOAD){//支配且非同一块，才替换
                         int use_regno=inst->GetDefRegno();
                         replace_map[use_regno]=def_value;
-                        //std::cout<<"需要将 "<<use_regno<<" 的寄存器替换为 "<<def_value->GetFullName()<<std::endl;
+                        ////std::cout<<"需要将 "<<use_regno<<" 的寄存器替换为 "<<def_value->GetFullName()<<std::endl;
                     }
                     // }else if(inst->GetOpcode()==BasicInstruction::CALL){//若同一块，则不删store了；非同一块，添加store
                     // }
@@ -318,12 +318,12 @@ void GlobalOptPass::ApproxiMem2reg(){
            %r3 = load  @a           
            use %r3                  use %r2
     */
-    //std::cout<<"<================= EliminateRedundantLS =====================>"<<std::endl<<std::endl;
+    ////std::cout<<"<================= EliminateRedundantLS =====================>"<<std::endl<<std::endl;
     EliminateRedundantLS();
 
     for(auto &[defI,cfg]:llvmIR->llvm_cfg){
         
-        //std::cout<<"<=================    Gather Infomation =====================>"<<std::endl<<std::endl;
+        ////std::cout<<"<=================    Gather Infomation =====================>"<<std::endl<<std::endl;
         //【1】收集信息
         def_blocks.clear();
         use_blocks.clear();
@@ -388,7 +388,7 @@ void GlobalOptPass::ApproxiMem2reg(){
         }
 
         //【2】处理OneDefDomAllUses : 用该def的value替换所有load处的res
-        //std::cout<<"<================= OneDefDomAllUses =====================>"<<std::endl<<std::endl;
+        ////std::cout<<"<================= OneDefDomAllUses =====================>"<<std::endl<<std::endl;
         OneDefDomAllUses(cfg);
     }
 

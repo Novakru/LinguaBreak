@@ -35,6 +35,7 @@ public:
     BasicBlockCSEOptimizer(CFG* cfg,LLVMIR *ir,AliasAnalysisPass *aa,DomAnalysis* dom,SimpleMemDepAnalyser* ma) : C(cfg), llvmIR(ir),alias_analyser(aa),domtrees(dom),memdep_analyser(ma),changed(false),flag(false),hasMemOp(true) {}
     bool optimize();
     void NoMemoptimize();
+    void setMemOp(bool enable) { hasMemOp = enable; }
     bool hasMemOp;
 private:
     CFG* C;
@@ -79,6 +80,7 @@ private:
     CFG* C;
     bool changed;
     bool branch_changed;
+    bool hasMemOp;
     std::set<Instruction> eraseSet;
     std::map<InstCSEInfo, int> instCSEMap;
     //std::map<InstCSEInfo, std::vector<Instruction>> loadCSEMap;
@@ -88,13 +90,15 @@ private:
     std::map<InstCSEInfo, std::vector<Instruction>> LoadCSEMap;
     AliasAnalysisPass *alias_analyser;
     SimpleMemDepAnalyser* memdep_analyser;
+    bool tmp;
 
 public:
-    DomTreeCSEOptimizer(CFG* cfg,AliasAnalysisPass * aa,SimpleMemDepAnalyser* ma, DomAnalysis * dom) : C(cfg),alias_analyser(aa), memdep_analyser(ma),domtrees(dom),changed(true),branch_changed(true) {}
+    DomTreeCSEOptimizer(CFG* cfg,AliasAnalysisPass * aa,SimpleMemDepAnalyser* ma, DomAnalysis * dom) : C(cfg),alias_analyser(aa), memdep_analyser(ma),domtrees(dom),changed(true),branch_changed(true),hasMemOp(true) {}
     void optimize();
     void branch_optimize();
     void no_mem_optimize();
     void branch_end();
+    void setMemOp(bool enable) { hasMemOp = enable; }
 private:
     void dfs(int bbid);
     void branch_dfs(int bbid);
@@ -117,6 +121,10 @@ private:
     DomAnalysis *domtrees;
     AliasAnalysisPass *alias_analyser;
     SimpleMemDepAnalyser* memdep_analyser;
+    // 新增：维护函数名到其所有call指令的映射
+    std::map<std::string, std::vector<CallInstruction*>> funcCallMap;
+    // 新增：维护函数名到是否可以进行内存优化的映射
+    std::map<std::string, bool> canMemOpMap;
 
 public:
     SimpleCSEPass(LLVMIR *IR, DomAnalysis *dom,AliasAnalysisPass* aa) : IRPass(IR),alias_analyser(aa) { domtrees = dom; }
@@ -128,6 +136,10 @@ public:
     void SimpleDomTreeWalkCSE(CFG* C);
     void DomtreeExecute();//包含branch
     void BNExecute();
+    
+    // 新增方法
+    void buildFuncCallMap();
+    bool canMemOp(const std::string& funcName);
 };
 // class BranchCSEPass : public IRPass { 
 // private:

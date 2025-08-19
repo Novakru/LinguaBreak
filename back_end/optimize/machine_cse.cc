@@ -145,53 +145,53 @@
 //     }
 //     return false;
 // }
+// void RiscV64CSE::dfs(int bbid)
+// {
+//     std::set<MachineBaseInstruction *> tmpcse_set;
 
+//     auto C = current_func->getMachineCFG();
+//     MachineBlock *now = C->GetNodeByBlockId(bbid)->Mblock;
+//     for (auto it = now->begin(); it != now->end(); ++it) {
+//         auto I = *it;
+//         //1.跳过不需要cse的指令
+//         if (!IsNeedCSE(I)) {
+//             continue;
+//         }
+//         bool is_cse = false;
+//         //2.在CSE_SET中查找相同指令
+//         for (auto oldI : CSESet) {
+//             if (isSameInst(I, oldI)) {
+// #ifdef MachineCSE_DEBUG
+//                 std::cerr << GetCSEInstInfo(oldI) << "\n";
+//                 std::cerr << GetCSEInstInfo(I) << "\n\n";
+// #endif
+
+//                 is_cse = true;
+//                 is_changed = true;
+//                 auto vw1 = oldI->GetWriteReg();
+//                 auto vw2 = I->GetWriteReg();
+//                 assert(vw1.size() == 1 && vw2.size() == 1);
+//                 regreplace_map[vw2[0]->reg_no] = vw1[0]->reg_no;
+//                 break;
+//             }
+//         }
+//         if (!is_cse) {
+//             tmpcse_set.insert(I);
+//             CSESet.insert(I);
+//         }
+//     }
+//     for (auto v : C->DomTree->dom_tree[bbid]) {
+//         dfs(v->getLabelId());
+//     }
+
+//     for (auto I : tmpcse_set) {
+//         CSESet.erase(I);
+//     }
+// }
 // void RiscV64CSE::CSEInCurrFunc() {
 //     bool is_changed = true;
 //     std::set<MachineBaseInstruction *> CSESet;
 //     std::map<int, int> regreplace_map;
-//     std::function<void(int)> dfs = [&](int bbid) {
-//         std::set<MachineBaseInstruction *> tmpcse_set;
-
-//         auto C = current_func->getMachineCFG();
-//         MachineBlock *now = C->GetNodeByBlockId(bbid)->Mblock;
-//         for (auto it = now->begin(); it != now->end(); ++it) {
-//             auto I = *it;
-//             //1.跳过不需要cse的指令
-//             if (!IsNeedCSE(I)) {
-//                 continue;
-//             }
-//             bool is_cse = false;
-//             //2.在CSE_SET中查找相同指令
-//             for (auto oldI : CSESet) {
-//                 if (isSameInst(I, oldI)) {
-// #ifdef MachineCSE_DEBUG
-//                     std::cerr << GetCSEInstInfo(oldI) << "\n";
-//                     std::cerr << GetCSEInstInfo(I) << "\n\n";
-// #endif
-
-//                     is_cse = true;
-//                     is_changed = true;
-//                     auto vw1 = oldI->GetWriteReg();
-//                     auto vw2 = I->GetWriteReg();
-//                     assert(vw1.size() == 1 && vw2.size() == 1);
-//                     regreplace_map[vw2[0]->reg_no] = vw1[0]->reg_no;
-//                     break;
-//                 }
-//             }
-//             if (!is_cse) {
-//                 tmpcse_set.insert(I);
-//                 CSESet.insert(I);
-//             }
-//         }
-//         for (auto v : C->DomTree->dom_tree[bbid]) {
-//             dfs(v->getLabelId());
-//         }
-
-//         for (auto I : tmpcse_set) {
-//             CSESet.erase(I);
-//         }
-//     };
 //     // 1.循环优化直到无变化
 //     while (is_changed) {
 //         CSESet.clear();

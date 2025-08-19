@@ -499,20 +499,12 @@ bool SimpleMemDepAnalyser::isLoadSameMemory(Instruction a, Instruction b, CFG *C
         ptr2 = ((StoreInstruction *)b)->GetPointer();
     }
     else{assert(false);}
-    // if(ptr1->GetOperandType()==BasicOperand::GLOBAL&&ptr2->GetOperandType()==BasicOperand::GLOBAL
-    // &&ptr1->GetFullName()!=ptr2->GetFullName())
-    // {
-    //     return false;
-    // }
-    // if(ptr1->GetOperandType()==BasicOperand::GLOBAL&&ptr2->GetOperandType()==BasicOperand::GLOBAL
-    // &&ptr1->GetFullName()==ptr2->GetFullName())
-    // {
-    //     // if(alias_analyser->QueryAlias(ptr1, ptr2, C) != AliasStatus::MustAlias)//如果处理的内存不同，直接返回假
-    //     // {
-    //     //     return false;
-    //     // }
-    //     return false;
-    // }
+    //if(alias_analyser->QueryAlias(ptr1,ptr2,C)==NoAlias){return false;}//false
+    if(ptr1->GetOperandType()==BasicOperand::REG&&ptr2->GetOperandType()==BasicOperand::REG)
+    {//true
+       return false;
+    } 
+
     int id1 = a->GetBlockID();
     int id2 = b->GetBlockID();
     auto bb1=(*C->block_map)[id1];

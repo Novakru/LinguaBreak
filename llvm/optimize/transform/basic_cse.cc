@@ -4,7 +4,7 @@
 #include<functional>
 #include <stack>
 
-// #define CSE_DEBUG
+//#define CSE_DEBUG
 
 #ifdef CSE_DEBUG
 #define CSE_DEBUG_PRINT(x) do { x; } while(0)
@@ -24,6 +24,22 @@ static InstCSEInfo GetCSEInfo(Instruction inst) {
     std::string op1, op2;
     
     switch(info.opcode) {
+        case BasicInstruction::LOAD: {
+            auto load_inst = static_cast<LoadInstruction*>(inst);
+            auto ptr = load_inst->GetPointer();
+            
+            // 检查是否是对全局变量的load
+            if (ptr->GetOperandType() == BasicOperand::GLOBAL) {
+                // 对于全局变量的load，添加一个特殊标识，避免CSE优化
+                info.operand_list.push_back("GLOBAL_LOAD_" + ptr->GetFullName());
+                // 添加指令的唯一标识，确保每个全局变量load都被视为不同的
+                info.operand_list.push_back("INST_" + std::to_string(reinterpret_cast<uintptr_t>(inst)));
+            } else {
+                // 对于非全局变量的load，正常处理
+                info.operand_list.push_back(ptr->GetFullName());
+            }
+            break;
+        }
         case BasicInstruction::CALL: {
             auto call_inst = static_cast<CallInstruction*>(inst);
             info.operand_list.push_back(call_inst->GetFunctionName());
@@ -358,275 +374,275 @@ bool BasicBlockCSEOptimizer::processBlock(LLVMBlock bb) {
 }
 
 void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
-    // std::cout<<"[CSE] Processing call instruction: "<<CallI->GetFunctionName()<<std::endl;
-    // //1.不处理外部调用（lib_func），清理即可
-    // if (cfgTable.find(CallI->GetFunctionName()) == cfgTable.end()) {
-    //     std::cout<<"[CSE] External call detected, clearing all CSE info"<<std::endl;
-    //     clearAllCSEInfo();
-    //     return;    // external call, clear all instructions
-    // }
-    // //2.获取cfg与cfg对应的读写内存信息
-    // auto cfg = cfgTable[CallI->GetFunctionName()];
-    // if(cfg==nullptr){return;}
-    // //std::cout<<"getcfg\n";
-    // auto& rwmap = alias_analyser->GetRWMap();
-    // auto it = rwmap.find(cfg);
-    // if (it == rwmap.end()) {
-    //     return;
-    // }
-    // const RWInfo& rwinfo = it->second;
-    // //std::cout<<"getrwinfo\n";
-	// if(alias_analyser->HasSideEffect(cfg))
-    // // if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) // write memory, can not CSE, and will kill some Load and Call
-    // {
-    //     std::cout<<"[CSE] Call has side effects - WriteRoots: "<<rwinfo.WriteRoots.size()<<", has_lib_func_call: "<<rwinfo.has_lib_func_call<<std::endl;
-    //     inst_map.clear();//新增，清除普通指令
-    //     InstSet.clear();
-    //     //std::cout<<"write call\n";
-    //     //CallI->PrintIR(std::cerr);
-    //     //1.如果是外部函数调用，清理后直接返回
-    //     if (cfgTable.find(CallI->GetFunctionName()) == cfgTable.end()) {
-    //         // for simple, we do not consider independent call there, this can be CSE in DomTreeWalkCSE
-    //         // I->PrintIR(std::cerr);std::cerr<<"kill everything\n";
-    //         inst_clear();
-    //         return;    // external call
-    //     }
-    //     auto cfg = cfgTable[CallI->GetFunctionName()];
-    //     assert(cfg!=nullptr);
-    //     auto& rwmap = alias_analyser->GetRWMap();
-    //     auto it = rwmap.find(cfg);
-    //     assert(it!= rwmap.end());
-    //     const RWInfo& rwinfo = it->second;
-    //     //2.如果当前控制流图中有外部函数调用，也清理后直接返回
-    //     if (rwinfo.has_lib_func_call) {
-    //         std::cout<<"[CSE] Call contains lib function call, clearing all CSE info"<<std::endl;
-    //         // for simple, we do not consider independent call there, this can be CSE in DomTreeWalkCSE
-    //         // I->PrintIR(std::cerr);std::cerr<<"kill everything\n";
-    //         inst_clear();
-    //         return;
-    //     }
-    //     //3.当前控制流图中没有外部函数调用，遍历Load集合
-    //     for (auto it = LoadInstSet.begin(); it != LoadInstSet.end();) {
-    //         //1)获取load指令指向的内存位置PTR
-    //         assert((*it)->GetOpcode() == BasicInstruction::LOAD);
-    //         auto LoadI = (LoadInstruction *)(*it);
-    //         auto ptr = LoadI->GetPointer();
-    //         //2)查询当前call指令是否修改了内存PTR
-    //         auto result = alias_analyser->QueryInstModRef(CallI, ptr, C);
-    //         //3)如果当前call指令修改了某load指令的内存，则从映射和集合中删除该load指令
-    //         if (result == ModRefStatus::Mod || result ==ModRefStatus::ModRef) {
-    //             // I->PrintIR(std::cerr);std::cerr<<"kill ";(*it)->PrintIR(std::cerr);
+    //std::cout<<"[CSE] Processing call instruction: "<<CallI->GetFunctionName()<<std::endl;
+    //1.不处理外部调用（lib_func），清理即可
+    if (cfgTable.find(CallI->GetFunctionName()) == cfgTable.end()) {
+        //std::cout<<"[CSE] External call detected, clearing all CSE info"<<std::endl;
+        clearAllCSEInfo();
+        return;    // external call, clear all instructions
+    }
+    //2.获取cfg与cfg对应的读写内存信息
+    auto cfg = cfgTable[CallI->GetFunctionName()];
+    if(cfg==nullptr){return;}
+    //std::cout<<"getcfg\n";
+    auto& rwmap = alias_analyser->GetRWMap();
+    auto it = rwmap.find(cfg);
+    if (it == rwmap.end()) {
+        return;
+    }
+    const RWInfo& rwinfo = it->second;
+    //std::cout<<"getrwinfo\n";
+	if(alias_analyser->HasSideEffect(cfg))
+    // if (!rwinfo.WriteRoots.empty() || rwinfo.has_lib_func_call) // write memory, can not CSE, and will kill some Load and Call
+    {
+        //std::cout<<"[CSE] Call has side effects - WriteRoots: "<<rwinfo.WriteRoots.size()<<", has_lib_func_call: "<<rwinfo.has_lib_func_call<<std::endl;
+        inst_map.clear();//新增，清除普通指令
+        InstSet.clear();
+        //std::cout<<"write call\n";
+        //CallI->PrintIR(std::cerr);
+        //1.如果是外部函数调用，清理后直接返回
+        if (cfgTable.find(CallI->GetFunctionName()) == cfgTable.end()) {
+            // for simple, we do not consider independent call there, this can be CSE in DomTreeWalkCSE
+            // I->PrintIR(std::cerr);std::cerr<<"kill everything\n";
+            inst_clear();
+            return;    // external call
+        }
+        auto cfg = cfgTable[CallI->GetFunctionName()];
+        assert(cfg!=nullptr);
+        auto& rwmap = alias_analyser->GetRWMap();
+        auto it = rwmap.find(cfg);
+        assert(it!= rwmap.end());
+        const RWInfo& rwinfo = it->second;
+        //2.如果当前控制流图中有外部函数调用，也清理后直接返回
+        if (rwinfo.has_lib_func_call) {
+            //std::cout<<"[CSE] Call contains lib function call, clearing all CSE info"<<std::endl;
+            // for simple, we do not consider independent call there, this can be CSE in DomTreeWalkCSE
+            // I->PrintIR(std::cerr);std::cerr<<"kill everything\n";
+            inst_clear();
+            return;
+        }
+        //3.当前控制流图中没有外部函数调用，遍历Load集合
+        for (auto it = LoadInstSet.begin(); it != LoadInstSet.end();) {
+            //1)获取load指令指向的内存位置PTR
+            assert((*it)->GetOpcode() == BasicInstruction::LOAD);
+            auto LoadI = (LoadInstruction *)(*it);
+            auto ptr = LoadI->GetPointer();
+            //2)查询当前call指令是否修改了内存PTR
+            auto result = alias_analyser->QueryInstModRef(CallI, ptr, C);
+            //3)如果当前call指令修改了某load指令的内存，则从映射和集合中删除该load指令
+            if (result == ModRefStatus::Mod || result ==ModRefStatus::ModRef) {
+                // I->PrintIR(std::cerr);std::cerr<<"kill ";(*it)->PrintIR(std::cerr);
 
-    //             LoadInstMap.erase(GetCSEInfo(*it));
-    //             it = LoadInstSet.erase(it);
-    //         //4)反之遍历下一条指令
-    //         } else {
-    //             ++it;
-    //         }
-    //     }
-    //     //4.获取call指令修改的内存集合，逐一遍历，存储实际写入的指针
-    //     auto writeptrs = rwinfo.WriteRoots;
-    //     std::vector<Operand> real_writeptrs;//存储实际写入地址
-    //     // for (auto ptr : writeptrs) {
-    //     //     real_writeptrs.push_back(ptr);
-    //     // }
-    //     auto& glmap = alias_analyser->GetPtrMap();
-    //     auto glptrs=glmap[cfg];
-    //     for(auto [regno,ptrinfo]:glptrs)
-    //     {
-    //         for(auto ptr:ptrinfo->AliasOps)
-    //         {
-    //             if (ptr->GetOperandType() == BasicOperand::GLOBAL) {
-    //                 real_writeptrs.push_back(ptr);
-    //             }
-    //             else if (ptr->GetOperandType() == BasicOperand::REG) {
-    //                 int ptr_regno = ((RegOperand *)ptr)->GetRegNo();
-    //                 //std::cerr<<"ptr_regno= "<<ptr_regno<<"; call_param_size= "<< CallI->GetParameterList().size()<<"\n";
-    //                 //assert(ptr_regno < CallI->GetParameterList().size());
-    //                 if(ptr_regno< CallI->GetParameterList().size())
-    //                 {
-    //                     auto [type, real_ptr2] = CallI->GetParameterList()[ptr_regno];
-    //                     real_writeptrs.push_back(real_ptr2);
-    //                 }
-    //                 else
-    //                 {
-    //                     real_writeptrs.push_back(ptr);
-    //                 }
-    //             } else {    // should not reach here
-    //                 assert(false);
-    //             }
-    //         }
-    //     }
-    //     for (auto ptr : writeptrs) {
-    //         //1)如果为全局变量，直接加入向量
-    //         if (ptr->GetOperandType() == BasicOperand::GLOBAL) {
-    //             real_writeptrs.push_back(ptr);
-    //         //2)如果为局部变量（寄存器），那么一定在参数列表，获取调用时传入的实际指针(别名分析已经获取实际指针)
-    //         //如果有修改函数参数列表的优化，需要在此处优化之后进行
-    //         } else if (ptr->GetOperandType() == BasicOperand::REG) {
-    //             int ptr_regno = ((RegOperand *)ptr)->GetRegNo();
-    //             //std::cerr<<"ptr_regno= "<<ptr_regno<<"; call_param_size= "<< CallI->GetParameterList().size()<<"\n";
-    //             //assert(ptr_regno < CallI->GetParameterList().size());
-    //             if(ptr_regno< CallI->GetParameterList().size())
-    //             {
-    //                 auto [type, real_ptr2] = CallI->GetParameterList()[ptr_regno];
-    //                 real_writeptrs.push_back(real_ptr2);
-    //             }
-    //             else
-    //             {
-    //                 real_writeptrs.push_back(ptr);
-    //             }
-    //         } else {    // should not reach here
-    //             assert(false);
-    //         }
-    //     }
-    //     //5.遍历call指令集合
-    //     for (auto it = CallInstSet.begin(); it != CallInstSet.end();) {
-    //         assert((*it)->GetOpcode() == BasicInstruction::CALL);
-    //         bool is_needkill = false;
-    //         //1）如果存在call指令修改了当前call指令的内存，则标记冲突（？自己和自己不会冲突吗）
-    //         for (auto ptr : real_writeptrs) {
-    //             if (alias_analyser->QueryInstModRef(*it, ptr, C) != ModRefStatus::NoModRef) {
-    //                 is_needkill = true;
-    //                 break;
-    //             }
-    //         }
-    //         //2)将冲突的call指令从callinstmap中删除
-    //         if (is_needkill) {
-    //             std::cout<<"[CSE] Killing conflicting call instruction due to memory conflict"<<std::endl;
-    //             // I->PrintIR(std::cerr);std::cerr<<"kill ";(*it)->PrintIR(std::cerr);
-    //             CallInstMap.erase(GetCSEInfo(*it));
-    //             it = CallInstSet.erase(it);
-    //         } else {
-    //             ++it;
-    //         }
-    //     }
-    // }
-    // else    // only read memory, we can CSE
-    // {
-    //     std::cout<<"[CSE] Call is read-only, attempting CSE"<<std::endl;
-    //     //std::cout<<"read call\n";
-    //     auto Info = GetCSEInfo(CallI);
-    //     auto CSEiter = CallInstMap.find(Info);
-    //     if (CSEiter != CallInstMap.end()) {
-    //         std::cout<<"[CSE] *** CSE ELIMINATION: Eliminating duplicate call instruction ***"<<std::endl;
-    //         std::cout<<"[CSE] Original call result reg: "<<CSEiter->second<<", Current call result reg: "<<GetResultRegNo(CallI)<<std::endl;
-    //         erase_set.insert(CallI);
-    //         reg_replace_map[GetResultRegNo(CallI)] = CSEiter->second;
-    //         flag= true;
-    //     } else {
-    //         std::cout<<"[CSE] Adding call to CSE map for future elimination"<<std::endl;
-    //         CallInstSet.insert(CallI);
-    //         CallInstMap.insert({Info, GetResultRegNo(CallI)});
-    //     }
-    // } 
+                LoadInstMap.erase(GetCSEInfo(*it));
+                it = LoadInstSet.erase(it);
+            //4)反之遍历下一条指令
+            } else {
+                ++it;
+            }
+        }
+        //4.获取call指令修改的内存集合，逐一遍历，存储实际写入的指针
+        auto writeptrs = rwinfo.WriteRoots;
+        std::vector<Operand> real_writeptrs;//存储实际写入地址
+        // for (auto ptr : writeptrs) {
+        //     real_writeptrs.push_back(ptr);
+        // }
+        auto& glmap = alias_analyser->GetPtrMap();
+        auto glptrs=glmap[cfg];
+        for(auto [regno,ptrinfo]:glptrs)
+        {
+            for(auto ptr:ptrinfo->AliasOps)
+            {
+                if (ptr->GetOperandType() == BasicOperand::GLOBAL) {
+                    real_writeptrs.push_back(ptr);
+                }
+                else if (ptr->GetOperandType() == BasicOperand::REG) {
+                    int ptr_regno = ((RegOperand *)ptr)->GetRegNo();
+                    //std::cerr<<"ptr_regno= "<<ptr_regno<<"; call_param_size= "<< CallI->GetParameterList().size()<<"\n";
+                    //assert(ptr_regno < CallI->GetParameterList().size());
+                    if(ptr_regno< CallI->GetParameterList().size())
+                    {
+                        auto [type, real_ptr2] = CallI->GetParameterList()[ptr_regno];
+                        real_writeptrs.push_back(real_ptr2);
+                    }
+                    else
+                    {
+                        real_writeptrs.push_back(ptr);
+                    }
+                } else {    // should not reach here
+                    assert(false);
+                }
+            }
+        }
+        for (auto ptr : writeptrs) {
+            //1)如果为全局变量，直接加入向量
+            if (ptr->GetOperandType() == BasicOperand::GLOBAL) {
+                real_writeptrs.push_back(ptr);
+            //2)如果为局部变量（寄存器），那么一定在参数列表，获取调用时传入的实际指针(别名分析已经获取实际指针)
+            //如果有修改函数参数列表的优化，需要在此处优化之后进行
+            } else if (ptr->GetOperandType() == BasicOperand::REG) {
+                int ptr_regno = ((RegOperand *)ptr)->GetRegNo();
+                //std::cerr<<"ptr_regno= "<<ptr_regno<<"; call_param_size= "<< CallI->GetParameterList().size()<<"\n";
+                //assert(ptr_regno < CallI->GetParameterList().size());
+                if(ptr_regno< CallI->GetParameterList().size())
+                {
+                    auto [type, real_ptr2] = CallI->GetParameterList()[ptr_regno];
+                    real_writeptrs.push_back(real_ptr2);
+                }
+                else
+                {
+                    real_writeptrs.push_back(ptr);
+                }
+            } else {    // should not reach here
+                assert(false);
+            }
+        }
+        //5.遍历call指令集合
+        for (auto it = CallInstSet.begin(); it != CallInstSet.end();) {
+            assert((*it)->GetOpcode() == BasicInstruction::CALL);
+            bool is_needkill = false;
+            //1）如果存在call指令修改了当前call指令的内存，则标记冲突（？自己和自己不会冲突吗）
+            for (auto ptr : real_writeptrs) {
+                if (alias_analyser->QueryInstModRef(*it, ptr, C) != ModRefStatus::NoModRef) {
+                    is_needkill = true;
+                    break;
+                }
+            }
+            //2)将冲突的call指令从callinstmap中删除
+            if (is_needkill) {
+                //std::cout<<"[CSE] Killing conflicting call instruction due to memory conflict"<<std::endl;
+                // I->PrintIR(std::cerr);std::cerr<<"kill ";(*it)->PrintIR(std::cerr);
+                CallInstMap.erase(GetCSEInfo(*it));
+                it = CallInstSet.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    else    // only read memory, we can CSE
+    {
+        //std::cout<<"[CSE] Call is read-only, attempting CSE"<<std::endl;
+        //std::cout<<"read call\n";
+        auto Info = GetCSEInfo(CallI);
+        auto CSEiter = CallInstMap.find(Info);
+        if (CSEiter != CallInstMap.end()) {
+            //std::cout<<"[CSE] *** CSE ELIMINATION: Eliminating duplicate call instruction ***"<<std::endl;
+            //std::cout<<"[CSE] Original call result reg: "<<CSEiter->second<<", Current call result reg: "<<GetResultRegNo(CallI)<<std::endl;
+            erase_set.insert(CallI);
+            reg_replace_map[GetResultRegNo(CallI)] = CSEiter->second;
+            flag= true;
+        } else {
+            //std::cout<<"[CSE] Adding call to CSE map for future elimination"<<std::endl;
+            CallInstSet.insert(CallI);
+            CallInstMap.insert({Info, GetResultRegNo(CallI)});
+        }
+    } 
 
 }
 
 void BasicBlockCSEOptimizer::processStoreInstruction(StoreInstruction* StoreI) {
-//     // store instructions, this will kill some loads
-//     //1.删除与当前store指令涉及同一处内存的，call指令与load指令
-//     auto ptr =StoreI->GetPointer();
+    // store instructions, this will kill some loads
+    //1.删除与当前store指令涉及同一处内存的，call指令与load指令
+    auto ptr =StoreI->GetPointer();
     
-//     //2.遍历load指令集合
-//     for (auto it = LoadInstSet.begin(); it != LoadInstSet.end();) {
-//         //1)如果存在load指令加载了此处内存，则从load指令集合中删除该条load指令
-//         auto result = alias_analyser->QueryInstModRef(*it, ptr, C);
-//         auto ptr2=((LoadInstruction*)(*it))->GetPointer();
-//         if ((result == ModRefStatus::Ref||result==ModRefStatus::ModRef)||alias_analyser->QueryAlias(ptr,ptr2,C)==MustAlias) {    // if load instruction ref the ptr of store instruction
-//             // I->PrintIR(std::cerr);std::cerr<<"kill ";(*it)->PrintIR(std::cerr);
+    //2.遍历load指令集合
+    for (auto it = LoadInstSet.begin(); it != LoadInstSet.end();) {
+        //1)如果存在load指令加载了此处内存，则从load指令集合中删除该条load指令
+        auto result = alias_analyser->QueryInstModRef(*it, ptr, C);
+        auto ptr2=((LoadInstruction*)(*it))->GetPointer();
+        if ((result == ModRefStatus::Ref||result==ModRefStatus::ModRef)||alias_analyser->QueryAlias(ptr,ptr2,C)==MustAlias) {    // if load instruction ref the ptr of store instruction
+            // I->PrintIR(std::cerr);std::cerr<<"kill ";(*it)->PrintIR(std::cerr);
 
-//             LoadInstMap.erase(GetCSEInfo(*it));
-//             it = LoadInstSet.erase(it);
-//         //2)反之遍历下一条即可
-//         } else {
-//             ++it;
-//         }
-//     }
-//     //3.遍历call指令集合
-//     for (auto it = CallInstSet.begin(); it != CallInstSet.end();) {
-//         //1)如果call指令读取或修改了此处内存，则从映射和集合中删除该条call指令
-//         auto result = alias_analyser->QueryInstModRef(*it, ptr, C);
-//         if (result != ModRefStatus::NoModRef) {
-//             // I->PrintIR(std::cerr);std::cerr<<"kill ";(*it)->PrintIR(std::cerr);
+            LoadInstMap.erase(GetCSEInfo(*it));
+            it = LoadInstSet.erase(it);
+        //2)反之遍历下一条即可
+        } else {
+            ++it;
+        }
+    }
+    //3.遍历call指令集合
+    for (auto it = CallInstSet.begin(); it != CallInstSet.end();) {
+        //1)如果call指令读取或修改了此处内存，则从映射和集合中删除该条call指令
+        auto result = alias_analyser->QueryInstModRef(*it, ptr, C);
+        if (result != ModRefStatus::NoModRef) {
+            // I->PrintIR(std::cerr);std::cerr<<"kill ";(*it)->PrintIR(std::cerr);
 
-//             CallInstMap.erase(GetCSEInfo(*it));
-//             it = CallInstSet.erase(it);
-//         } else {
-//             ++it;
-//         }
-//     }
+            CallInstMap.erase(GetCSEInfo(*it));
+            it = CallInstSet.erase(it);
+        } else {
+            ++it;
+        }
+    }
 
-//     /* then the store can generate a new load value
-//         store %rx -> ptr %p0
-//         %ry = load ptr %p0
-//         this will be optimized to %ry = %rx
-//     */
-//    //2.确保已经把所有store 立即数的指令转换成 store 寄存器的指令
-//     assert(StoreI->GetValue()->GetOperandType() == BasicOperand::REG);
-//     //3.获取寄存器编号
-//     int val_regno = ((RegOperand *)StoreI->GetValue())->GetRegNo();
+    /* then the store can generate a new load value
+        store %rx -> ptr %p0
+        %ry = load ptr %p0
+        this will be optimized to %ry = %rx
+    */
+   //2.确保已经把所有store 立即数的指令转换成 store 寄存器的指令
+    assert(StoreI->GetValue()->GetOperandType() == BasicOperand::REG);
+    //3.获取寄存器编号
+    int val_regno = ((RegOperand *)StoreI->GetValue())->GetRegNo();
     
-//     if (reg_replace_map.find(val_regno) != reg_replace_map.end()) {
-//         val_regno = reg_replace_map[val_regno];
-//     }
-//     for(auto it = InstSet.begin(); it !=InstSet.end();)
-//     {
-//         auto ins=*it;
-//         int f=false;
-//         for(auto regno:ins->GetUseRegno())
-//         {
-//             if(regno==val_regno)
-//             {
-//                 f=true;
-//             }
-//         }
-//         if(f)
-//         {
-//             inst_map.erase(GetCSEInfo(*it));
-//             it = InstSet.erase(it);
-//         }
-//         else
-//         {
-//             ++it;
-//         }
+    if (reg_replace_map.find(val_regno) != reg_replace_map.end()) {
+        val_regno = reg_replace_map[val_regno];
+    }
+    for(auto it = InstSet.begin(); it !=InstSet.end();)
+    {
+        auto ins=*it;
+        int f=false;
+        for(auto regno:ins->GetUseRegno())
+        {
+            if(regno==val_regno)
+            {
+                f=true;
+            }
+        }
+        if(f)
+        {
+            inst_map.erase(GetCSEInfo(*it));
+            it = InstSet.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
         
-//     }
-//     //StoreI->PrintIR(std::cerr);
-//     //4.对store生成对应的load指令，插入到load映射与集合中
-//     auto LoadI = new LoadInstruction(StoreI->GetDataType(), StoreI->GetPointer(), GetNewRegOperand(val_regno));
-//     auto Info = GetCSEInfo(LoadI);
-//     auto it=LoadInstMap.find(Info);
-//     if(it!=LoadInstMap.end())
-//     {
-//         LoadInstSet.erase(it->second);
-//         LoadInstMap.erase(it);
-//     }
-//     //LoadI->PrintIR(std::cerr);
-//     LoadInstSet.insert(LoadI);
-//     LoadInstMap.insert({Info, LoadI});
+    }
+    //StoreI->PrintIR(std::cerr);
+    //4.对store生成对应的load指令，插入到load映射与集合中
+    auto LoadI = new LoadInstruction(StoreI->GetDataType(), StoreI->GetPointer(), GetNewRegOperand(val_regno));
+    auto Info = GetCSEInfo(LoadI);
+    auto it=LoadInstMap.find(Info);
+    if(it!=LoadInstMap.end())
+    {
+        LoadInstSet.erase(it->second);
+        LoadInstMap.erase(it);
+    }
+    //LoadI->PrintIR(std::cerr);
+    LoadInstSet.insert(LoadI);
+    LoadInstMap.insert({Info, LoadI});
 }
 
 void BasicBlockCSEOptimizer::processLoadInstruction(LoadInstruction* loadI) {
-    // //1.根据cse_info寻找对应的load指令
-    // auto Info = GetCSEInfo(loadI);
-    // auto CSEiter = LoadInstMap.find(Info);
-    // //2.如果在load映射中找到：
-    // if (CSEiter != LoadInstMap.end()) {
-    //     if(!memdep_analyser->isLoadSameMemory(loadI,CSEiter->second,C)){return;}
-    //     //1)把当前load指令插入erase_set
-    //     erase_set.insert(loadI);
-    //     // I->PrintIR(std::cerr);
-    //     //2)把当前load指令的寄存器编号修改成映射中存储的寄存器编号
-    //     reg_replace_map[GetResultRegNo(loadI)] =GetResultRegNo( CSEiter->second);
-    //     //3)标记flag为true(?)
-    //     flag = true;
+    //1.根据cse_info寻找对应的load指令
+    auto Info = GetCSEInfo(loadI);
+    auto CSEiter = LoadInstMap.find(Info);
+    //2.如果在load映射中找到：
+    if (CSEiter != LoadInstMap.end()) {
+        if(!memdep_analyser->isLoadSameMemory(loadI,CSEiter->second,C)){return;}
+        //1)把当前load指令插入erase_set
+        erase_set.insert(loadI);
+        // I->PrintIR(std::cerr);
+        //2)把当前load指令的寄存器编号修改成映射中存储的寄存器编号
+        reg_replace_map[GetResultRegNo(loadI)] =GetResultRegNo( CSEiter->second);
+        //3)标记flag为true(?)
+        flag = true;
         
-    // //3.如果没有在load映射中找到cse信息，则插入集合与映射中
-    // } else {
-    //     LoadInstSet.insert(loadI);
-    //     LoadInstMap.insert({Info, loadI});
-    // }
+    //3.如果没有在load映射中找到cse信息，则插入集合与映射中
+    } else {
+        LoadInstSet.insert(loadI);
+        LoadInstMap.insert({Info, loadI});
+    }
 }
 
 void BasicBlockCSEOptimizer::processRegularInstruction(BasicInstruction* I) {
@@ -1198,12 +1214,14 @@ void DomTreeCSEOptimizer::optimize() {
 
     while (changed) {
         changed = false;
+        tmp=changed;
 		CSE_DEBUG_PRINT(std::cout<<"changed"<<std::endl);
         dfs(0);
 		CSE_DEBUG_PRINT(std::cout<<"dfs"<<std::endl);
         removeDeadInstructions();
 		CSE_DEBUG_PRINT(std::cout<<"removeDeadInstructions"<<std::endl);
         applyRegisterReplacements();
+        changed=tmp;
     }
 
 }
@@ -1302,17 +1320,17 @@ void DomTreeCSEOptimizer::dfs(int bbid) {
         switch (I->GetOpcode()) {
             case BasicInstruction::LOAD:
 				CSE_DEBUG_PRINT(std::cout<<"load"<<std::endl);
-                processLoadInstruction(static_cast<LoadInstruction*>(I), tmpLoadNumMap);
+                if(hasMemOp){processLoadInstruction(static_cast<LoadInstruction*>(I), tmpLoadNumMap);}
 				CSE_DEBUG_PRINT(std::cout<<"load end"<<std::endl);
                 break;
             case BasicInstruction::STORE:
 				CSE_DEBUG_PRINT(std::cout<<"store"<<std::endl);
-                processStoreInstruction(static_cast<StoreInstruction*>(I), tmpLoadNumMap);
+                if(hasMemOp){processStoreInstruction(static_cast<StoreInstruction*>(I), tmpLoadNumMap);}
 				CSE_DEBUG_PRINT(std::cout<<"store end"<<std::endl);
                 break;
             case BasicInstruction::CALL:
 				CSE_DEBUG_PRINT(std::cout<<"call"<<std::endl);
-                processCallInstruction(static_cast<CallInstruction*>(I),tmpCSESet);
+                if(hasMemOp){processCallInstruction(static_cast<CallInstruction*>(I),tmpCSESet);}
 				CSE_DEBUG_PRINT(std::cout<<"call end"<<std::endl);
                 break;
             default:
@@ -1325,9 +1343,9 @@ void DomTreeCSEOptimizer::dfs(int bbid) {
 
 	// if(bbid==1){
 	// 	// 打印当前eraseSet中的所有指令信息
-	// 	std::cout << "当前eraseSet中的指令如下：" << std::endl;
+	// 	//std::cout << "当前eraseSet中的指令如下：" << std::endl;
 	// 	for (const auto& inst : eraseSet) {
-	// 		inst->PrintIR(std::cout);
+	// 		inst->PrintIR(//std::cout);
 	// 	}
 	// }
     
@@ -1454,107 +1472,107 @@ void DomTreeCSEOptimizer::processFcmpInstruction(FcmpInstruction* FcmpI,std::set
 
 }
 void DomTreeCSEOptimizer::processLoadInstruction(LoadInstruction* LoadI, std::map<InstCSEInfo, int>& tmpLoadNumMap) {
-    // //1.查找是否有等价的load指令
-    // auto info = GetCSEInfo(LoadI);
-    // auto CSEiter = LoadCSEMap.find(info);
-    // bool is_cse = false;
-    // //2.如果存在等价的load指令
-    // if (CSEiter != LoadCSEMap.end()) {
-    //     //3.遍历映射中存储的等价load指令，记为I2
-    //     for (auto I2 : LoadCSEMap[info]) {
-    //         if(memdep_analyser->isLoadSameMemory(LoadI, I2, C) == false){continue;}
-	// 		//LoadI->PrintIR(std::cout);I2->PrintIR(std::cout);
-	// 		//std::cout<<"-----------------------------\n";
-    //         //4.如果I2与该条load2加载同一块内存
-    //         //1)该条load指令插入删除集合
-    //         eraseSet.insert(LoadI);
-    //         // I->PrintIR(std::cerr);
-    //         // I2->PrintIR(std::cerr);
-    //         // std::cerr<<"-----------------------------\n";
-    //         //2)如果I2是store指令，更改替代的reg;load指令同理
-    //         if (I2->GetOpcode() == BasicInstruction::STORE) {
-    //             // I->PrintIR(std::cerr);
-    //             auto StoreI2 = (StoreInstruction *)I2;
-    //             int val_regno = ((RegOperand *)StoreI2->GetValue())->GetRegNo();
-    //             if (regReplaceMap.find(val_regno) != regReplaceMap.end()) {
-    //                 val_regno = regReplaceMap[val_regno];
-    //             }
-    //             regReplaceMap[GetResultRegNo(LoadI)] = val_regno;
+    //1.查找是否有等价的load指令
+    auto info = GetCSEInfo(LoadI);
+    auto CSEiter = LoadCSEMap.find(info);
+    bool is_cse = false;
+    //2.如果存在等价的load指令
+    if (CSEiter != LoadCSEMap.end()) {
+        //3.遍历映射中存储的等价load指令，记为I2
+        for (auto I2 : LoadCSEMap[info]) {
+            if(memdep_analyser->isLoadSameMemory(LoadI, I2, C) == false){continue;}
+			//LoadI->PrintIR(//std::cout);I2->PrintIR(//std::cout);
+			//std::cout<<"-----------------------------\n";
+            //4.如果I2与该条load2加载同一块内存
+            //1)该条load指令插入删除集合
+            eraseSet.insert(LoadI);
+            // I->PrintIR(std::cerr);
+            // I2->PrintIR(std::cerr);
+            // std::cerr<<"-----------------------------\n";
+            //2)如果I2是store指令，更改替代的reg;load指令同理
+            if (I2->GetOpcode() == BasicInstruction::STORE) {
+                // I->PrintIR(std::cerr);
+                auto StoreI2 = (StoreInstruction *)I2;
+                int val_regno = ((RegOperand *)StoreI2->GetValue())->GetRegNo();
+                if (regReplaceMap.find(val_regno) != regReplaceMap.end()) {
+                    val_regno = regReplaceMap[val_regno];
+                }
+                regReplaceMap[GetResultRegNo(LoadI)] = val_regno;
 
-    //         } else if (I2->GetOpcode() == BasicInstruction::LOAD) {
+            } else if (I2->GetOpcode() == BasicInstruction::LOAD) {
 
-    //             regReplaceMap[GetResultRegNo(LoadI)] = GetResultRegNo(I2);
-    //         } else {    // should not reach here
-    //             assert(false);
-    //         }
+                regReplaceMap[GetResultRegNo(LoadI)] = GetResultRegNo(I2);
+            } else {    // should not reach here
+                assert(false);
+            }
 
-    //         changed|= true;//很可能需要改成flag
-    //         is_cse = true;
-    //         break;
-    //     }
-    // }
-    // if(!is_cse)
-    // {
-    //     LoadCSEMap[info].push_back(LoadI);
-    //     if(tmpLoadNumMap.find(info)==tmpLoadNumMap.end())
-    //     {
-    //         tmpLoadNumMap[info]=0;
-    //     }
-    //     tmpLoadNumMap[info] += 1;
-    // }
+            tmp|= true;//很可能需要改成flag
+            is_cse = true;
+            break;
+        }
+    }
+    if(!is_cse)
+    {
+        LoadCSEMap[info].push_back(LoadI);
+        if(tmpLoadNumMap.find(info)==tmpLoadNumMap.end())
+        {
+            tmpLoadNumMap[info]=0;
+        }
+        tmpLoadNumMap[info] += 1;
+    }
 }
 
 void DomTreeCSEOptimizer::processStoreInstruction(StoreInstruction* StoreI, std::map<InstCSEInfo, int>& tmpLoadNumMap) {
-    // //1.确保此时只剩下store reg的指令（通过block_cse的初始化，消除立即数版本的store)
-    // assert(StoreI->GetValue()->GetOperandType() == BasicOperand::REG);
-    // //2.如果当前寄存器已经在替换列表中，直接替换即可
-    // int val_regno = ((RegOperand *)StoreI->GetValue())->GetRegNo();
-    // if (regReplaceMap.find(val_regno) != regReplaceMap.end()) {
-    //     val_regno = regReplaceMap[val_regno];
-    // }
-    // //3.创建store对应的load指令,用它提取info,存储store指令（？为什么得用load的info)
-    // auto LoadI =
-    // new LoadInstruction(StoreI->GetDataType(), StoreI->GetPointer(), GetNewRegOperand(val_regno));
-    // auto info = GetCSEInfo(LoadI);
-    // LoadCSEMap[info].push_back(StoreI);
-    // if(tmpLoadNumMap.find(info)==tmpLoadNumMap.end())
-    // {
-    //     tmpLoadNumMap[info]=0;
-    // }
-    // tmpLoadNumMap[info] += 1;
-    // return;
+    //1.确保此时只剩下store reg的指令（通过block_cse的初始化，消除立即数版本的store)
+    assert(StoreI->GetValue()->GetOperandType() == BasicOperand::REG);
+    //2.如果当前寄存器已经在替换列表中，直接替换即可
+    int val_regno = ((RegOperand *)StoreI->GetValue())->GetRegNo();
+    if (regReplaceMap.find(val_regno) != regReplaceMap.end()) {
+        val_regno = regReplaceMap[val_regno];
+    }
+    //3.创建store对应的load指令,用它提取info,存储store指令（？为什么得用load的info)
+    auto LoadI =
+    new LoadInstruction(StoreI->GetDataType(), StoreI->GetPointer(), GetNewRegOperand(val_regno));
+    auto info = GetCSEInfo(LoadI);
+    LoadCSEMap[info].push_back(StoreI);
+    if(tmpLoadNumMap.find(info)==tmpLoadNumMap.end())
+    {
+        tmpLoadNumMap[info]=0;
+    }
+    tmpLoadNumMap[info] += 1;
+    return;
 }
 
 void DomTreeCSEOptimizer::processCallInstruction(CallInstruction* CallI, std::set<InstCSEInfo>& regularCseSet) {
-    // //1.如果是库函数调用，无法处理，直接返回
-    // if (cfgTable.find(CallI->GetFunctionName()) == cfgTable.end()) {
-    //     return;    // external call
+    //1.如果是库函数调用，无法处理，直接返回
+    if (cfgTable.find(CallI->GetFunctionName()) == cfgTable.end()) {
+        return;    // external call
+    }
+    auto cfg = cfgTable[CallI->GetFunctionName()];
+    if(cfg==nullptr){return;}
+    auto& rwmap = alias_analyser->GetRWMap();
+    auto it = rwmap.find(cfg);
+    if (it == rwmap.end()) {
+            return;
+    }
+    const RWInfo& rwinfo = it->second;
+    //2.如果存在读写内存的操作，无法处理，直接返回
+    // we only CSE independent call in this Pass
+	if(alias_analyser->HasSideEffect(cfg)|| rwinfo.ReadRoots.size() !=0){return;}
+    // if( (rwinfo.has_lib_func_call) || rwinfo.ReadRoots.size() !=0 || rwinfo.WriteRoots.size() != 0) {
+    //     return;
     // }
-    // auto cfg = cfgTable[CallI->GetFunctionName()];
-    // if(cfg==nullptr){return;}
-    // auto& rwmap = alias_analyser->GetRWMap();
-    // auto it = rwmap.find(cfg);
-    // if (it == rwmap.end()) {
-    //         return;
-    // }
-    // const RWInfo& rwinfo = it->second;
-    // //2.如果存在读写内存的操作，无法处理，直接返回
-    // // we only CSE independent call in this Pass
-	// if(alias_analyser->HasSideEffect(cfg)|| rwinfo.ReadRoots.size() !=0){return;}
-    // // if( (rwinfo.has_lib_func_call) || rwinfo.ReadRoots.size() !=0 || rwinfo.WriteRoots.size() != 0) {
-    // //     return;
-    // // }
-    // auto info = GetCSEInfo(CallI);
-    // auto cseIter = instCSEMap.find(info);
-    // //3.如果存在同等的call指令，加入删除队列中，并替换寄存器的值；如果不存在，存入信息中
-    // if (cseIter != instCSEMap.end()) {
-    //     eraseSet.insert(CallI);
-    //     regReplaceMap[GetResultRegNo(CallI)] = cseIter->second;
-    //     changed|= true;
-    // } else {
-    //     instCSEMap[info] = GetResultRegNo(CallI);
-    //     regularCseSet.insert(info);
-    // }
+    auto info = GetCSEInfo(CallI);
+    auto cseIter = instCSEMap.find(info);
+    //3.如果存在同等的call指令，加入删除队列中，并替换寄存器的值；如果不存在，存入信息中
+    if (cseIter != instCSEMap.end()) {
+        eraseSet.insert(CallI);
+        regReplaceMap[GetResultRegNo(CallI)] = cseIter->second;
+        tmp|= true;
+    } else {
+        instCSEMap[info] = GetResultRegNo(CallI);
+        regularCseSet.insert(info);
+    }
 }
 
 void DomTreeCSEOptimizer::processRegularInstruction(BasicInstruction* I, std::set<InstCSEInfo>& regularCseSet) {
@@ -1564,7 +1582,7 @@ void DomTreeCSEOptimizer::processRegularInstruction(BasicInstruction* I, std::se
     if (cseIter != instCSEMap.end()) {
         eraseSet.insert(I);
         regReplaceMap[GetResultRegNo(I)] = cseIter->second;
-        changed|= true;
+        tmp|= true;
     } else {
         instCSEMap[info] = GetResultRegNo(I);
         regularCseSet.insert(info);
@@ -1640,15 +1658,25 @@ void SimpleCSEPass::Execute() {
 		std::string funcName = defI->GetFunctionName();
 		cfgTable[funcName] = cfg;
     }
-	CSE_DEBUG_PRINT(std::cout<<"SimpleCSEPass::Execute"<<std::endl);
+    
+    // 构建函数调用映射，检测多指针参数函数
+    buildFuncCallMap();
+    
+		CSE_DEBUG_PRINT(std::cout<<"SimpleCSEPass::Execute"<<std::endl);
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
 		CSE_DEBUG_PRINT(std::cout<<"defI: "<<defI->GetFunctionName()<<std::endl);
         CSEInit(cfg);
 		CSE_DEBUG_PRINT(std::cout<<"CSEInit"<<std::endl);
         BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser,domtrees,memdep_analyser);
+        // 根据函数名设置是否进行内存优化
+        std::string funcName = defI->GetFunctionName();
+        //std::cout<<"funcName: "<<funcName<<std::endl;
+        //std::cout<<"canMemOp(funcName): "<<canMemOp(funcName)<<std::endl;
+        optimizer.setMemOp(canMemOp(funcName));
         optimizer.optimize();
-		CSE_DEBUG_PRINT(std::cout<<"optimize"<<std::endl);
+        CSE_DEBUG_PRINT(std::cout<<"optimize"<<std::endl);
         DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
+        optimizer2.setMemOp(canMemOp(funcName));
         optimizer2.optimize();
 		CSE_DEBUG_PRINT(std::cout<<"optimize2"<<std::endl);
     }
@@ -1661,6 +1689,8 @@ void SimpleCSEPass::Execute() {
             }
         }
         DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
+        std::string funcName = defI->GetFunctionName();
+        optimizer2.setMemOp(canMemOp(funcName));
         optimizer2.branch_optimize();
     }
 	CSE_DEBUG_PRINT(std::cout<<"SimpleCSEPass::Execute3"<<std::endl);
@@ -1672,6 +1702,10 @@ void SimpleCSEPass::BNExecute() {
 		std::string funcName = defI->GetFunctionName();
 		cfgTable[funcName] = cfg;
     }
+    
+    // 构建函数调用映射，检测多指针参数函数
+    buildFuncCallMap();
+    
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         CSEInit(cfg);
         BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser,domtrees,memdep_analyser);
@@ -1685,9 +1719,17 @@ void SimpleCSEPass::BlockExecute() {
 		std::string funcName = defI->GetFunctionName();
 		cfgTable[funcName] = cfg;
     }
+    
+    // 构建函数调用映射，检测多指针参数函数
+    buildFuncCallMap();
+    
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
         CSEInit(cfg);
         BasicBlockCSEOptimizer optimizer(cfg,llvmIR,alias_analyser,domtrees,memdep_analyser);
+        // 根据函数名设置是否进行内存优化
+        std::string funcName = defI->GetFunctionName();
+
+        optimizer.setMemOp(canMemOp(funcName));
         optimizer.optimize();
     }
 }
@@ -1706,6 +1748,8 @@ void SimpleCSEPass::DomtreeExecute() {
         }
         //CSEInit(cfg);
         DomTreeCSEOptimizer optimizer2(cfg,alias_analyser,memdep_analyser,domtrees);
+        std::string funcName = defI->GetFunctionName();
+        optimizer2.setMemOp(canMemOp(funcName));
         optimizer2.optimize();
     }
     for (auto [defI, cfg] : llvmIR->llvm_cfg) {
@@ -1719,3 +1763,82 @@ void SimpleCSEPass::DomtreeExecute() {
         optimizer2.branch_optimize();
     }
 }
+
+// 新增方法实现
+void SimpleCSEPass::buildFuncCallMap() {
+    funcCallMap.clear();
+    canMemOpMap.clear();
+    
+    // 初始化所有函数的调用列表和内存优化标志
+    for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+        std::string funcName = defI->GetFunctionName();
+        funcCallMap[funcName] = std::vector<CallInstruction*>();
+        canMemOpMap[funcName] = true; // 默认可以进行内存优化
+    }
+    
+    // 一次遍历所有CFG，收集所有call指令并检查指针参数别名
+    for (auto [defI, cfg] : llvmIR->llvm_cfg) {
+        for (auto [id, bb] : *cfg->block_map) {
+            for (auto I : bb->Instruction_list) {
+                if (I->GetOpcode() == BasicInstruction::CALL) {
+                    auto callInst = static_cast<CallInstruction*>(I);
+                    std::string calledFuncName = callInst->GetFunctionName();
+                    
+                    // 如果被调用的函数在我们的CFG中，添加到其调用列表中
+                    if (funcCallMap.find(calledFuncName) != funcCallMap.end()) {
+                        funcCallMap[calledFuncName].push_back(callInst);
+                        
+                        // 在这里直接检查指针参数别名，避免后续重复遍历
+                        if (canMemOpMap[calledFuncName]) { // 只有还可以优化的函数才需要检查
+                            auto paramList = callInst->GetParameterList();
+                            std::vector<Operand> ptrArgs;
+                            
+                            // 收集所有指针参数
+                            for (auto [type, operand] : paramList) {
+                                if (type == BasicInstruction::PTR) {
+                                    ptrArgs.push_back(operand);
+                                }
+                            }
+                            
+                            // 检查是否有相同的指针参数
+                            bool hasSamePtrArgs = false;
+                            for (size_t i = 0; i < ptrArgs.size() && !hasSamePtrArgs; i++) {
+                                for (size_t j = i + 1; j < ptrArgs.size(); j++) {
+                                    // 使用当前CFG（调用者的CFG）进行别名分析
+                                    auto aliasResult = alias_analyser->QueryAlias(ptrArgs[i], ptrArgs[j], cfg);
+                                    if (aliasResult == MustAlias) {
+                                        hasSamePtrArgs = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            // 如果发现相同指针参数，禁用该函数的内存优化
+                            if (hasSamePtrArgs) {
+                                canMemOpMap[calledFuncName] = false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+	// for (auto [funcName, calls] : funcCallMap) {
+	// 	//std::cout<<"funcName: "<<funcName<<std::endl;
+	// 	for (auto callInst : calls) {
+	// 		//std::cout<<"callInst: "; callInst->PrintIR(//std::cout);
+	// 	}
+	// }
+}
+
+bool SimpleCSEPass::canMemOp(const std::string& funcName) {
+    auto it = canMemOpMap.find(funcName);
+    if (it != canMemOpMap.end()) {
+        return it->second;
+    }
+    // 如果函数不在映射中，默认可以进行内存优化
+    return true;
+}
+
+

@@ -4,7 +4,7 @@
 #include "../analysis/memdep.h"
 #include "basic_dse.h"
 #include <functional>
-#define DSE_DEBUG
+//#define DSE_DEBUG
 
 #ifdef DSE_DEBUG
 #define DSE_DEBUG_PRINT(x) do { x; } while(0)
