@@ -395,6 +395,8 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                     }
 
                     // 跳过加法指令 (本身就不需要强度削弱)
+					// 可能 c = 2 * i + 1, 就涉及加法，这种情况是需要削弱的
+					// i = {0, +, 1}, c = {1, +, 2}, 虽然c的definst是加法指令，但是仍然需要削弱
                     if (dynamic_cast<ArithmeticInstruction *>(Inst)) {
                         if (Inst->GetOpcode() == BasicInstruction::ADD || Inst->GetOpcode() == BasicInstruction::SUB) {
                             LSR_DEBUG_PRINT(std::cerr << "[LSR] 跳过加法/减法指令: " << Inst->GetResult()->GetFullName() << std::endl);

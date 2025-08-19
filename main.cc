@@ -265,24 +265,23 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
         SimplifyCFGPass(&llvmIR).EOBB();   
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
-        inv_dom.invExecute();
-		AA.Execute();
-        GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
-
+        // inv_dom.invExecute();
+		// AA.Execute();
+        // GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
 
 		inv_dom.invExecute();	
         AA.Execute();
         SimpleDSEPass(&llvmIR,&inv_dom,&AA).Execute();
-        SimplifyCFGPass(&llvmIR).EOBB();
-		SimplifyCFGPass(&llvmIR).RebuildCFG();
-		AA.Execute();
-        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
-		SimplifyCFGPass(&llvmIR).EOBB();
-		SimplifyCFGPass(&llvmIR).RebuildCFG();							
-		SCCPPass(&llvmIR).Execute();			// need to follow cse
-        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        SimplifyCFGPass(&llvmIR).EOBB(); 
-		SimplifyCFGPass(&llvmIR).RebuildCFG();		
+        // SimplifyCFGPass(&llvmIR).EOBB();
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();
+		// AA.Execute();
+        // SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+		// SimplifyCFGPass(&llvmIR).EOBB();
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();							
+		// SCCPPass(&llvmIR).Execute();			// need to follow cse
+        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        // SimplifyCFGPass(&llvmIR).EOBB(); 
+		// SimplifyCFGPass(&llvmIR).RebuildCFG();		
 
 		#ifdef USE_LOOPPARALLELISM  // 未完成
 		LoopAnalysisPass(&llvmIR).Execute();
@@ -321,24 +320,24 @@ int main(int argc, char** argv) {
 		redundency_elimination(inv_dom);
 		#endif
 
-		LoopAnalysisPass(&llvmIR).Execute();
-		LoopSimplifyPass(&llvmIR).Execute();
-		SimplifyCFGPass(&llvmIR).TOPPhi();
-		AA.Execute();
-		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		SimplifyCFGPass(&llvmIR).TOPPhi();
-		SCEVPass(&llvmIR).Execute();
-		InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
-		LoopStrengthReducePass(&llvmIR).Execute();
-		LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
-		redundency_elimination(inv_dom);
+		// LoopAnalysisPass(&llvmIR).Execute();
+		// LoopSimplifyPass(&llvmIR).Execute();
+		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		// AA.Execute();
+		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
+		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		// SCEVPass(&llvmIR).Execute();
+		// InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
+		// LoopStrengthReducePass(&llvmIR).Execute();
+		// LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
+		// redundency_elimination(inv_dom);
 
-        dom.Execute();
-		AA.Execute();
-		SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
-		redundency_elimination(inv_dom);
+        // dom.Execute();
+		// AA.Execute();
+		// SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
+		// redundency_elimination(inv_dom);
 
-		SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
+		// SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
 
     // }
 

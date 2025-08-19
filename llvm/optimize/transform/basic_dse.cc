@@ -4,6 +4,14 @@
 #include "../analysis/memdep.h"
 #include "basic_dse.h"
 #include <functional>
+#define DSE_DEBUG
+
+#ifdef DSE_DEBUG
+#define DSE_DEBUG_PRINT(x) do { x; } while(0)
+#else
+#define DSE_DEBUG_PRINT(x)
+#endif
+
 // 注：需在此PASS前运行inv_dom.invExecute
 extern std::unordered_map<std::string, CFG*> cfgTable;
 extern LLVMBlock GetRetBlock(CFG* C);
@@ -62,6 +70,14 @@ void SimpleDSEPass::EliminateIns(CFG* C)
         for (auto I : bb->Instruction_list) {
             if (erase_set.find(I) == erase_set.end()) {
                 new_instructions.push_back(I);
+            } else {
+                // 输出被删除的 store 指令信息
+                if (I->GetOpcode() == BasicInstruction::STORE) {
+                    auto StoreI = (StoreInstruction *)I;
+                    DSE_DEBUG_PRINT(std::cout << "[DSE] 删除 store 指令: 基本块 " << id 
+                                              << ", 指针: " << StoreI->GetPointer()->GetFullName()
+                                              << ", 值: " << StoreI->GetValue()->GetFullName() << std::endl);
+                }
             }
         }
         bb->Instruction_list = new_instructions;
@@ -96,10 +112,15 @@ void SimpleDSEPass::BasicBlockDSE(CFG *C) {
             for (auto oldI : storeptrs_map[ptr]) {
                 // B.若判断旧存储使当前存储指令冗余（同一地址且无中间使用）
                 if (memdep_analyser->isStoreBeUsedSame(I, oldI, C)) {
-                    //C.将当前存储指令加入待删除集合
-                    erase_set.insert(I);
-                    //D.找到冗余后跳出循环（无需检查更早的存储）
-                    break;
+                    // 额外的安全检查：确保两个 store 指令在同一个基本块内
+                    if (I->GetBlockID() == oldI->GetBlockID()) {
+                        //C.将当前存储指令加入待删除集合
+                        erase_set.insert(I);
+                        DSE_DEBUG_PRINT(std::cout << "[DSE-基本块内] 标记删除冗余 store 指令: 基本块 " << id 
+                                                  << ", 指针: " << StoreI->GetPointer()->GetFullName() << std::endl);
+                        //D.找到冗余后跳出循环（无需检查更早的存储）
+                        break;
+                    }
                 }
             }
         }
@@ -128,6 +149,8 @@ void SimpleDSEPass::DomDfs(CFG*C,int bbid)
                 if (memdep_analyser->isStoreBeUsedSame(I, oldI, C) && !CanReach(I, oldI, C)) {
                     //5）将当前存储加入待删除集合，并标记dse
                     erase_set.insert(I);
+                    DSE_DEBUG_PRINT(std::cout << "[DSE-后支配树] 标记删除冗余 store 指令: 基本块 " << bbid 
+                                              << ", 指针: " << StoreI->GetPointer()->GetFullName() << std::endl);
                     is_dse = true;
                     // 找到冗余后跳出循环
                     break;
@@ -195,6 +218,8 @@ void SimpleDSEPass::EliminateNotUsedStore(CFG *C) {
             if ( (tflag)&&memdep_analyser->isStoreNotUsed(I, C)) {
                 // 5.若判断该存储未被使用,将该存储指令加入待删除集合
                erase_set.insert(I);
+               DSE_DEBUG_PRINT(std::cout << "[DSE-未使用] 标记删除未使用的 store 指令: 基本块 " << id 
+                                         << ", 指针: " << StoreI->GetPointer()->GetFullName() << std::endl);
             }
         }
     }
@@ -226,11 +251,16 @@ void SimpleDSEPass::Execute()
     }
     for (auto [defI, cfg] : llvmIR->llvm_cfg)
     {
+        std::string funcName = defI->GetFunctionName();
+        DSE_DEBUG_PRINT(std::cout << "\n=== 开始处理函数: " << funcName << " ===" << std::endl);
+        
         for (auto [id, bb] : *cfg->block_map) {
             for (auto I : bb->Instruction_list) {
                 I->SetBlockID(id);
             }
         }
         SimpleDSE(cfg);
+        
+        DSE_DEBUG_PRINT(std::cout << "=== 函数 " << funcName << " 处理完成 ===" << std::endl);
     }
 }
