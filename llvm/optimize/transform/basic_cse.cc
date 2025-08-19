@@ -24,6 +24,22 @@ static InstCSEInfo GetCSEInfo(Instruction inst) {
     std::string op1, op2;
     
     switch(info.opcode) {
+        case BasicInstruction::LOAD: {
+            auto load_inst = static_cast<LoadInstruction*>(inst);
+            auto ptr = load_inst->GetPointer();
+            
+            // 检查是否是对全局变量的load
+            if (ptr->GetOperandType() == BasicOperand::GLOBAL) {
+                // 对于全局变量的load，添加一个特殊标识，避免CSE优化
+                info.operand_list.push_back("GLOBAL_LOAD_" + ptr->GetFullName());
+                // 添加指令的唯一标识，确保每个全局变量load都被视为不同的
+                info.operand_list.push_back("INST_" + std::to_string(reinterpret_cast<uintptr_t>(inst)));
+            } else {
+                // 对于非全局变量的load，正常处理
+                info.operand_list.push_back(ptr->GetFullName());
+            }
+            break;
+        }
         case BasicInstruction::CALL: {
             auto call_inst = static_cast<CallInstruction*>(inst);
             info.operand_list.push_back(call_inst->GetFunctionName());

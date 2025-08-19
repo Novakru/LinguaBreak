@@ -276,16 +276,16 @@ int main(int argc, char** argv) {
         SimpleDSEPass(&llvmIR,&inv_dom,&AA).Execute();
 		inv_dom.invExecute();
 		(ADCEPass(&llvmIR, &inv_dom)).Execute();
-   	     SimplifyCFGPass(&llvmIR).EOBB();
+   	    SimplifyCFGPass(&llvmIR).EOBB();
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
 		AA.Execute();
-        // SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
-		// SimplifyCFGPass(&llvmIR).EOBB();
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();							
-		// SCCPPass(&llvmIR).Execute();			// need to follow cse
-        // SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-        // SimplifyCFGPass(&llvmIR).EOBB(); 
-		// SimplifyCFGPass(&llvmIR).RebuildCFG();	
+        SimpleCSEPass(&llvmIR,&dom,&AA).Execute();	// block + domtree + branch cse, need run after looprotate
+		SimplifyCFGPass(&llvmIR).EOBB();
+		SimplifyCFGPass(&llvmIR).RebuildCFG();							
+		SCCPPass(&llvmIR).Execute();			// need to follow cse
+        SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+        SimplifyCFGPass(&llvmIR).EOBB(); 
+		SimplifyCFGPass(&llvmIR).RebuildCFG();	
 
 		#ifdef USE_LOOPPARALLELISM  // 未完成
 		LoopAnalysisPass(&llvmIR).Execute();
