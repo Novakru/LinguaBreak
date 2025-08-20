@@ -310,9 +310,9 @@ int main(int argc, char** argv) {
 		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
-		InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
+		// InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
 		LoopStrengthReducePass(&llvmIR).Execute();
-		LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
+		// LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
 
 		llvmIR.SyncMaxInfo();     
         inv_dom.invExecute();

@@ -652,6 +652,8 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
     }
 }
 
+}
+
 /*
 GEP指令的强度削弱分为两部分：
     - 中端：识别模式并转换为getelementptr ... i32 1格式
