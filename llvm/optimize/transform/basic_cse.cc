@@ -450,6 +450,12 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
         auto glptrs=glmap[cfg];
         for(auto [regno,ptrinfo]:glptrs)
         {
+            std::cout<<"[DEBUG] Processing ptrinfo for regno: "<<regno<<std::endl;
+            // 检查 ptrinfo 是否为空指针
+            if (ptrinfo == nullptr) {
+                std::cout<<"[DEBUG] ptrinfo is nullptr, skipping"<<std::endl;
+                continue;
+            }
             for(auto ptr:ptrinfo->AliasOps)
             {
                 if (ptr->GetOperandType() == BasicOperand::GLOBAL) {

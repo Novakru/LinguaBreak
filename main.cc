@@ -243,9 +243,9 @@ int main(int argc, char** argv) {
     DomAnalysis dom(&llvmIR);
     dom.Execute();
     (Mem2RegPass(&llvmIR, &dom)).Execute();
+	
     DomAnalysis inv_dom(&llvmIR);
     inv_dom.invExecute();
-
     (ADCEPass(&llvmIR, &inv_dom)).Execute();
 
     // 【5】优化
@@ -325,10 +325,10 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).MergeBlocks();		
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
 
-        dom.Execute();
-		AA.Execute();
-		SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
-		redundency_elimination(inv_dom);
+        // dom.Execute();
+		// AA.Execute();
+		// SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
+		// redundency_elimination(inv_dom);
 
 		SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
 
