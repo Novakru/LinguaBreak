@@ -254,7 +254,7 @@ int main(int argc, char** argv) {
 
     // 【5】优化
 	// 提交到 oj 时需要默认优化全开
-    if (optimize) {
+    // if (optimize) {
 		// TailCallElimPass(&llvmIR).Execute();
         // DomAnalysis dom(&llvmIR);
         // dom.Execute();
@@ -317,7 +317,7 @@ int main(int argc, char** argv) {
 		llvmIR.SyncMaxInfo();     
         inv_dom.invExecute();
         (ADCEPass(&llvmIR, &inv_dom)).Execute();
-        //ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
+        // ADCEPass(&llvmIR,&inv_dom).ESI();			// 删除循环削弱后产生的部分冗余重复指令；及重复GEP指令的删除
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();		
@@ -336,7 +336,7 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).MergeBlocks();		
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
 
-    }
+    // }
 
     if (option == 3) {
         llvmIR.printIR(out);

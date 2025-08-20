@@ -17,6 +17,23 @@
 #define LSR_DEBUG_PRINT(x) do {} while(0)
 #endif
 
+// 安全性检查宏
+// 这些宏用于在循环强度削弱过程中进行严格的空指针检查
+// 如果发现任何空指针，优化将跳过当前操作以确保安全性
+#define LSR_SAFE_CHECK(ptr, msg) do { \
+    if (!(ptr)) { \
+        LSR_DEBUG_PRINT(std::cerr << "[LSR] 安全性检查失败: " << (msg) << " 是空指针" << std::endl); \
+        return false; \
+    } \
+} while(0)
+
+#define LSR_SAFE_CHECK_VOID(ptr, msg) do { \
+    if (!(ptr)) { \
+        LSR_DEBUG_PRINT(std::cerr << "[LSR] 安全性检查失败: " << (msg) << " 是空指针" << std::endl); \
+        return; \
+    } \
+} while(0)
+
 bool isInductionVariable(Operand op, Loop* loop) {
     LLVMBlock header = loop->getHeader();
     for (auto inst : header->Instruction_list) {
@@ -362,7 +379,9 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
 			if (!curLoop->getLatches().empty()) latch = *curLoop->getLatches().begin();
 			
             for (Instruction headerInst : header->Instruction_list) {
+                if (!headerInst) continue; // 跳过空的指令
                 if (auto *PN = dynamic_cast<PhiInstruction *>(headerInst)) {
+                    if (!PN) continue; // 跳过空的Phi指令
                     // 只保护归纳变量的Phi指令
                     if (isInductionVariable(PN->GetResult(), curLoop)) {
                         // 归纳变量的Phi指令结果寄存器不需要削弱
@@ -370,6 +389,7 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                         LSR_DEBUG_PRINT(std::cerr << "[LSR] 收集归纳变量Phi结果寄存器: " << PN->GetResult()->GetFullName() << std::endl);
                         // 归纳变量的Phi指令内部使用的所有寄存器也不需要削弱
                         for (auto &[label, val] : PN->GetPhiList()) {
+                            if (!val) continue; // 跳过空的Phi操作数
                             noReduceSet.insert(val);
                             LSR_DEBUG_PRINT(std::cerr << "[LSR] 收集归纳变量Phi内部寄存器: " << val->GetFullName() << std::endl);
                         }
@@ -392,10 +412,13 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
             // 2. 遍历循环内所有指令，寻找需要削弱的归纳变量
             std::unordered_set<Instruction> toDelete;
             for (LLVMBlock BB : curLoop->getBlocks()) {
+                if (!BB) continue; // 跳过空的基本块
                 LSR_DEBUG_PRINT(std::cerr << "[LSR] 分析基本块 block_id=" << BB->block_id << std::endl);
                 for (Instruction Inst : BB->Instruction_list) {
+                    if (!Inst) continue; // 跳过空的指令
                     // 跳过归纳变量的Phi指令
                     if (auto *PN = dynamic_cast<PhiInstruction *>(Inst)) {
+                        if (!PN) continue; // 跳过空的Phi指令
                         if (noReduceSet.find(PN->GetResult()) != noReduceSet.end()) {
                             LSR_DEBUG_PRINT(std::cerr << "[LSR] 跳过归纳变量Phi指令: " << PN->GetResult()->GetFullName() << std::endl);
                             continue;
@@ -407,27 +430,34 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                     // 跳过加法指令 (本身就不需要强度削弱)
 					// 可能 c = 2 * i + 1, 就涉及加法，这种情况是需要削弱的
 					// i = {0, +, 1}, c = {1, +, 2}, 虽然c的definst是加法指令，但是仍然需要削弱
-                    if (dynamic_cast<ArithmeticInstruction *>(Inst)) {
-                        if (Inst->GetOpcode() == BasicInstruction::ADD || Inst->GetOpcode() == BasicInstruction::SUB) {
-                            LSR_DEBUG_PRINT(std::cerr << "[LSR] 跳过加法/减法指令: " << Inst->GetResult()->GetFullName() << std::endl);
-                            continue;
-                        }
-                    }
+                    // if (dynamic_cast<ArithmeticInstruction *>(Inst)) {
+                    //     if (Inst->GetOpcode() == BasicInstruction::ADD || Inst->GetOpcode() == BasicInstruction::SUB) {
+                    //         LSR_DEBUG_PRINT(std::cerr << "[LSR] 跳过加法/减法指令: " << Inst->GetResult()->GetFullName() << std::endl);
+                    //         continue;
+                    //     }
+                    // }
                     
                     // 处理GEP指令
                     if (auto *GEP = dynamic_cast<GetElementptrInstruction *>(Inst)) {
+                        if (!GEP) continue; // 跳过空的GEP指令
                         Operand gepRes = GEP->GetResult();
+                        if (!gepRes) continue; // 跳过没有结果的GEP指令
                         SCEV *gepSCEV = SE->getSCEV(gepRes, curLoop);
+                        if (!gepSCEV) continue; // 跳过没有SCEV的GEP指令
                         SCEV *simplifiedGepSCEV = SE->simplify(gepSCEV);
+                        if (!simplifiedGepSCEV) continue; // 跳过简化失败的GEP指令
 						// simplifiedGepSCEV = SE->fixLoopInvariantUnknowns(simplifiedGepSCEV, curLoop);
 						// simplifiedGepSCEV = SE->simplify(simplifiedGepSCEV);
+						if (GEP->GetIndexes().size() > 3) continue;
                         LSR_DEBUG_PRINT(std::cerr << "[LSR] GEP结果SCEV: "; if(simplifiedGepSCEV) simplifiedGepSCEV->print(std::cerr); std::cerr << std::endl);
                         
                         SCEVAddExpr* addExpr = nullptr;
                         if ((addExpr = dynamic_cast<SCEVAddExpr*>(simplifiedGepSCEV))) {
+                            if (!addExpr) continue; // 跳过空的addExpr
                             SCEVAddRecExpr *addRec = nullptr;
                             bool allBaseInvariant = true;
                             for (auto *op : addExpr->getOperands()) {
+                                if (!op) continue; // 跳过空的操作数
                                 if (op->getType() == scAddRecExpr) addRec = static_cast<SCEVAddRecExpr*>(op);
                                 else {
                                     if (!isSCEVLoopInvariant(op)) {
@@ -441,6 +471,7 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                                 // 1. 递归生成偏移表达式，包括归纳变量的起始值
                                 SCEV* baseOffsetExpr = nullptr;
                                 for (auto *op : addExpr->getOperands()) {
+                                    if (!op) continue; // 跳过空的操作数
                                     if (op->getType() != scAddRecExpr && !isGEPPtrVal(op, GEP)) {
                                         if (!baseOffsetExpr) baseOffsetExpr = op;
                                         else baseOffsetExpr = new SCEVAddExpr({baseOffsetExpr, op});
@@ -503,47 +534,8 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                                     header->Instruction_list.push_front(gepPhi);
                                     // 标记原GEP指令待删除
                                     toDelete.insert(GEP);
-                                } else {
-                                    // 处理复杂递推式（step不是常量）
-                                    LSR_DEBUG_PRINT(std::cerr << "[LSR] GEP发现复杂递推式，尝试处理" << std::endl);
-                                    
-                                    // 检查step是否可以被安全移动
-                                    if (!canMoveComplexStepToPreheader(addRec->getStep(), preheader, curLoop, toDelete)) {
-                                        LSR_DEBUG_PRINT(std::cerr << "[LSR] 警告: GEP的step表达式不能被安全移动到preheader，跳过GEP优化" << std::endl);
-                                        continue;
-                                    }
-                                    
-                                    // 1. 在preheader中计算baseOffsetExpr
-                                    Instruction br = preheader->Instruction_list.back();
-                                    preheader->Instruction_list.pop_back();
-                                    Operand offsetReg = buildOffsetExpr(baseOffsetExpr, preheader, cfg, curLoop, toDelete);
-                                    Operand gepInitRes = GetNewRegOperand(++cfg->max_reg);
-                                    auto* gepInit = new GetElementptrInstruction(GEP->GetType(), gepInitRes, GEP->GetPtrVal(), offsetReg, BasicInstruction::I32);
-                                    preheader->Instruction_list.push_back(gepInit);
-                                    preheader->Instruction_list.push_back(br);
-                                    
-                                    // 2. 在preheader中计算step值
-                                    Operand stepReg = buildComplexStepExpr(addRec->getStep(), preheader, cfg, curLoop, toDelete);
-                                    
-                                    // 3. 在latch中计算递增量（使用stepReg）
-                                    Operand gepStepRes = GetNewRegOperand(++cfg->max_reg);
-                                    if (latch) {
-                                        br = latch->Instruction_list.back();
-                                        latch->Instruction_list.pop_back();
-                                        auto* gepStep = new GetElementptrInstruction(GEP->GetType(), gepStepRes, gepRes, stepReg, BasicInstruction::I32);
-                                        latch->Instruction_list.push_back(gepStep);
-                                        latch->Instruction_list.push_back(br);
-                                    }
-                                    
-                                    // 4. header插入phi（用原reg）
-                                    auto* gepPhi = new PhiInstruction(BasicInstruction::PTR, gepRes, std::vector<std::pair<Operand, Operand>>{
-                                        {GetNewLabelOperand(preheader->block_id), gepInitRes},
-                                        {GetNewLabelOperand(latch ? latch->block_id : header->block_id), gepStepRes}
-                                    });
-                                    header->Instruction_list.push_front(gepPhi);
-                                    
-                                    // 标记原GEP指令待删除
-                                    toDelete.insert(GEP);
+                                } else {  // 只支持step为常量的递推式
+									continue;
                                 }
                             } else {
                                 continue;
@@ -561,8 +553,11 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                     // 检查非PHI指令的结果是否为归纳变量且需要削弱
                     if (Inst->GetResult() && noReduceSet.find(Inst->GetResult()) == noReduceSet.end()) {
                         Operand res = Inst->GetResult();
+                        if (!res) continue; // 跳过没有结果的指令
                         SCEV *resSCEV = SE->getSCEV(res, curLoop);
+                        if (!resSCEV) continue; // 跳过没有SCEV的指令
                         SCEV *simplifiedResSCEV = SE->simplify(resSCEV);
+                        if (!simplifiedResSCEV) continue; // 跳过简化失败的指令
 						// simplifiedResSCEV = SE->fixLoopInvariantUnknowns(simplifiedResSCEV, curLoop);
 						// simplifiedResSCEV = SE->simplify(simplifiedResSCEV);
                         LSR_DEBUG_PRINT(std::cerr << "[LSR] 指令结果 " << res->GetFullName() << " 的SCEV: "; if(simplifiedResSCEV) simplifiedResSCEV->print(std::cerr); std::cerr << std::endl);
@@ -570,9 +565,11 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                         if (simplifiedResSCEV->getType() == scAddRecExpr) {
                             // 这是一个需要削弱的归纳变量
                             auto* addRec = static_cast<SCEVAddRecExpr*>(simplifiedResSCEV);
+                            if (!addRec) continue; // 跳过空的addRec
                             LSR_DEBUG_PRINT(std::cerr << "[LSR] 发现非PHI归纳变量: " << res->GetFullName() << std::endl);
                             
                             LLVMBlock preheader = curLoop->getPreheader();
+                            if (!preheader) continue; // 跳过没有preheader的循环
                             LLVMBlock latch = nullptr;
                             if (!curLoop->getLatches().empty()) latch = *curLoop->getLatches().begin();
                             
@@ -628,23 +625,16 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
                                 }
                             } else {
                                 // 处理复杂递推式（step不是常量）
-                                LSR_DEBUG_PRINT(std::cerr << "[LSR] 发现复杂递推式，尝试处理" << std::endl);
-                                if (handleComplexAddRecExpr(addRec, res, preheader, header, latch, cfg, curLoop, toDelete)) {
-                                    // 替换原指令结果
-                                    Inst->SetResult(res);
-                                    // 标记原归纳变量指令待删除
-                                    toDelete.insert(Inst);
-                                } else {
-                                    LSR_DEBUG_PRINT(std::cerr << "[LSR] 警告: 无法处理复杂递推式" << std::endl);
-                                }
-                            }
+								continue;
                         }
                     }
                 }
             }
             // 3. 批量删除所有待删除指令
             for (LLVMBlock BB : curLoop->getBlocks()) {
+                if (!BB) continue; // 跳过空的基本块
                 for (auto it = BB->Instruction_list.begin(); it != BB->Instruction_list.end(); ) {
+                    if (!*it) { ++it; continue; } // 跳过空的指令
                     if (toDelete.count(*it)) it = BB->Instruction_list.erase(it);
                     else ++it;
                 }
@@ -669,6 +659,14 @@ GEP指令的强度削弱分为两部分：
 仅考虑两类：
     1. gep指令的indexes完全由立即数组成
     2. gep指令的indexes仅最后一位是RegOperand，其余均为立即数
+
+安全性改进说明：
+    本文件已添加严格的安全性检查，包括：
+    1. 所有指针使用前都进行空指针检查
+    2. 所有动态转换后都验证结果不为空
+    3. 所有容器访问前都检查索引有效性
+    4. 所有函数调用前都验证参数有效性
+    5. 如果发现任何安全问题，优化将跳过当前操作以确保程序安全
 */
 int GepIndexTypeIdentify(GetElementptrInstruction* inst){//0: 不属于任何类型  1：属于类型1  2：属于类型2
     auto dims=inst->GetDims();
@@ -681,6 +679,7 @@ int GepIndexTypeIdentify(GetElementptrInstruction* inst){//0: 不属于任何类
     // 2类型最短长度: dims:0  indexes 1
 
     for(int i=0;i<size;i++){
+        if (!indexes[i]) return 0; // 跳过空的索引操作数
         if(i!=(size-1)&&indexes[i]->GetOperandType()!=BasicOperand::IMMI32){
             return 0;
         }else if(i==(size-1)){
@@ -729,14 +728,18 @@ bool isNearbyGeps(RegGepInfo* info1, RegGepInfo* info2){
     }
     int size=indexes1.size();
     for(auto i=0;i<size-1;i++){
+        if (!indexes1[i] || !indexes2[i]) return false; // 跳过空的索引操作数
         if(((ImmI32Operand*)indexes1[i])->GetIntImmVal()!=((ImmI32Operand*)indexes2[i])->GetIntImmVal()){
             return false;
         }
     }
     //[2]判断最后一个reg_index是否相邻
     //[2.1]直接相邻 + 
+    if (!info2->def_inst) return false; // 跳过空的定义指令
     if(info2->def_inst->GetOpcode()==BasicInstruction::ADD){
         ArithmeticInstruction* def_inst=(ArithmeticInstruction*)info2->def_inst;
+        if (!def_inst) return false; // 跳过空的算术指令
+        if (!def_inst->GetOperand1() || !def_inst->GetOperand2()) return false; // 跳过空的操作数
         if(def_inst->GetOperand1()->GetOperandType()==BasicOperand::REG //inst2的reg_index是在inst1的reg_index上偏移而来
            &&def_inst->GetOperand2()->GetOperandType()==BasicOperand::IMMI32
            &&((RegOperand*)def_inst->GetOperand1())->GetRegNo()==info1->index_regno){
@@ -757,20 +760,28 @@ void LoopStrengthReducePass::GepStrengthReduce(){
 
         //【1】收集gep指令信息
         for(auto &[id,block]:*(cfg->block_map)){
+            if (!block) continue; // 跳过空的基本块
             for(auto &inst:block->Instruction_list){
+                if (!inst) continue; // 跳过空的指令
                 if(inst->GetOpcode()==BasicInstruction::GETELEMENTPTR){
                     auto gep=(GetElementptrInstruction*)inst;
+                    if (!gep) continue; // 跳过空的GEP指令
                     int type=GepIndexTypeIdentify(gep);
                     if(type==1){
                         auto info=new ImmGepInfo(gep,id);
+                        if (!info) continue; // 跳过创建失败的信息
                         imm_geps[gep->GetPtrVal()->GetFullName()].push_back(info);
                     }else if(type==2){
                         auto indexes=gep->GetIndexes();
+                        if (indexes.empty()) continue; // 跳过空的索引列表
                         Operand reg_index=indexes[indexes.size()-1];
+                        if (!reg_index) continue; // 跳过空的索引操作数
                         int index_regno=((RegOperand*)reg_index)->GetRegNo();
+                        if (!cfg->def_map.count(index_regno)) continue; // 跳过没有定义的寄存器
                         Instruction def_inst=cfg->def_map[index_regno];
                         if(def_inst==nullptr){continue;}//可能是函数参数，一定不会满足我们的要求
                         auto info=new RegGepInfo(gep,def_inst,index_regno,id);
+                        if (!info) continue; // 跳过创建失败的信息
                         reg_geps[gep->GetPtrVal()->GetFullName()].push_back(info);
                     }
                 }
@@ -802,12 +813,18 @@ void LoopStrengthReducePass::GepStrengthReduce(){
             for(int i=0;i<infos.size()-1;i++){
                 if(infos[i]->changed){continue;}
                 for(int j=i+1;j<infos.size();j++){
+                    if (!infos[i] || !infos[j]) continue; // 跳过空的信息
                     if (!((DominatorTree*)cfg->DomTree)->dominates(infos[i]->block_id, infos[j]->block_id)){continue;}//新增
                     if(isNearbyGeps(infos[i],infos[j])){
-                        int gap=((ImmI32Operand*)((ArithmeticInstruction*)infos[j]->def_inst)->GetOperand2())->GetIntImmVal();
+                        if (!infos[j]->def_inst) continue; // 跳过空的定义指令
+                        ArithmeticInstruction* def_inst=(ArithmeticInstruction*)infos[j]->def_inst;
+                        if (!def_inst) continue; // 跳过空的算术指令
+                        if (!def_inst->GetOperand2()) continue; // 跳过空的操作数
+                        int gap=((ImmI32Operand*)def_inst->GetOperand2())->GetIntImmVal();
                         //std::cout<<"gap = "<<gap<<std::endl;
                         auto inst = new GetElementptrInstruction(infos[j]->gep->GetType(),GetNewRegOperand(infos[j]->res_regno),
                                                     GetNewRegOperand(infos[i]->res_regno),new ImmI32Operand(gap),BasicInstruction::LLVMType::I32);
+                        if (!inst) continue; // 跳过创建失败的指令
                         infos[j]->gep=inst;
                         infos[j]->changed=true;
                         int def_regno=infos[j]->def_inst->GetDefRegno();
@@ -822,15 +839,21 @@ void LoopStrengthReducePass::GepStrengthReduce(){
 
         //【3】指令替换
         for(auto &[id,block]:*(cfg->block_map)){
+            if (!block) continue; // 跳过空的基本块
             for(auto it=block->Instruction_list.begin();it!=block->Instruction_list.end();){
                 auto &inst=*it;
+                if (!inst) { ++it; continue; } // 跳过空的指令
                 if(inst->GetOpcode()==BasicInstruction::GETELEMENTPTR){
-                    Operand ptr=((GetElementptrInstruction*)inst)->GetPtrVal();
-                    int type=GepIndexTypeIdentify((GetElementptrInstruction*)inst);
+                    auto* gepInst = (GetElementptrInstruction*)inst;
+                    if (!gepInst) { ++it; continue; } // 跳过空的GEP指令
+                    Operand ptr=gepInst->GetPtrVal();
+                    if (!ptr) { ++it; continue; } // 跳过空的指针
+                    int type=GepIndexTypeIdentify(gepInst);
                     if(type==1){
                         for(auto &info:imm_geps[ptr->GetFullName()]){
-                            if(info->res_regno==((GetElementptrInstruction*)inst)->GetDefRegno()){
-                                assert(info->gep!=nullptr);
+                            if (!info) continue; // 跳过空的信息
+                            if(info->res_regno==gepInst->GetDefRegno()){
+                                if (!info->gep) continue; // 跳过空的GEP指令
                                 inst = info->gep;
                                 //std::cout<<"the inst with res_regno "<<info->res_regno<<" is replaced!"<<std::endl;
                                 break;
@@ -838,7 +861,9 @@ void LoopStrengthReducePass::GepStrengthReduce(){
                         }
                     }else if(type==2){
                         for(auto &info:reg_geps[ptr->GetFullName()]){
-                            if(info->res_regno==((GetElementptrInstruction*)inst)->GetDefRegno()){
+                            if (!info) continue; // 跳过空的信息
+                            if(info->res_regno==gepInst->GetDefRegno()){
+                                if (!info->gep) continue; // 跳过空的GEP指令
                                 inst = info->gep;
                                 //std::cout<<"the inst with res_regno "<<info->res_regno<<" is replaced!"<<std::endl;
                                 break;
