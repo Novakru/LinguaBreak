@@ -246,27 +246,17 @@ int main(int argc, char** argv) {
     DomAnalysis inv_dom(&llvmIR);
     inv_dom.invExecute();
 
-    AliasAnalysisPass AA(&llvmIR); 
-    AA.Execute();
-    SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
-
     (ADCEPass(&llvmIR, &inv_dom)).Execute();
 
     // 【5】优化
 	// 提交到 oj 时需要默认优化全开
-    // if (optimize) {
-		// TailCallElimPass(&llvmIR).Execute();
-        // DomAnalysis dom(&llvmIR);
-        // dom.Execute();
-        // (Mem2RegPass(&llvmIR, &dom)).Execute();
-        // DomAnalysis inv_dom(&llvmIR);
-        // inv_dom.invExecute();
+    if (optimize) {
 
-        // AliasAnalysisPass AA(&llvmIR); 
-		// AA.Execute();
-        //SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
+        AliasAnalysisPass AA(&llvmIR); 
+		AA.Execute();
+        SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
 
-        //(ADCEPass(&llvmIR, &inv_dom)).Execute();
+        (ADCEPass(&llvmIR, &inv_dom)).Execute();
         PeepholePass(&llvmIR).ImmResultReplaceExecute();
         OneRetPass(&llvmIR).Execute();
         SCCPPass(&llvmIR).Execute();
@@ -283,9 +273,9 @@ int main(int argc, char** argv) {
 		AA.Execute();
         GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
         
-        // AA.Execute();
-        // SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
-        // inv_dom.invExecute();	
+        AA.Execute();
+        SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
+        inv_dom.invExecute();	
         AA.Execute();
         SimpleDSEPass(&llvmIR,&inv_dom,&AA).Execute();
         SimplifyCFGPass(&llvmIR).EOBB();
@@ -299,7 +289,7 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).EOBB(); 
 		SimplifyCFGPass(&llvmIR).RebuildCFG();		
 
-        LoopAnalysisPass(&llvmIR).Execute();
+		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
 		// AA.Execute();
@@ -331,12 +321,11 @@ int main(int argc, char** argv) {
         SCCPPass(&llvmIR).Execute();			
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
 
-		
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();		
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
 
-    // }
+    }
 
     if (option == 3) {
         llvmIR.printIR(out);
