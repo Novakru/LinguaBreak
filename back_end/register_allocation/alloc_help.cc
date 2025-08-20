@@ -40,14 +40,14 @@ void Liveness::UpdateDefUse() {
     while (mcfg->seqscan_hasNext()) { // 循环处理每个基本块
         //3.获取基本块及对应ID
         auto node = mcfg->seqscan_next(); 
-        int block_id = node->Mblock->getLabelId(); 
+        int block_id = node->getLabelId(); 
         // 4.清空当前块的状态，用更简洁的方式表示当前块的DEF与USE
         DEF[block_id].clear(); 
         USE[block_id].clear(); 
         auto &cur_def = DEF[block_id];
         auto &cur_use = USE[block_id];
         // 5.遍历基本块内的所有指令（按执行顺序）
-        for (auto ins : *(node->Mblock)) { 
+        for (auto ins : *(node)) { 
             // 1）处理指令的读寄存器（使用操作）
             for (auto reg_r : ins->GetReadReg()) { 
                 Register reg = *reg_r; 
@@ -94,12 +94,12 @@ void Liveness::Execute() {
         while (mcfg->seqscan_hasNext()) {
             //3)获取基本块及对应ID
             auto node = mcfg->seqscan_next(); 
-            int cur_id = node->Mblock->getLabelId(); 
+            int cur_id = node->getLabelId(); 
 
             // 4）计算 OUT[cur_id] = U IN[succ] （所有后继块的 IN 集合的并集）
             std::set<Register> out;
             for (auto succ : mcfg->GetSuccessorsByBlockId(cur_id)) {
-                int succ_id = succ->Mblock->getLabelId();
+                int succ_id = succ->getLabelId();
                 out = SetUnion<Register>(out, IN[succ_id]); // 集合并操作
             }
 

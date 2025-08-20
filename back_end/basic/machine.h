@@ -133,13 +133,12 @@ protected:
 public:
     MachineFunction(std::string name)
         : func_name(name), stack_sz(0), para_sz(0), max_exist_label(0),has_inpara_instack(false){}
-    //新增：
     bool HasInParaInStack() { return has_inpara_instack; }
     void SetHasInParaInStack(bool has) { has_inpara_instack = has; }
     MachineCFG *getMachineCFG() { return mcfg; }
-    // 设置CFG
     void SetMachineCFG(MachineCFG *mcfg) { this->mcfg = mcfg; }
 };
+
 
 class MachineDominatorTree {
 public:
@@ -151,25 +150,35 @@ public:
     bool IsDominate(int id1, int id2);
 };
 
+struct LatticeStatus{
+    enum Status{UNDEF=0,VARIENT=1,CONST=2}status;
+    union {
+        int intval;
+        float floatval;
+    }val;
+    LatticeStatus(){ status = UNDEF; }
+    LatticeStatus(Status sta, int value):status(sta){ val.intval = value; }
+    LatticeStatus(Status sta, float value):status(sta){ val.floatval = value; }
+};
 
 class MachineCFG {
 
 public:
-    class MachineCFGNode {
-    public:
-        MachineBlock *Mblock;
-    };
-
-    std::map<int, MachineCFGNode *> block_map{};
-    std::vector<std::vector<MachineCFGNode *>> G{}, invG{};
+    std::map<int, MachineBlock *> block_map{};
+    std::vector<std::vector<MachineBlock *>> G{}, invG{};
     int max_label;
-
     MachineDominatorTree* DomTree;
+    MachineBlock *ret_block;
+
+    std::unordered_map<int,std::unordered_set<RiscV64Instruction*>> def_map;
+    std::unordered_map<int,std::unordered_set<RiscV64Instruction*>> use_map;
+    std::unordered_map<int,LatticeStatus*> lattice_map;
+
     void SetMachineDomTree(DominatorTree* domtree);
 
-    // 用于 DFS 的状态变量
-    std::map<int, int> dfs_visited;
-    std::stack<int> dfs_stk;
+    // // 用于 DFS 的状态变量
+    // std::map<int, int> dfs_visited;
+    // std::stack<int> dfs_stk;
  
     // 用于 BFS 的状态变量
     std::map<int, int> bfs_visited;
@@ -179,11 +188,9 @@ public:
     decltype(block_map.begin()) seqscan_current;
  
     // 用于 Reverse 的状态变量
-    std::vector<MachineCFGNode*> reverse_cache;
+    std::vector<MachineBlock*> reverse_cache;
     decltype(reverse_cache.rbegin()) reverse_current_pos;
 
-
-    MachineCFGNode *ret_block;//新增
     MachineCFG() : max_label(0){ DomTree = new MachineDominatorTree; };
     void AssignEmptyNode(int id, MachineBlock *Mblk);
 
@@ -191,36 +198,36 @@ public:
     void MakeEdge(int edg_begin, int edg_end);
     void RemoveEdge(int edg_begin, int edg_end);
 
-    MachineCFGNode *GetNodeByBlockId(int id) { return block_map[id]; }
-    std::vector<MachineCFGNode *> GetSuccessorsByBlockId(int id) { return G[id]; }
-    std::vector<MachineCFGNode *> GetPredecessorsByBlockId(int id) { return invG[id]; }
+    MachineBlock *GetNodeByBlockId(int id) { return block_map[id]; }
+    std::vector<MachineBlock *> GetSuccessorsByBlockId(int id) { return G[id]; }
+    std::vector<MachineBlock *> GetPredecessorsByBlockId(int id) { return invG[id]; }
 
-    // DFS 遍历
-    void dfs_open() {
-        dfs_visited.clear();
-        while (!dfs_stk.empty())
-            dfs_stk.pop();
-        dfs_stk.push(0);
-    }
-    MachineCFGNode* dfs_next() {
-        auto return_idx = dfs_stk.top();
-        dfs_visited[return_idx] = 1;
-        dfs_stk.pop();
-        for (auto succ : G[return_idx]) {
-            if (dfs_visited[succ->Mblock->getLabelId()] == 0) {
-                dfs_visited[succ->Mblock->getLabelId()] = 1;
-                dfs_stk.push(succ->Mblock->getLabelId());
-            }
-        }
-        return block_map[return_idx];
-    }
-    bool dfs_hasNext() { return !dfs_stk.empty(); }
-    void dfs_rewind() { dfs_open(); }
-    void dfs_close() {
-        dfs_visited.clear();
-        while (!dfs_stk.empty())
-            dfs_stk.pop();
-    }
+    // // DFS 遍历
+    // void dfs_open() {
+    //     dfs_visited.clear();
+    //     while (!dfs_stk.empty())
+    //         dfs_stk.pop();
+    //     dfs_stk.push(0);
+    // }
+    // MachineCFGNode* dfs_next() {
+    //     auto return_idx = dfs_stk.top();
+    //     dfs_visited[return_idx] = 1;
+    //     dfs_stk.pop();
+    //     for (auto succ : G[return_idx]) {
+    //         if (dfs_visited[succ->Mblock->getLabelId()] == 0) {
+    //             dfs_visited[succ->Mblock->getLabelId()] = 1;
+    //             dfs_stk.push(succ->Mblock->getLabelId());
+    //         }
+    //     }
+    //     return block_map[return_idx];
+    // }
+    // bool dfs_hasNext() { return !dfs_stk.empty(); }
+    // void dfs_rewind() { dfs_open(); }
+    // void dfs_close() {
+    //     dfs_visited.clear();
+    //     while (!dfs_stk.empty())
+    //         dfs_stk.pop();
+    // }
 
     // BFS 遍历
     void bfs_open() {
@@ -229,14 +236,14 @@ public:
             bfs_que.pop();
         bfs_que.push(0);
     }
-    MachineCFGNode* bfs_next() {
+    MachineBlock* bfs_next() {
         auto return_idx = bfs_que.front();
         bfs_visited[return_idx] = 1;
         bfs_que.pop();
         for (auto succ : G[return_idx]) {
-            if (bfs_visited[succ->Mblock->getLabelId()] == 0) {
-                bfs_visited[succ->Mblock->getLabelId()] = 1;
-                bfs_que.push(succ->Mblock->getLabelId());
+            if (bfs_visited[succ->getLabelId()] == 0) {
+                bfs_visited[succ->getLabelId()] = 1;
+                bfs_que.push(succ->getLabelId());
             }
         }
         return block_map[return_idx];
@@ -251,7 +258,7 @@ public:
 
     // SeqScan 遍历
     void seqscan_open() { seqscan_current = block_map.begin(); }
-    MachineCFGNode* seqscan_next() { return (seqscan_current++)->second; }
+    MachineBlock* seqscan_next() { return (seqscan_current++)->second; }
     bool seqscan_hasNext() { return seqscan_current != block_map.end(); }
     void seqscan_rewind() {
         seqscan_close();
@@ -268,7 +275,7 @@ public:
         }
         reverse_current_pos = reverse_cache.rbegin();
     }
-    MachineCFGNode* reverse_next() { return *(reverse_current_pos++); }
+    MachineBlock* reverse_next() { return *(reverse_current_pos++); }
     bool reverse_hasNext() { return reverse_current_pos != reverse_cache.rend(); }
     void reverse_rewind() {
         reverse_close();
@@ -286,10 +293,10 @@ public:
         for (auto &[id, node] : block_map) {
             std::cerr << "基本块 B" << id << " 的后继基本块:";
             for (auto succ : G[id]) {
-                std::cerr << " B" << succ->Mblock->getLabelId();
+                std::cerr << " B" << succ->getLabelId();
             }
             std::cerr << std::endl;
-            node->Mblock->display();
+            node->display();
         }
         std::cerr << std::endl;
     }

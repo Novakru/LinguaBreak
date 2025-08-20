@@ -2,10 +2,10 @@
 
 
 void MachinePeepholePass::Execute() {
-    EliminateRedundantInstructions();
-#if USE_FMA
-    FloatCompFusion();
-#endif
+//     EliminateRedundantInstructions();
+// #if USE_FMA
+//     FloatCompFusion();
+// #endif
     ConstantReplacement();
 }
 
@@ -195,30 +195,30 @@ void MachinePeepholePass::ConstantReplacement() {
         for (auto &block : func->blocks) {
             for (auto it = block->instructions.begin(); it != block->instructions.end();) {
                 auto inst = (RiscV64Instruction*)(*it); 
-                // (6)   li tx, k 
-                //     add, ty, xx, tx ---> 直接用k替换tx
-                if(inst ->getOpcode() == RISCV_LI) {
-                    int imm = inst->getImm();
-                    // addi 的 12 位有符号立即数范围为 [-2048, 2047]
-                    if (imm >= -2048 && imm <= 2047) {
-                        auto next_it = std::next(it);
-                        if (next_it != block->instructions.end()) {
-                            auto next_inst = (RiscV64Instruction*)(*next_it);
-                            if(next_inst->getOpcode() == RISCV_ADD) {
-                                if(next_inst->getRs2().reg_no == inst->getRd().reg_no) {
-                                    next_inst->setOpcode(RISCV_ADDI,false);
-                                    next_inst->setImm(inst->getImm());
-                                    it = block->instructions.erase(it);
-                                    ++it;
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
+                // // (6)   li tx, k 
+                // //     add, ty, xx, tx ---> 直接用k替换tx
+                // if(inst ->getOpcode() == RISCV_LI) {
+                //     int imm = inst->getImm();
+                //     // addi 的 12 位有符号立即数范围为 [-2048, 2047]
+                //     if (imm >= -2048 && imm <= 2047) {
+                //         auto next_it = std::next(it);
+                //         if (next_it != block->instructions.end()) {
+                //             auto next_inst = (RiscV64Instruction*)(*next_it);
+                //             if(next_inst->getOpcode() == RISCV_ADD) {
+                //                 if(next_inst->getRs2().reg_no == inst->getRd().reg_no) {
+                //                     next_inst->setOpcode(RISCV_ADDI,false);
+                //                     next_inst->setImm(inst->getImm());
+                //                     it = block->instructions.erase(it);
+                //                     ++it;
+                //                     continue;
+                //                 }
+                //             }
+                //         }
+                //     }
+                // }
                 // (7) addi tx, ty, 0
                 //     add  xx, tx, xx ---> 直接用ty替换tx
-                else if(inst ->getOpcode() == RISCV_ADDI){
+                if(inst ->getOpcode() == RISCV_ADDI){
                     if(inst->getImm()==0){
                         auto next_it = std::next(it);
                         if (next_it != block->instructions.end()) {
@@ -251,4 +251,3 @@ void MachinePeepholePass::ConstantReplacement() {
         }
     }
 }
-

@@ -174,7 +174,7 @@ struct RvOpInfo {
     };
     int ins_formattype;    // 指令类型
     char *name;
-    int latency;    // sifive-u74上的硬件指令延迟, 可以用于指令调度优化, 如果你不打算实现该优化可以忽略
+    int latency;    
 };
 
 enum {

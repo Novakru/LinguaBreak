@@ -2047,7 +2047,7 @@ template <> void RiscV64Unit::ConvertAndAppend<PhiInstruction *>(PhiInstruction 
         auto labelno = ((LabelOperand*)labelop)->GetLabelNo();
         auto cur_mcfg = cur_func->getMachineCFG();
         auto bb = (cur_mcfg->block_map)[labelno];
-        auto bblist = bb->Mblock->GetInsList();
+        auto bblist = bb->GetInsList();
         // MachineBaseInstruction* terminalI = nullptr;
         // MachineBaseInstruction* terminalI2 = nullptr;
         // if(bblist.size() > 0){
@@ -2072,7 +2072,7 @@ template <> void RiscV64Unit::ConvertAndAppend<PhiInstruction *>(PhiInstruction 
                 auto valimm = (ImmI32Operand*)valop;
                 auto imm = valimm->GetIntImmVal();
                 auto temp_imm_register = GetNewTempRegister(INT64);
-                InsertImmI32Instruction(temp_imm_register, valimm, bb->Mblock, 1);
+                InsertImmI32Instruction(temp_imm_register, valimm, bb, 1);
                 add_instr = rvconstructor->ConstructR(RISCV_ADD, tempregister, temp_imm_register, GetPhysicalReg(RISCV_x0));
             }
         }else/* if(inst->GetResultType() == BasicInstruction::FLOAT32)*/{
@@ -2085,12 +2085,12 @@ template <> void RiscV64Unit::ConvertAndAppend<PhiInstruction *>(PhiInstruction 
                 auto valimm = (ImmF32Operand*)valop;
                 auto imm = valimm->GetFloatVal();
                 auto temp_imm_register = GetNewTempRegister(FLOAT64);
-                InsertImmFloat32Instruction(temp_imm_register, valimm, bb->Mblock, 1);
+                InsertImmFloat32Instruction(temp_imm_register, valimm, bb, 1);
                 add_instr = rvconstructor->ConstructR2(RISCV_FMV_S, tempregister, temp_imm_register);
             }
         }
         // 将生成的指令放在所有基本块都生成后再生成
-        phi_instr_map[bb->Mblock->getLabelId()].push_back(add_instr);
+        phi_instr_map[bb->getLabelId()].push_back(add_instr);
     }
 
     if(inst->GetResultType() == BasicInstruction::I32 || inst->GetResultType() == BasicInstruction::PTR){
@@ -2106,6 +2106,8 @@ template <> void RiscV64Unit::ConvertAndAppend<PhiInstruction *>(PhiInstruction 
     }
     // std::cerr<<llvm2rv_regmap[resultreg->GetRegNo()].get_reg_no()<<'\n';
 }
+
+
 
 void RiscV64Unit::BuildPhiWeb(CFG *C){
     std::map<int, int> UnionFindMap;

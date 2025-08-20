@@ -49,6 +49,8 @@
 #include"back_end/optimize/machine_peephole.h"
 #include"back_end/optimize/machine_strengthreduce.h"
 #include"back_end/optimize/machine_cse.h"
+#include"back_end/optimize/machine_pee.h"
+#include"back_end/optimize/machine_dataflowanalysis.h"
 
 #define USE_AUIPC_LW_OPTIMIZATION 1 // Set to 1 to use auipc+lw, 0 to use la+lw
 #define USE_FMA 0 // set 1 to use FMA
@@ -320,7 +322,6 @@ int main(int argc, char** argv) {
         PeepholePass(&llvmIR).IdentitiesEliminateExecute();
         SCCPPass(&llvmIR).Execute();			
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
-
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();		
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
@@ -339,6 +340,9 @@ int main(int argc, char** argv) {
         MachineUnit* m_unit = new RiscV64Unit(&llvmIR);
         m_unit->SelectInstructionAndBuildCFG();
 
+        DataFlowAnalysisPass(m_unit).Execute();
+        MachinePeePass(m_unit).Execute();
+
         if (option == 5) {
             RiscV64RegisterAllocTools regs;
             FastLinearScan(m_unit, &regs).Execute();
@@ -346,9 +350,11 @@ int main(int argc, char** argv) {
         }
 
         // optimizer
-        MachinePeepholePass(m_unit).Execute();
-        MachineStrengthReducePass(m_unit).Execute();
-        //RiscV64CSE(m_unit).Execute();
+        #if USE_FMA
+            MachinePeePass(m_unit).FloatCompFusion();
+        #endif
+        //MachinePeepholePass(m_unit).Execute();
+        MachineStrengthReducePass(m_unit).Execute(); 
 
         RiscV64Printer(out, m_unit).emit();
         fclose(input);

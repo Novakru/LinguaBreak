@@ -13,7 +13,7 @@ void FastLinearScan::RewriteInFunc() {
     auto mcfg = func->getMachineCFG();
     mcfg->seqscan_open();
     while (mcfg->seqscan_hasNext()) {
-        auto block = mcfg->seqscan_next()->Mblock;
+        auto block = mcfg->seqscan_next();
         for (auto it = block->begin(); it != block->end(); ++it) {
             auto ins = *it;
             // 根据alloc_result将ins的虚拟寄存器重写为物理寄存器
@@ -165,9 +165,7 @@ bool FastLinearScan::DoAllocInCurrentFunc() {
 std::set<MachineBlock *> FindNodesInLoop(MachineCFG *C, MachineBlock *n, MachineBlock *d)    // backedge n->d
 {
     std::set<MachineBlock *> loop_nodes;
-
     std::stack<MachineBlock *> S;
-
     loop_nodes.insert(n);
     loop_nodes.insert(d);
 
@@ -180,9 +178,9 @@ std::set<MachineBlock *> FindNodesInLoop(MachineCFG *C, MachineBlock *n, Machine
         MachineBlock *x = S.top();
         S.pop();
         for (auto preBB : C->GetPredecessorsByBlockId(x->getLabelId())) {
-            if (loop_nodes.find(preBB->Mblock) == loop_nodes.end()) {
-                loop_nodes.insert(preBB->Mblock);
-                S.push(preBB->Mblock);
+            if (loop_nodes.find(preBB) == loop_nodes.end()) {
+                loop_nodes.insert(preBB);
+                S.push(preBB);
             }
         }
     }
@@ -196,7 +194,7 @@ void FastLinearScan::ComputeLoopDepth(MachineCFG* C) {
     {
         C->seqscan_open();
         while (C->seqscan_hasNext()) {
-            auto *block = C->seqscan_next()->Mblock;
+            auto *block = C->seqscan_next();
             block->loop_depth = 0;
             blocks.push_back(block);
         }
@@ -209,7 +207,7 @@ void FastLinearScan::ComputeLoopDepth(MachineCFG* C) {
     for (auto *tail : blocks) {
         auto tail_id = tail->getLabelId();
         for (auto succ : C->GetSuccessorsByBlockId(tail_id)) { // tail -> head 候选回边
-            auto *head = succ->Mblock;
+            auto *head = succ;
             if (C->DomTree->IsDominate(head->getLabelId(), tail_id)) {
                 // 自然环节点（以该回边为依据）
                 auto nodes = FindNodesInLoop(C, tail, head);
@@ -296,7 +294,8 @@ void InstructionNumber::ExecuteInFunc(MachineFunction *func) {
     mcfg->bfs_open();
     while (mcfg->bfs_hasNext()) {
         auto mcfg_node = mcfg->bfs_next();
-        auto mblock = mcfg_node->Mblock;
+
+        auto mblock = mcfg_node;
         // Update instruction number
         // 每个基本块开头会占据一个编号
         this->numbertoins[count_begin] = InstructionNumberEntry(nullptr, true);
@@ -330,7 +329,8 @@ void FastLinearScan::UpdateIntervalsInCurrentFunc() {
     // 开始反向遍历所有基本块（逆控制流方向）
     while (mcfg->reverse_hasNext()) {
         auto mcfg_node = mcfg->reverse_next(); // 获取下一个基本块节点
-        auto mblock = mcfg_node->Mblock; // 当前基本块对象
+
+        auto mblock = mcfg_node; // 当前基本块对象
         auto cur_id = mblock->getLabelId(); // 基本块标签ID
 
         // 处理基本块的OUT集合（出口处活跃的寄存器）
@@ -503,7 +503,7 @@ void FastLinearScan::SpillCodeGen(MachineFunction *function, std::map<Register, 
     std::map<int, Register> temp_reg_cache;
     //1.顺序逐个访问函数的基本块
     while (mcfg->seqscan_hasNext()) {
-        cur_block = mcfg->seqscan_next()->Mblock;
+        cur_block = mcfg->seqscan_next();
         //2.顺序访问基本块的各个指令
         for (auto it = cur_block->begin(); it != cur_block->end(); ++it) {
             auto ins = *it;

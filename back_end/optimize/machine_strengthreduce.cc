@@ -2,7 +2,7 @@
 
 void MachineStrengthReducePass::Execute() {
     ScalarStrengthReduction();
-    GepStrengthReduction();
+    //GepStrengthReduction();
     //LSOffsetCompute();
 }
 
