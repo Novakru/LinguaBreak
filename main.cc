@@ -330,6 +330,7 @@ int main(int argc, char** argv) {
         PeepholePass(&llvmIR).IdentitiesEliminateExecute();
         SCCPPass(&llvmIR).Execute();			
         SimplifyCFGPass(&llvmIR).RebuildCFGforSCCP();
+
 		
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();		
