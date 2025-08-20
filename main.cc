@@ -283,9 +283,9 @@ int main(int argc, char** argv) {
 		AA.Execute();
         GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
         
-        AA.Execute();
-        SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
-        inv_dom.invExecute();	
+        // AA.Execute();
+        // SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
+        // inv_dom.invExecute();	
         AA.Execute();
         SimpleDSEPass(&llvmIR,&inv_dom,&AA).Execute();
         SimplifyCFGPass(&llvmIR).EOBB();

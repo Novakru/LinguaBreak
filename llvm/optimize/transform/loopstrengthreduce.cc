@@ -653,7 +653,7 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
 			#if LSR_SUBLOOP == 1
             // 递归处理子循环
             for (auto &subloop_pair : curLoop->getSubLoops()) {
-				if(subloop_pair->getLoopDepth() > LSR_MAX_LOOP_DEPTH) continue;
+				if(subloop_pair->getLoopDepth() >= LSR_MAX_LOOP_DEPTH) continue;
                 LSR_DEBUG_PRINT(std::cerr << "[LSR] 发现子循环，加入工作队列" << std::endl);
                 worklist.push_back(subloop_pair);
             }
