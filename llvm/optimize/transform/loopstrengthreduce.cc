@@ -1,16 +1,14 @@
 #include "loopstrengthreduce.h"
 #include <unordered_set>
 
-// 定义LSR_SUBLOOP宏，用于控制是否启用子循环处理
+// 循环强度削弱的循环层数控制
+// LSR_SUBLOOP: 0=只处理顶层循环, 1=处理所有子循环
 #define LSR_SUBLOOP 1 // set 1 to use subloop in loopstrengthreduce
 
-bool isInductionVariable(Operand op, Loop* loop);
+// 当LSR_SUBLOOP=2时，设置最大处理的循环层数
+#define LSR_MAX_LOOP_DEPTH 3 // 最大处理3层嵌套循环
 
-// not support:
-// 1. while(i > n) i /= 2 ...
-// 2. while(i > n) i %= 2 ...
-// 3. float loop
-
+// 是否启用调试输出
 //#define lsr_debug 
 
 #ifdef lsr_debug
@@ -19,6 +17,18 @@ bool isInductionVariable(Operand op, Loop* loop);
 #define LSR_DEBUG_PRINT(x) do {} while(0)
 #endif
 
+bool isInductionVariable(Operand op, Loop* loop) {
+    LLVMBlock header = loop->getHeader();
+    for (auto inst : header->Instruction_list) {
+        if (inst->GetOpcode() == BasicInstruction::ICMP) {
+            auto icmp = (IcmpInstruction*)inst;
+            if (icmp->GetOp1() == op || icmp->GetOp2() == op) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 //  检查操作数是否可以被安全地移动到preheader
 bool canMoveToPreheader(Operand op, LLVMBlock preheader, Loop* curLoop, std::unordered_set<Instruction>& toDelete) {
     // 如果是常量或立即数，可以直接使用
@@ -643,25 +653,13 @@ void LoopStrengthReducePass::LoopStrengthReduce(CFG* cfg) {
 			#if LSR_SUBLOOP == 1
             // 递归处理子循环
             for (auto &subloop_pair : curLoop->getSubLoops()) {
+				if(subloop_pair->getLoopDepth() > LSR_MAX_LOOP_DEPTH) continue;
                 LSR_DEBUG_PRINT(std::cerr << "[LSR] 发现子循环，加入工作队列" << std::endl);
                 worklist.push_back(subloop_pair);
             }
 			#endif
         }
     }
-}
-
-bool isInductionVariable(Operand op, Loop* loop) {
-    LLVMBlock header = loop->getHeader();
-    for (auto inst : header->Instruction_list) {
-        if (inst->GetOpcode() == BasicInstruction::ICMP) {
-            auto icmp = (IcmpInstruction*)inst;
-            if (icmp->GetOp1() == op || icmp->GetOp2() == op) {
-                return true;
-            }
-        }
-    }
-    return false;
 }
 
 /*

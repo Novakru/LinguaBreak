@@ -505,11 +505,7 @@ void SCEVPass::Execute() {
 		cfg->SCEVInfo = SE;
 		simplifyAllSCEVExpr();
 		// fixAllSCEVExpr();
-<<<<<<< HEAD
-		// SE->print(std::cout);
-=======
-		//SE->print(std::cout);
->>>>>>> d4d3a1927596108ba4ab4e3f153c52655de61915
+		SE->print(std::cout);
     }
 }
 

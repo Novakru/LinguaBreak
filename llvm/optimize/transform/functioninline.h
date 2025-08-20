@@ -16,7 +16,7 @@ private:
     // 存储block_id对应的后续phi指令
     std::unordered_map<FuncDefInstruction,std::unordered_map<int,std::set<PhiInstruction*>>>phiGraph;
     // 内联阈值，超过此值的函数不会被内联
-    const int INLINE_THRESHOLD = 30;
+    const int INLINE_THRESHOLD = 80;
 
 
     // 构建函数调用图
