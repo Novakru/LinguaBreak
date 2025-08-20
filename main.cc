@@ -239,7 +239,7 @@ int main(int argc, char** argv) {
     llvmIR.CFGInit();
     SimplifyCFGPass(&llvmIR).Execute();
 
-    //TailCallElimPass(&llvmIR).Execute();
+    TailCallElimPass(&llvmIR).Execute();
     DomAnalysis dom(&llvmIR);
     dom.Execute();
     (Mem2RegPass(&llvmIR, &dom)).Execute();
@@ -247,8 +247,8 @@ int main(int argc, char** argv) {
     inv_dom.invExecute();
 
     AliasAnalysisPass AA(&llvmIR); 
-    // AA.Execute();
-    //SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
+    AA.Execute();
+    SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
 
     (ADCEPass(&llvmIR, &inv_dom)).Execute();
 
@@ -299,7 +299,7 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).EOBB(); 
 		SimplifyCFGPass(&llvmIR).RebuildCFG();		
 
-		LoopAnalysisPass(&llvmIR).Execute();
+        LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
 		// AA.Execute();
@@ -334,25 +334,6 @@ int main(int argc, char** argv) {
 		SimplifyCFGPass(&llvmIR).EOBB();  
         SimplifyCFGPass(&llvmIR).MergeBlocks();		
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
-
-		LoopAnalysisPass(&llvmIR).Execute();
-		LoopSimplifyPass(&llvmIR).Execute();
-		SimplifyCFGPass(&llvmIR).TOPPhi();
-		AA.Execute();
-		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		SimplifyCFGPass(&llvmIR).TOPPhi();
-		SCEVPass(&llvmIR).Execute();
-		InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
-		LoopStrengthReducePass(&llvmIR).Execute();
-		LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
-		redundency_elimination(inv_dom);
-
-        dom.Execute();
-		AA.Execute();
-		SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
-		redundency_elimination(inv_dom);
-
-		SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
 
     }
 
