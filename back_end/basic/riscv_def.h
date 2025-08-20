@@ -1,7 +1,7 @@
 #ifndef RISCV_DEF_H
 #define RISCV_DEF_H
 #include<unordered_map>
-enum RISCV_INST {
+enum RISCV_INST {   //若改变顺序，需要同步修改IsFloatInst() （在machine_pee.cc)
     RISCV_SLL,
     RISCV_SLLI,//
     RISCV_SRL,
@@ -65,6 +65,32 @@ enum RISCV_INST {
     RISCV_DIVU,
     RISCV_REMUW,
 
+    RISCV_LI,
+	RISCV_LA,
+    RISCV_CALL,
+
+    RISCV_BGT,
+    RISCV_BLE,
+    RISCV_BGTU,
+    RISCV_BLEU,
+
+    RISCV_SH1ADD,
+    RISCV_SH2ADD,
+    RISCV_SH3ADD,
+
+    RISCV_SH1ADDUW,
+    RISCV_SH2ADDUW,
+    RISCV_SH3ADDUW,
+
+    RISCV_MIN,
+    RISCV_MAX,
+    RISCV_MINU,
+    RISCV_MAXU,
+
+    RISCV_ZEXT_W,
+
+    RISCV_FMV_S,
+    RISCV_FMV_D,
     RISCV_FMV_W_X,
     RISCV_FMV_X_W,
     RISCV_FCVT_S_WU,
@@ -127,35 +153,7 @@ enum RISCV_INST {
     RISCV_FCVT_L_D,
     RISCV_FCVT_LU_S,
     RISCV_FCVT_LU_D,
-
-    RISCV_LI,
-	RISCV_LA,
-    RISCV_CALL,
-
-    RISCV_BGT,
-    RISCV_BLE,
-    RISCV_BGTU,
-    RISCV_BLEU,
-
-    RISCV_FMV_S,
-    RISCV_FMV_D,
-
-    RISCV_SH1ADD,
-    RISCV_SH2ADD,
-    RISCV_SH3ADD,
-
-    RISCV_SH1ADDUW,
-    RISCV_SH2ADDUW,
-    RISCV_SH3ADDUW,
-
-    RISCV_MIN,
-    RISCV_MAX,
-    RISCV_MINU,
-    RISCV_MAXU,
-
     RISCV_FCVT_D_S,
-    RISCV_ZEXT_W,
-
     RISCV_FNEG_S,
     RISCV_FNEG_D,
 };

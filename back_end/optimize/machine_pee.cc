@@ -1,19 +1,26 @@
 #include "machine_pee.h"
+#include <cstring>
+#include <cstdint>
+
+bool IsFloatInst(int opcode){
+    if(opcode>=RISCV_FMV_S){
+        return true;
+    }else{
+        return false;
+    }
+}
 
 void MachinePeePass::Execute(){
     for(auto &func:unit->functions){
         MachineCFG* cfg=func->getMachineCFG();
-        bool changed=false;
-        std::cout<<"Start!"<<std::endl;
-        do{
-            changed =  RedundantReplacementEliminate(cfg);
-            std::cout<<"first!"<<std::endl;
+        //bool changed=false;
+        //do{
+            //changed =  RedundantReplacementEliminate(cfg);
             ConstComputingEliminate(cfg);//仅删除指令，不影响其它指令
-            std::cout<<"second!"<<std::endl;
-        }while(changed);
-        std::cout<<"MachinePeePass: ConstComputingEliminate done."<<std::endl;
-        //ConstantFolding(cfg);    
-        std::cout<<"MachinePeePass: ConstantFolding done."<<std::endl; 
+            ConstantFolding(cfg);    
+        //}while(changed);
+
+        DCE(cfg); //删除无用指令
     }
     return ;
 }
@@ -445,17 +452,25 @@ bool MachinePeePass::RedundantReplacementEliminate(MachineCFG* cfg){
     3. 有def_reg,且 def_reg.is_virtual && def_reg.is_const，删除指令
 */
 
-// return : true 表示删除, false 表示替换
-bool ReplacedOrDelete(std::vector<Register *> write_regs,MachineCFG* cfg){
+// return : 0保留， 1 表示删除, 2 表示替换  --> 在此处保留，最后删除无用指令
+int ReplacedOrDelete(RiscV64Instruction*inst,  std::vector<Register *> write_regs,MachineCFG* cfg){
+    if(IsFloatInst(inst->getOpcode())){
+        return 0; //暂不处理浮点数
+    }
     if(write_regs.empty()) {
-        return false; 
+        return 2; 
     }else if(write_regs.size()==1){
         if(write_regs[0]->is_virtual && 
            cfg->lattice_map.count(write_regs[0]->reg_no) &&
            cfg->lattice_map[write_regs[0]->reg_no]->status==LatticeStatus::CONST) {
-            return true; 
+            // auto use_insts=cfg->use_map[write_regs[0]->reg_no];
+            // for(auto &use_inst:use_insts){
+            //     if(use_inst->arch!=MachineBaseInstruction::Type::RiscV) {continue;}
+            //     if(IsFloatInst(((RiscV64Instruction*)use_inst)->getOpcode())) {return 0;}
+            // }
+            return 0; 
         }else{
-            return false; 
+            return 2; 
         }
     }else{
         assert(0);
@@ -499,13 +514,18 @@ bool MachinePeePass::ReplaceReg(Register reg, MachineBlock*block,MachineCFG* cfg
         }
     }else{//float
         float const_val=cfg->lattice_map[reg.reg_no]->val.floatval;
+        uint32_t bits;
+        static_assert(sizeof(bits)==sizeof(float));
+        std::memcpy(&bits, &const_val, sizeof(bits));//将float做位级重解释成uint32_t
+
         auto int_reg=new Register();
         if(const_val==0) {//用x0
             *int_reg=RISCVregs[RISCV_x0];
-        }else if(const_val>=-2048 && const_val<=2047){//用addi
+        } else if(const_val>=-2048 && const_val<=2047){//用addi
+        //else if(fits_simm12((int32_t)bits)){//用addi
             RiscV64Instruction *addi_inst = new RiscV64Instruction();
             //if(reg.getDataWidth()==32){
-                addi_inst->setOpcode(RISCV_ADDIW,false);
+            addi_inst->setOpcode(RISCV_ADDI,false);
             // }else if(reg.getDataWidth()==64){
             //     addi_inst->setOpcode(RISCV_ADDIW,false);
             // }else{
@@ -536,18 +556,32 @@ bool MachinePeePass::ReplaceReg(Register reg, MachineBlock*block,MachineCFG* cfg
     return false;
 }
 
+
+
+//对整型做常量替换
 void MachinePeePass::ConstantFolding(MachineCFG* cfg){
+
     for (auto &[id,block]: cfg->block_map) {
         auto old_insts=block->instructions;
         block->instructions.clear();
         for (auto it = old_insts.begin(); it != old_insts.end();++it) {
-            if((*it)->arch!=MachineBaseInstruction::Type::RiscV) {continue;}
+            if((*it)->arch!=MachineBaseInstruction::Type::RiscV) {
+                block->instructions.push_back(*it);
+                continue;
+            }
             auto inst = (RiscV64Instruction*)(*it);
-            if(OpTable[inst->getOpcode()].ins_formattype==RvOpInfo::CALL_type){continue;}
+            if(OpTable[inst->getOpcode()].ins_formattype==RvOpInfo::CALL_type){
+                block->instructions.push_back(*it);
+                continue;
+            }
 
             std::cout<<"Block "<<block->getLabelId()<<" inst: "<<OpTable[inst->getOpcode()].name<<std::endl;
-            if(ReplacedOrDelete(inst->GetWriteReg(),cfg)){//删除
+            int status=ReplacedOrDelete(inst,inst->GetWriteReg(),cfg);
+            if(status==1){//删除
                 continue;
+            }else if(status==0){//保留
+                block->instructions.push_back(inst);
+                
             }else{//替换
                 if(inst->getOpcode()==RISCV_ADD || inst->getOpcode()==RISCV_ADDW){
                     auto rs1=inst->getRs1();
@@ -573,6 +607,7 @@ void MachinePeePass::ConstantFolding(MachineCFG* cfg){
                             ReplaceReg(rs1,block,cfg);//添加li指令装载立即数，仍使用原寄存器
                             block->instructions.push_back(inst);
                         }
+
                     }else if(rs2.is_virtual && cfg->lattice_map.count(rs2.reg_no) &&
                        cfg->lattice_map[rs2.reg_no]->status==LatticeStatus::CONST){
                         if(cfg->lattice_map[rs2.reg_no]->val.intval >=-2048 &&
@@ -590,6 +625,8 @@ void MachinePeePass::ConstantFolding(MachineCFG* cfg){
                             ReplaceReg(rs2,block,cfg);//添加li指令装载立即数，仍使用原寄存器
                             block->instructions.push_back(inst);
                         }
+                    }else{
+                        block->instructions.push_back(inst);
                     }
                 }else{
                     auto read_regs=inst->GetReadReg();
@@ -606,6 +643,41 @@ void MachinePeePass::ConstantFolding(MachineCFG* cfg){
     }
 }
 
+
+void MachinePeePass::DCE(MachineCFG* cfg){
+    std::unordered_set<int> used_regno;
+    for (auto &[id,block]: cfg->block_map) {
+        for(auto it=block->instructions.begin();it!=block->instructions.end();++it){
+            if((*it)->arch==MachineBaseInstruction::RiscV){
+                auto inst=(RiscV64Instruction*)(*it);
+                auto read_regs=inst->GetReadReg();
+                for(auto &reg:read_regs){
+                    if(reg->is_virtual){
+                        used_regno.insert(reg->reg_no);
+                    }
+                }
+            }
+        }
+    }
+    for (auto &[id,block]: cfg->block_map) {
+        for(auto it=block->instructions.begin();it!=block->instructions.end();){
+            if((*it)->arch!=MachineBaseInstruction::RiscV){++it;continue;}
+            auto inst=(RiscV64Instruction*)(*it);
+            auto write_regs=inst->GetWriteReg();
+            if(write_regs.size()==1){
+                if(write_regs[0]->is_virtual && !used_regno.count(write_regs[0]->reg_no)){
+                    it = block->instructions.erase(it);
+                    continue;
+                }else{
+                    ++it;
+                }
+            } else{
+                ++it;
+            }
+        }
+    }
+    
+}   
 
 void MachinePeePass::FloatCompFusion(){
     for (auto &func : unit->functions) {
