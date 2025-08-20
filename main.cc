@@ -250,7 +250,7 @@ int main(int argc, char** argv) {
 
     // 【5】优化
 	// 提交到 oj 时需要默认优化全开
-    if (optimize) {
+    // if (optimize) {
 
         AliasAnalysisPass AA(&llvmIR); 
 		AA.Execute();
@@ -289,20 +289,20 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).EOBB(); 
 		SimplifyCFGPass(&llvmIR).RebuildCFG();		
 
+		LoopAnalysisPass(&llvmIR).Execute();
+		LoopSimplifyPass(&llvmIR).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
+		// AA.Execute();
+		// LoopRotate(&llvmIR, &AA).Execute();
 		// LoopAnalysisPass(&llvmIR).Execute();
 		// LoopSimplifyPass(&llvmIR).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
-		// // AA.Execute();
-		// // LoopRotate(&llvmIR, &AA).Execute();
-		// // LoopAnalysisPass(&llvmIR).Execute();
-		// // LoopSimplifyPass(&llvmIR).Execute();
-		// AA.Execute();
-		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
-		// SCEVPass(&llvmIR).Execute();
-		// InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
-		// LoopStrengthReducePass(&llvmIR).Execute();
-		// LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
+		AA.Execute();
+		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
+		SCEVPass(&llvmIR).Execute();
+		InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
+		LoopStrengthReducePass(&llvmIR).Execute();
+		LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
 
 		llvmIR.SyncMaxInfo();     
         inv_dom.invExecute();
@@ -325,14 +325,14 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).MergeBlocks();		
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
 
-        // dom.Execute();
-		// AA.Execute();
-		// SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
-		// redundency_elimination(inv_dom);
+        dom.Execute();
+		AA.Execute();
+		SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
+		redundency_elimination(inv_dom);
 
 		SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
 
-    }
+    // }
 
     if (option == 3) {
         llvmIR.printIR(out);

@@ -85,9 +85,16 @@ void TailCallElimPass::TailCallElim(CFG *C) {
 	FuncDefInstruction funcdef = C->function_def;
 	for(int i = 0; i < funcdef->formals.size(); i++) {
 		auto type = funcdef->formals[i];
-		auto op = (RegOperand*)funcdef->formals_reg[i];
+		auto op = funcdef->formals_reg[i];
+		
+		// 安全检查：确保操作数是RegOperand类型
+		if (op->GetOperandType() != BasicOperand::REG) {
+			continue; // 跳过非寄存器操作数（如全局变量）
+		}
+		
+		auto reg_op = static_cast<RegOperand*>(op);
 		if(type == BasicInstruction::LLVMType::PTR) {
-			ptr_map.insert(std::make_pair(op->GetRegNo(), ++C->max_reg));
+			ptr_map.insert(std::make_pair(reg_op->GetRegNo(), ++C->max_reg));
 			auto ptr_storage = GetNewRegOperand(C->max_reg);
 			auto allca_inst = new AllocaInstruction(BasicInstruction::LLVMType::PTR, ptr_storage);
 			auto store_inst = new StoreInstruction(BasicInstruction::LLVMType::PTR, ptr_storage, op);
@@ -141,16 +148,18 @@ void TailCallElimPass::TailCallElim(CFG *C) {
             } else if (auto gep_inst = dynamic_cast<GetElementptrInstruction*>(inst)) {
 				// > %res = getelementptr i32, ptr %initial_ptr  |  > %new_ptr = load ptr, ptr %ptr_storage
 				// 							 					 |  > %res = getelementptr i32, ptr %new_ptr
-				auto initial_ptr_op = (RegOperand*)gep_inst->GetPtrVal();
-				if(ptr_map.count(initial_ptr_op->GetRegNo())) {
-					size_t offset = it - curr_block->Instruction_list.begin();
-					auto ptr_storage_reg = GetNewRegOperand(ptr_map[initial_ptr_op->GetRegNo()]);
-					auto new_ptr_reg = GetNewRegOperand(++C->max_reg);
-					auto load_inst = new LoadInstruction(BasicInstruction::LLVMType::PTR, ptr_storage_reg, new_ptr_reg);
-					curr_block->Instruction_list.insert(it, load_inst);     // iterator is invalid when insert	
-					it = curr_block->Instruction_list.begin() + offset + 1; // recover
-					gep_inst->SetNonResultOperands({new_ptr_reg});
-				}
+				auto ptr_val = gep_inst->GetPtrVal();
+				if(auto initial_ptr_op = dynamic_cast<RegOperand*>(ptr_val)) {
+					if(ptr_map.count(initial_ptr_op->GetRegNo())) { // skip global var
+						size_t offset = it - curr_block->Instruction_list.begin();
+						auto ptr_storage_reg = GetNewRegOperand(ptr_map[initial_ptr_op->GetRegNo()]);
+						auto new_ptr_reg = GetNewRegOperand(++C->max_reg);
+						auto load_inst = new LoadInstruction(BasicInstruction::LLVMType::PTR, ptr_storage_reg, new_ptr_reg);
+						curr_block->Instruction_list.insert(it, load_inst);     // iterator is invalid when insert	
+						it = curr_block->Instruction_list.begin() + offset + 1; // recover
+						gep_inst->SetNonResultOperands({new_ptr_reg});
+					}
+				} 
 			}
         }
     }

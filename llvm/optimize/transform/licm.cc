@@ -209,18 +209,29 @@ bool LoopInvariantCodeMotionPass::isInvariant(Instruction inst, Loop* loop, CFG*
         case BasicInstruction::LLVMIROpcode::RET:
         case BasicInstruction::LLVMIROpcode::PHI:
             return false;
-		case BasicInstruction::LLVMIROpcode::STORE:
-		case BasicInstruction::LLVMIROpcode::LOAD:
-		case BasicInstruction::LLVMIROpcode::CALL:
+		// case BasicInstruction::LLVMIROpcode::STORE:
+		// case BasicInstruction::LLVMIROpcode::LOAD:
+		// case BasicInstruction::LLVMIROpcode::CALL:
 			return false;
         default:
             break;
     }
 
-    // 2. 检查操作数是否都来自循环外或循环不变量 (可以保留内存相关指令)
+    // 2. 检查操作数是否都来自循环外或循环不变量
     for (auto op : inst->GetNonResultOperands()) {
-		if (op->GetOperandType() != BasicOperand::REG) { continue; }
-        if (inloop_defs.count(op) && !eraseInsts.count(inloop_defs[op])) { return false; }
+        // 对于寄存器操作数，检查是否在循环内定义
+        if (op->GetOperandType() == BasicOperand::REG) {
+            if (inloop_defs.count(op) && !eraseInsts.count(inloop_defs[op])) { 
+                return false; 
+            }
+        }
+        // 对于全局变量操作数，需要更严格的检查
+        else if (op->GetOperandType() == BasicOperand::GLOBAL) {
+            // 全局变量可能被循环内的指令修改，不能简单外提
+            // 除非能确定该全局变量在循环中不会被修改
+            return false;
+        }
+        // 对于其他类型的操作数（如立即数），可以外提
     }
 
     // 3. 内存操作需要额外检查
@@ -328,6 +339,12 @@ bool LoopInvariantCodeMotionPass::canHoistWithAlias(Instruction inst, Loop* loop
                 return false;
             }
         }
+		// std::cout<<"[DEBUG] loadPtr: "<<loadPtr->GetFullName()<<std::endl;
+		// std::cout<<"[DEBUG] writeInsts: "<<writeInsts.size()<<std::endl;
+		// for(auto writeInst : writeInsts) {
+		// 	std::cout<<"[DEBUG] writeInst: ";
+		// 	writeInst->PrintIR(std::cout);
+		// }
         return true;
     }
 
