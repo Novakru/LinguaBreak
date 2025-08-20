@@ -2,13 +2,25 @@
 #include <cstring>
 #include <cstdint>
 
-bool IsFloatInst(int opcode){
-    if(opcode>=RISCV_FMV_S){
-        return true;
-    }else{
-        return false;
-    }
+inline bool IsFloatInst(int opcode) {
+  // 主范围：从 FMV_W_X 到 FCVT_LU_D 全是浮点相关（含 FLW/FSW/FLD/FSD、FADD/FDIV、FCLASS、比较、FMA、FCVT 等）
+  if (opcode >= RISCV_FMV_W_X && opcode <= RISCV_FCVT_LU_D) {
+    return true;
+  }
+
+  // 零星散落在后面的浮点指令
+  switch (opcode) {
+    case RISCV_FMV_S:
+    case RISCV_FMV_D:
+    case RISCV_FCVT_D_S:
+    case RISCV_FNEG_S:
+    case RISCV_FNEG_D:
+      return true;
+    default:
+      return false;
+  }
 }
+
 
 void MachinePeePass::Execute(){
     for(auto &func:unit->functions){
@@ -482,7 +494,10 @@ bool MachinePeePass::ReplaceReg(Register reg, MachineBlock*block,MachineCFG* cfg
     //非virtual&const,不替换
     if(!reg.is_virtual || 
         !cfg->lattice_map.count(reg.reg_no) ||
-        cfg->lattice_map[reg.reg_no]->status!=LatticeStatus::CONST){
+        (cfg->lattice_map.count(reg.reg_no) && cfg->lattice_map[reg.reg_no]==nullptr)){
+            return false;
+    }
+    if(cfg->lattice_map[reg.reg_no]->status!=LatticeStatus::CONST){
         return false;
     }
 

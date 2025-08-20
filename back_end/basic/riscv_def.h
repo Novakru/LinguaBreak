@@ -1,98 +1,74 @@
 #ifndef RISCV_DEF_H
 #define RISCV_DEF_H
 #include<unordered_map>
-enum RISCV_INST {   //若改变顺序，需要同步修改IsFloatInst() （在machine_pee.cc)
+enum RISCV_INST {
     RISCV_SLL,
-    RISCV_SLLI,//
+    RISCV_SLLI,
     RISCV_SRL,
     RISCV_SRLI,
     RISCV_SRA,
     RISCV_SRAI,
-    RISCV_ADD, //
-    RISCV_ADDI,//
-    RISCV_SUB, //
-    RISCV_LUI, //
-    RISCV_AUIPC,//
-    RISCV_XOR, 
+    RISCV_ADD,
+    RISCV_ADDI,
+    RISCV_SUB,
+    RISCV_LUI,
+    RISCV_AUIPC,
+    RISCV_XOR,
     RISCV_XORI,
     RISCV_OR,
     RISCV_ORI,
     RISCV_AND,
     RISCV_ANDI,
-    RISCV_SLT,//
+    RISCV_SLT,
     RISCV_SLTI,
     RISCV_SLTU,
     RISCV_SLTIU,
-    RISCV_BEQ,//
-    RISCV_BNE,//
-    RISCV_BLT,//
-    RISCV_BGE,//
+    RISCV_BEQ,
+    RISCV_BNE,
+    RISCV_BLT,
+    RISCV_BGE,
     RISCV_BLTU,
     RISCV_BGEU,
-    RISCV_JAL,//
-    RISCV_JALR,//
+    RISCV_JAL,
+    RISCV_JALR,
     RISCV_LB,
     RISCV_LH,
     RISCV_LBU,
     RISCV_LHU,
-    RISCV_LW,//
+    RISCV_LW,
     RISCV_SB,
     RISCV_SH,
-    RISCV_SW,//
+    RISCV_SW,
     RISCV_SLLW,
-    RISCV_SLLIW,//
+    RISCV_SLLIW,
     RISCV_SRLW,
     RISCV_SRLIW,
     RISCV_SRAW,
     RISCV_SRAIW,
-    RISCV_ADDW,//
-    RISCV_ADDIW,//
-    RISCV_SUBW,//
+    RISCV_ADDW,
+    RISCV_ADDIW,
+    RISCV_SUBW,
     RISCV_LWU,
     RISCV_LD,
     RISCV_SD,
 
-    RISCV_MUL,//
+    RISCV_MUL,
     RISCV_MULH,
     RISCV_MULHSU,
     RISCV_MULHU,
-    RISCV_DIV,//
-    RISCV_REM,//
-    RISCV_REMU,
-    RISCV_MULW,//
-    RISCV_DIVW,//
-    RISCV_REMW,//
+    RISCV_DIV,
     RISCV_DIVU,
+    RISCV_REM,
+    RISCV_REMU,
+    RISCV_MULW,
+    RISCV_DIVW,
+    RISCV_REMW,
     RISCV_REMUW,
 
-    RISCV_LI,
-	RISCV_LA,
-    RISCV_CALL,
-
-    RISCV_BGT,
-    RISCV_BLE,
-    RISCV_BGTU,
-    RISCV_BLEU,
-
-    RISCV_SH1ADD,
-    RISCV_SH2ADD,
-    RISCV_SH3ADD,
-
-    RISCV_SH1ADDUW,
-    RISCV_SH2ADDUW,
-    RISCV_SH3ADDUW,
-
-    RISCV_MIN,
-    RISCV_MAX,
-    RISCV_MINU,
-    RISCV_MAXU,
-
-    RISCV_ZEXT_W,
-
-    RISCV_FMV_S,
-    RISCV_FMV_D,
     RISCV_FMV_W_X,
     RISCV_FMV_X_W,
+    RISCV_FCVT_S_W,
+    RISCV_FCVT_D_W,
     RISCV_FCVT_S_WU,
     RISCV_FCVT_D_WU,
     RISCV_FCVT_W_S,
@@ -145,15 +121,41 @@ enum RISCV_INST {   //若改变顺序，需要同步修改IsFloatInst() （在ma
     RISCV_FMV_X_D,
     RISCV_FCVT_S_L,
     RISCV_FCVT_D_L,
-    RISCV_FCVT_S_W,
-    RISCV_FCVT_D_W,
     RISCV_FCVT_S_LU,
     RISCV_FCVT_D_LU,
     RISCV_FCVT_L_S,
     RISCV_FCVT_L_D,
     RISCV_FCVT_LU_S,
     RISCV_FCVT_LU_D,
+
+    RISCV_LI,
+	RISCV_LA,
+    RISCV_CALL,
+
+    RISCV_BGT,
+    RISCV_BLE,
+    RISCV_BGTU,
+    RISCV_BLEU,
+
+    RISCV_FMV_S,
+    RISCV_FMV_D,
+
+    RISCV_SH1ADD,
+    RISCV_SH2ADD,
+    RISCV_SH3ADD,
+
+    RISCV_SH1ADDUW,
+    RISCV_SH2ADDUW,
+    RISCV_SH3ADDUW,
+
+    RISCV_MIN,
+    RISCV_MAX,
+    RISCV_MINU,
+    RISCV_MAXU,
+
     RISCV_FCVT_D_S,
+    RISCV_ZEXT_W,
+
     RISCV_FNEG_S,
     RISCV_FNEG_D,
 };

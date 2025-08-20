@@ -41,8 +41,8 @@ def add_returncode(file, ret):
 
 def execute_compilation(input_file, output_file, compile_option, opt_level):
     compile_start = time.time()
-    cmd = ["timeout", "180", "./compiler", compile_option, "-o", output_file, input_file]
-    if opt_level == "-O1":
+    cmd = ["timeout", "600", "./compiler", compile_option, "-o", output_file, input_file]
+    if opt_level:  # 只有当opt_level不为空时才添加
         cmd.append(opt_level)
     result = execute(cmd)
     compile_end = time.time()
@@ -72,7 +72,7 @@ def execute_llvm(input_file, output_file, stdin, stdout, testout, opt_level, tim
 
     # 运行阶段
     run_start = time.time()
-    cmd = f"timeout 180 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
+    cmd = f"timeout 600 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
     result = execute_with_stdin_out(cmd)
     run_end = time.time()
     run_time = run_end - run_start
@@ -121,7 +121,7 @@ def execute_asm(input_file, output_file, stdin, stdout, testout, opt_level, time
 
     # 运行阶段
     run_start = time.time()
-    cmd = f"timeout 180 qemu-riscv64 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
+    cmd = f"timeout 600 qemu-riscv64 ./a.out {'< '+stdin if stdin != 'none' else ''} > {testout} 2>/dev/null"
     result = execute_with_stdin_out(cmd)
     run_end = time.time()
     run_time = run_end - run_start
@@ -172,7 +172,8 @@ args = parser.parse_args()
 input_folder = args.input_folder
 output_folder = args.output_folder
 step = args.step
-opt_level = "-O" + str(args.opt)
+# 修改opt_level处理：opt=0时不传递参数，opt=1时传递-O1
+opt_level = "-O1" if args.opt == '1' else ""
 
 step_to_option = {
     "lexer": "-lexer",

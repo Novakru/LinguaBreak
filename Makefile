@@ -45,6 +45,14 @@ INCLUDES = $(addprefix -I, $(SRCDIR))
 # CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES) -fsanitize=undefined -fno-omit-frame-pointer -g
 # LDFLAGS += -fsanitize=undefined -g
 
+# 暂时禁用sanitizer以避免链接问题
+# CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES) -g
+# LDFLAGS += -g
+
+# 设置环境变量忽略内存泄漏
+# export UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
+# export ASAN_OPTIONS=detect_leaks=0:print_suppressions=0:halt_on_error=1
+
 
 CFLAGS += -O2 -MMD -std=c++17 $(INCLUDES)
 

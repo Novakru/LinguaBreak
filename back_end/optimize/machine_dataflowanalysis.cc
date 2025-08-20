@@ -26,7 +26,7 @@ void DataFlowAnalysisPass::Execute(){
                             cfg->def_map[write_regs[0]->reg_no].insert(inst);
                             //如果被定义多次，直接判定为varient,后续也不必再进行分析
                             if(cfg->lattice_map.count(write_regs[0]->reg_no) ){
-                                cfg->lattice_map[write_regs[0]->reg_no] ->status = LatticeStatus::VARIENT;
+                                cfg->lattice_map[write_regs[0]->reg_no]->status = LatticeStatus::VARIENT;
                             }else{
                                 cfg->lattice_map[write_regs[0]->reg_no]=new LatticeStatus();
                             }
@@ -36,13 +36,11 @@ void DataFlowAnalysisPass::Execute(){
             }
         }
     }
-    std::cout<<"Middle !"<<std::endl;
     //常量状态传播（仅标记）
     for(auto &func:unit->functions){
         MachineCFG* cfg=func->getMachineCFG();
         ConstPropagation(cfg);
     }
-    std::cout<<"End !"<<std::endl;
 }
 
 

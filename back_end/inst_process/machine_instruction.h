@@ -327,6 +327,8 @@ public:
     RiscV64Instruction *ConstructULabel(int op, Register Rd, RiscVLabel label) {
         RiscV64Instruction *ret = new RiscV64Instruction();
         ret->setOpcode(op, true);
+        std::cout<<"op: "<<op<<std::endl;
+        std::cout<<OpTable[op].name<<" "<<OpTable[op].ins_formattype<<std::endl;
         Assert(OpTable[op].ins_formattype == RvOpInfo::U_type);
         ret->setRd(Rd);
         ret->setLabel(label);

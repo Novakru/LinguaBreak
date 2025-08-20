@@ -241,15 +241,18 @@ int main(int argc, char** argv) {
     llvmIR.CFGInit();
     SimplifyCFGPass(&llvmIR).Execute();
 
+    TailCallElimPass(&llvmIR).Execute();
+    DomAnalysis dom(&llvmIR);
+    dom.Execute();
+    (Mem2RegPass(&llvmIR, &dom)).Execute();
+    DomAnalysis inv_dom(&llvmIR);
+    inv_dom.invExecute();
+
+    (ADCEPass(&llvmIR, &inv_dom)).Execute();
+
     // 【5】优化
 	// 提交到 oj 时需要默认优化全开
-    // if (optimize) {
-		TailCallElimPass(&llvmIR).Execute();
-        DomAnalysis dom(&llvmIR);
-        dom.Execute();
-        (Mem2RegPass(&llvmIR, &dom)).Execute();
-        DomAnalysis inv_dom(&llvmIR);
-        inv_dom.invExecute();
+    if (optimize) {
 
         AliasAnalysisPass AA(&llvmIR); 
 		AA.Execute();
@@ -271,7 +274,9 @@ int main(int argc, char** argv) {
         inv_dom.invExecute();
 		AA.Execute();
         GlobalOptPass(&llvmIR,&AA).Execute();  // is better to execute after function inline 
-
+        
+        AA.Execute();
+        SimpleCSEPass(&llvmIR,&dom,&AA).BlockExecute();	// block cse (with memory)
         inv_dom.invExecute();	
         AA.Execute();
         SimpleDSEPass(&llvmIR,&inv_dom,&AA).Execute();
@@ -298,7 +303,7 @@ int main(int argc, char** argv) {
 		SimplifyCFGPass(&llvmIR).TOPPhi();
 		SCEVPass(&llvmIR).Execute();
 		InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
-		LoopStrengthReducePass(&llvmIR).Execute();
+		//LoopStrengthReducePass(&llvmIR).Execute();//暂时关闭
 		LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
 
 		llvmIR.SyncMaxInfo();     
@@ -321,26 +326,13 @@ int main(int argc, char** argv) {
         SimplifyCFGPass(&llvmIR).MergeBlocks();		
 		SimplifyCFGPass(&llvmIR).RebuildCFG();
 
-		// LoopAnalysisPass(&llvmIR).Execute();
-		// LoopSimplifyPass(&llvmIR).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
-		// AA.Execute();
-		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
-		// SCEVPass(&llvmIR).Execute();
-		// InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
-		// LoopStrengthReducePass(&llvmIR).Execute();
-		// LoopIdiomRecognizePass(&llvmIR).Execute();  // only memset and sum recognize
-		// redundency_elimination(inv_dom);
+        dom.Execute();
+		AA.Execute();
+		SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
+		redundency_elimination(inv_dom);
+		SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
 
-        // dom.Execute();
-		// AA.Execute();
-		// SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
-		// redundency_elimination(inv_dom);
-
-		// SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
-
-    // }
+    }
 
     if (option == 3) {
         llvmIR.printIR(out);
@@ -354,8 +346,8 @@ int main(int argc, char** argv) {
         MachineUnit* m_unit = new RiscV64Unit(&llvmIR);
         m_unit->SelectInstructionAndBuildCFG();
 
-        // DataFlowAnalysisPass(m_unit).Execute();
-        // MachinePeePass(m_unit).Execute();
+        DataFlowAnalysisPass(m_unit).Execute();
+        MachinePeePass(m_unit).Execute();
 
         if (option == 5) {
             RiscV64RegisterAllocTools regs;
@@ -367,8 +359,8 @@ int main(int argc, char** argv) {
         #if USE_FMA
             MachinePeePass(m_unit).FloatCompFusion();
         #endif
-        // MachinePeepholePass(m_unit).Execute();//关掉对W系列的优化
-        // MachineStrengthReducePass(m_unit).Execute(); 
+        //MachinePeepholePass(m_unit).Execute();
+        MachineStrengthReducePass(m_unit).Execute(); 
 
         RiscV64Printer(out, m_unit).emit();
         fclose(input);

@@ -1535,8 +1535,8 @@ template <> void RiscV64Unit::ConvertAndAppend<CallInstruction *>(CallInstructio
 							auto addw_instr = rvconstructor->ConstructR(RISCV_ADD, pararegister, mid_reg, GetPhysicalReg(RISCV_sp));
 							cur_block->push_back(addw_instr);
 						}else{
-							std::cerr << "regno: " << regno << " not found in llvmReg_offset_map" << std::endl;
-							std::cerr << "now_int_num: " << now_int_num << std::endl;
+							// std::cerr << "regno: " << regno << " not found in llvmReg_offset_map" << std::endl;
+							// std::cerr << "now_int_num: " << now_int_num << std::endl;
 							auto originpara_register = GetNewRegister(regno, INT64);
 							auto addw_instr = rvconstructor->ConstructR(RISCV_ADD, pararegister, originpara_register, GetPhysicalReg(RISCV_x0));
 							cur_block->push_back(addw_instr);

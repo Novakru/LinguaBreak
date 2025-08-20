@@ -450,6 +450,12 @@ void BasicBlockCSEOptimizer::processCallInstruction(CallInstruction* CallI) {
         auto glptrs=glmap[cfg];
         for(auto [regno,ptrinfo]:glptrs)
         {
+            // std::cout<<"[DEBUG] Processing ptrinfo for regno: "<<regno<<std::endl;
+            // 检查 ptrinfo 是否为空指针
+            if (ptrinfo == nullptr) {
+                // std::cout<<"[DEBUG] ptrinfo is nullptr, skipping"<<std::endl;
+                continue;
+            }
             for(auto ptr:ptrinfo->AliasOps)
             {
                 if (ptr->GetOperandType() == BasicOperand::GLOBAL) {
@@ -1215,6 +1221,7 @@ void DomTreeCSEOptimizer::optimize() {
     while (changed) {
         changed = false;
         tmp=changed;
+        currentRecursionDepth=0;
 		CSE_DEBUG_PRINT(std::cout<<"changed"<<std::endl);
         dfs(0);
 		CSE_DEBUG_PRINT(std::cout<<"dfs"<<std::endl);
@@ -1231,6 +1238,7 @@ void DomTreeCSEOptimizer::branch_optimize()
     while (changed) {
         CmpMap.clear();
         changed = false;
+        currentRecursionDepth = 0;
         branch_dfs(0);
         branch_end();
     }
@@ -1309,8 +1317,16 @@ void DomTreeCSEOptimizer::branch_end()
 //     //cleanupTemporaryEntries(regularCseSet, tmpLoadNumMap);
 //     cleanupTemporaryEntries(regularCseSet,cmpCseSet);
 // }
+
 void DomTreeCSEOptimizer::dfs(int bbid) {
-	CSE_DEBUG_PRINT(std::cout<<"dfs bbid: "<<bbid<<std::endl);
+    // 检查递归深度
+    if (currentRecursionDepth > MAX_RECURSION_DEPTH) {
+        std::cerr << "递归深度超过限制，可能出现死循环。退出优化过程。" << std::endl;
+        return;
+    }
+
+    currentRecursionDepth++; // 进入递归，深度增加
+    CSE_DEBUG_PRINT(std::cout<<"dfs bbid: "<<bbid<<std::endl);
     LLVMBlock now = (*C->block_map)[bbid];
     std::set<InstCSEInfo> tmpCSESet;
     std::map<InstCSEInfo, int> tmpLoadNumMap;
@@ -1319,19 +1335,19 @@ void DomTreeCSEOptimizer::dfs(int bbid) {
 
         switch (I->GetOpcode()) {
             case BasicInstruction::LOAD:
-				CSE_DEBUG_PRINT(std::cout<<"load"<<std::endl);
-                if(hasMemOp){processLoadInstruction(static_cast<LoadInstruction*>(I), tmpLoadNumMap);}
-				CSE_DEBUG_PRINT(std::cout<<"load end"<<std::endl);
+                CSE_DEBUG_PRINT(std::cout<<"load"<<std::endl);
+                processLoadInstruction(static_cast<LoadInstruction*>(I), tmpLoadNumMap);
+                CSE_DEBUG_PRINT(std::cout<<"load end"<<std::endl);
                 break;
             case BasicInstruction::STORE:
-				CSE_DEBUG_PRINT(std::cout<<"store"<<std::endl);
-                if(hasMemOp){processStoreInstruction(static_cast<StoreInstruction*>(I), tmpLoadNumMap);}
-				CSE_DEBUG_PRINT(std::cout<<"store end"<<std::endl);
+                CSE_DEBUG_PRINT(std::cout<<"store"<<std::endl);
+                processStoreInstruction(static_cast<StoreInstruction*>(I), tmpLoadNumMap);
+                CSE_DEBUG_PRINT(std::cout<<"store end"<<std::endl);
                 break;
             case BasicInstruction::CALL:
-				CSE_DEBUG_PRINT(std::cout<<"call"<<std::endl);
-                if(hasMemOp){processCallInstruction(static_cast<CallInstruction*>(I),tmpCSESet);}
-				CSE_DEBUG_PRINT(std::cout<<"call end"<<std::endl);
+                CSE_DEBUG_PRINT(std::cout<<"call"<<std::endl);
+                processCallInstruction(static_cast<CallInstruction*>(I),tmpCSESet);
+                CSE_DEBUG_PRINT(std::cout<<"call end"<<std::endl);
                 break;
             default:
                 processRegularInstruction(I, tmpCSESet);
@@ -1339,25 +1355,25 @@ void DomTreeCSEOptimizer::dfs(int bbid) {
         }
     }
 
-	CSE_DEBUG_PRINT(std::cout<<"dfs bbid: "<<bbid<<" end"<<std::endl);
+    CSE_DEBUG_PRINT(std::cout<<"dfs bbid: "<<bbid<<" end"<<std::endl);
 
-	// if(bbid==1){
-	// 	// 打印当前eraseSet中的所有指令信息
-	// 	//std::cout << "当前eraseSet中的指令如下：" << std::endl;
-	// 	for (const auto& inst : eraseSet) {
-	// 		inst->PrintIR(//std::cout);
-	// 	}
-	// }
-    
     for (auto v : C->getDomTree()->dom_tree[bbid]) {
         dfs(v->block_id);
     }
 
     cleanupTemporaryEntries(tmpCSESet, tmpLoadNumMap);
-    //cleanupTemporaryEntries(tmpCSESet);
+    currentRecursionDepth--; // 退出递归，深度减少
 }
+
 void DomTreeCSEOptimizer::branch_dfs(int bbid)
 {
+    // 检查递归深度
+    if (currentRecursionDepth > MAX_RECURSION_DEPTH) {
+        std::cerr << "递归深度超过限制，可能出现死循环。退出优化过程。" << std::endl;
+        return;
+    }
+
+    currentRecursionDepth++; // 进入递归，深度增加
     // 安全地获取基本块
     if (C->block_map->find(bbid) == C->block_map->end()) {
         return;
@@ -1413,6 +1429,7 @@ void DomTreeCSEOptimizer::branch_dfs(int bbid)
     for (auto info : cmpCseSet) {
         CmpMap[info].pop_back();
     }
+     currentRecursionDepth--; // 退出递归，深度减少
 }
 
 

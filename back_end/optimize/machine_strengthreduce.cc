@@ -2,7 +2,7 @@
 
 void MachineStrengthReducePass::Execute() {
     ScalarStrengthReduction();
-    GepStrengthReduction();
+    //GepStrengthReduction();
     //LSOffsetCompute();
 }
 
@@ -44,33 +44,21 @@ void MachineStrengthReducePass::ScalarStrengthReduction() {
                             }
                             if(flag) {
                                 if(k > 0 && (k & (k - 1)) == 0 && k!=1) { // k是2的幂
-                                    int shift_amount = __builtin_ctz((unsigned long long)k); //用64位 // 获取k的二进制表示中最低位1的索引
-                                    bool trans=true;
+                                    int shift_amount = __builtin_ctz(k);  // 获取k的二进制表示中最低位1的索引
                                     RiscV64Instruction *slli_inst = new RiscV64Instruction();
                                     if(next_inst->getOpcode() == RISCV_MUL) {
-                                        if(shift_amount>=64){trans=false;}
-                                        else{
-                                            slli_inst->setOpcode(RISCV_SLLI,false);
-                                        }
+                                        slli_inst->setOpcode(RISCV_SLLI,false);
                                     } else if(next_inst->getOpcode() == RISCV_MULW) {
-                                        if(shift_amount>=32){trans=false;}
-                                        else{
-                                            slli_inst->setOpcode(RISCV_SLLIW,false);
-                                        }
+                                        slli_inst->setOpcode(RISCV_SLLIW,false);
                                     }
-                                    if(trans){
-                                        slli_inst->setRd(next_inst->getRd());
-                                        slli_inst->setRs1(next_inst->getRs1());
-                                        slli_inst->setImm(shift_amount);
+                                    slli_inst->setRd(next_inst->getRd());
+                                    slli_inst->setRs1(next_inst->getRs1());
+                                    slli_inst->setImm(shift_amount);
 
-                                        it = block->instructions.erase(it);
-                                        *it = slli_inst;
-                                        ++it;
-                                        continue;
-                                    }else{
-                                        ++it; ++it;
-                                        continue;
-                                    }
+                                    it = block->instructions.erase(it);
+                                    *it = slli_inst;
+                                    ++it;
+                                    continue;
                                 }
                             }
                         }

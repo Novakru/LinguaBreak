@@ -452,6 +452,10 @@ void Mem2RegPass::VarRename(CFG *C) {
     store_bb_map.clear();
     load_bb_map.clear();
     visited_blocks.clear();
+    //tmp
+    store_record_map.clear();
+    load_record_map.clear();
+    //tmp
     DFS(C, 0);
 
 }
