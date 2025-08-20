@@ -243,14 +243,14 @@ int main(int argc, char** argv) {
     DomAnalysis dom(&llvmIR);
     dom.Execute();
     (Mem2RegPass(&llvmIR, &dom)).Execute();
-	
     DomAnalysis inv_dom(&llvmIR);
     inv_dom.invExecute();
+
     (ADCEPass(&llvmIR, &inv_dom)).Execute();
 
     // 【5】优化
 	// 提交到 oj 时需要默认优化全开
-    // if (optimize) {
+    if (optimize) {
 
         AliasAnalysisPass AA(&llvmIR); 
 		AA.Execute();
@@ -292,13 +292,13 @@ int main(int argc, char** argv) {
 		LoopAnalysisPass(&llvmIR).Execute();
 		LoopSimplifyPass(&llvmIR).Execute();
 		SimplifyCFGPass(&llvmIR).TOPPhi();
-		// // AA.Execute();
-		// // LoopRotate(&llvmIR, &AA).Execute();
-		// // LoopAnalysisPass(&llvmIR).Execute();
-		// // LoopSimplifyPass(&llvmIR).Execute();
 		// AA.Execute();
-		// LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
-		// SimplifyCFGPass(&llvmIR).TOPPhi();
+		// LoopRotate(&llvmIR, &AA).Execute();
+		// LoopAnalysisPass(&llvmIR).Execute();
+		// LoopSimplifyPass(&llvmIR).Execute();
+		AA.Execute();
+		LoopInvariantCodeMotionPass(&llvmIR, &AA).Execute();
+		SimplifyCFGPass(&llvmIR).TOPPhi();
 		// SCEVPass(&llvmIR).Execute();
 		// InvariantVariableEliminationPass(&llvmIR).Execute();	// only header phi, s.t. for(int i = 0, j = 0; i < 10; i++, j++)
 		// LoopStrengthReducePass(&llvmIR).Execute();
@@ -331,7 +331,7 @@ int main(int argc, char** argv) {
 		redundency_elimination(inv_dom);
 		SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
 
-    // }
+    }
 
     if (option == 3) {
         llvmIR.printIR(out);
