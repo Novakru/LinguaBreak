@@ -14,8 +14,7 @@ enum RelocType {
 class MachineBaseInstruction {
 public:
     //enum { ARM = 0, RiscV, PHI};
-    enum { ARM = 0, RiscV, PHI, COPY, LOCAL_LABEL };
-    const int arch;
+    enum Type{ ARM = 0, RiscV, PHI, COPY, LOCAL_LABEL }arch;
 
 private:
     int ins_number; // 指令编号, 用于活跃区间计算
@@ -24,7 +23,8 @@ private:
 public:
     void setNumber(int ins_number) { this->ins_number = ins_number; }
     int getNumber() { return ins_number; }
-    MachineBaseInstruction(int arch) : arch(arch) {}
+    MachineBaseInstruction(){}
+    MachineBaseInstruction(Type arch) : arch(arch) {}
     virtual std::vector<Register *> GetReadReg() = 0;     // 获得该指令所有读的寄存器
     virtual std::vector<Register *> GetWriteReg() = 0;    // 获得该指令所有写的寄存器
     virtual int GetLatency() = 0;    // 如果你不打算实现指令调度优化，可以忽略该函数
@@ -32,7 +32,6 @@ public:
     void SetNoSchedule(bool no_schedule) { this->no_schedule = no_schedule; }
     bool CanSchedule() { return !no_schedule; }
 };
-
 
 
 

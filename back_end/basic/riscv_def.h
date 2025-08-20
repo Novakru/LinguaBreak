@@ -3,72 +3,70 @@
 #include<unordered_map>
 enum RISCV_INST {
     RISCV_SLL,
-    RISCV_SLLI,
+    RISCV_SLLI,//
     RISCV_SRL,
     RISCV_SRLI,
     RISCV_SRA,
     RISCV_SRAI,
-    RISCV_ADD,
-    RISCV_ADDI,
-    RISCV_SUB,
-    RISCV_LUI,
-    RISCV_AUIPC,
-    RISCV_XOR,
+    RISCV_ADD, //
+    RISCV_ADDI,//
+    RISCV_SUB, //
+    RISCV_LUI, //
+    RISCV_AUIPC,//
+    RISCV_XOR, 
     RISCV_XORI,
     RISCV_OR,
     RISCV_ORI,
     RISCV_AND,
     RISCV_ANDI,
-    RISCV_SLT,
+    RISCV_SLT,//
     RISCV_SLTI,
     RISCV_SLTU,
     RISCV_SLTIU,
-    RISCV_BEQ,
-    RISCV_BNE,
-    RISCV_BLT,
-    RISCV_BGE,
+    RISCV_BEQ,//
+    RISCV_BNE,//
+    RISCV_BLT,//
+    RISCV_BGE,//
     RISCV_BLTU,
     RISCV_BGEU,
-    RISCV_JAL,
-    RISCV_JALR,
+    RISCV_JAL,//
+    RISCV_JALR,//
     RISCV_LB,
     RISCV_LH,
     RISCV_LBU,
     RISCV_LHU,
-    RISCV_LW,
+    RISCV_LW,//
     RISCV_SB,
     RISCV_SH,
-    RISCV_SW,
+    RISCV_SW,//
     RISCV_SLLW,
-    RISCV_SLLIW,
+    RISCV_SLLIW,//
     RISCV_SRLW,
     RISCV_SRLIW,
     RISCV_SRAW,
     RISCV_SRAIW,
-    RISCV_ADDW,
-    RISCV_ADDIW,
-    RISCV_SUBW,
+    RISCV_ADDW,//
+    RISCV_ADDIW,//
+    RISCV_SUBW,//
     RISCV_LWU,
     RISCV_LD,
     RISCV_SD,
 
-    RISCV_MUL,
+    RISCV_MUL,//
     RISCV_MULH,
     RISCV_MULHSU,
     RISCV_MULHU,
-    RISCV_DIV,
-    RISCV_DIVU,
-    RISCV_REM,
+    RISCV_DIV,//
+    RISCV_REM,//
     RISCV_REMU,
-    RISCV_MULW,
-    RISCV_DIVW,
-    RISCV_REMW,
+    RISCV_MULW,//
+    RISCV_DIVW,//
+    RISCV_REMW,//
+    RISCV_DIVU,
     RISCV_REMUW,
 
     RISCV_FMV_W_X,
     RISCV_FMV_X_W,
-    RISCV_FCVT_S_W,
-    RISCV_FCVT_D_W,
     RISCV_FCVT_S_WU,
     RISCV_FCVT_D_WU,
     RISCV_FCVT_W_S,
@@ -121,6 +119,8 @@ enum RISCV_INST {
     RISCV_FMV_X_D,
     RISCV_FCVT_S_L,
     RISCV_FCVT_D_L,
+    RISCV_FCVT_S_W,
+    RISCV_FCVT_D_W,
     RISCV_FCVT_S_LU,
     RISCV_FCVT_D_LU,
     RISCV_FCVT_L_S,
@@ -174,7 +174,7 @@ struct RvOpInfo {
     };
     int ins_formattype;    // 指令类型
     char *name;
-    int latency;    // sifive-u74上的硬件指令延迟, 可以用于指令调度优化, 如果你不打算实现该优化可以忽略
+    int latency;    
 };
 
 enum {

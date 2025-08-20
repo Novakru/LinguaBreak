@@ -65,9 +65,9 @@ public:
 
     Register() : is_virtual(false) {}
     Register(bool is_virtual, int reg_no, MachineDataType type, bool save = false)
-        : is_virtual(is_virtual), reg_no(reg_no), type(type) {}
+        : is_virtual(is_virtual), reg_no(reg_no), type(type){}
     int getDataWidth() { return type.getDataWidth(); }
-    Register(const Register &other) {
+    Register(const Register &other){
         this->is_virtual = other.is_virtual;
         this->reg_no = other.reg_no;
         this->type = other.type;

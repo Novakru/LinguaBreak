@@ -254,9 +254,8 @@ void MachineCFG::AssignEmptyNode(int id, MachineBlock *Mblk) {
     if (id > this->max_label) {
         this->max_label = id;
     }
-    MachineCFGNode *node = new MachineCFGNode;
-    node->Mblock = Mblk;
-    block_map[id] = node;
+
+    block_map[id] = Mblk;
     while (G.size() < id + 1) {
         G.push_back({});
         // G.resize(id + 1);
@@ -283,7 +282,7 @@ void MachineCFG::RemoveEdge(int edg_begin, int edg_end) {
     assert(block_map.find(edg_end) != block_map.end());
     auto it = G[edg_begin].begin();
     for (; it != G[edg_begin].end(); ++it) {
-        if ((*it)->Mblock->getLabelId() == edg_end) {
+        if ((*it)->getLabelId() == edg_end) {
             break;
         }
     }
@@ -291,7 +290,7 @@ void MachineCFG::RemoveEdge(int edg_begin, int edg_end) {
 
     auto jt = invG[edg_end].begin();
     for (; jt != invG[edg_end].end(); ++jt) {
-        if ((*jt)->Mblock->getLabelId() == edg_begin) {
+        if ((*jt)->getLabelId() == edg_begin) {
             break;
         }
     }
@@ -376,7 +375,7 @@ void MachineCFG::SetMachineDomTree(DominatorTree* domtree){
         std::vector<MachineBlock*> vecs;
         for(auto llvmblock:llvmblocks){
             int block_id=llvmblock->block_id;
-            vecs.push_back(GetNodeByBlockId(block_id)->Mblock);
+            vecs.push_back(GetNodeByBlockId(block_id));
         }
         DomTree->dom_tree.push_back(vecs);
     }
@@ -385,8 +384,8 @@ void MachineCFG::SetMachineDomTree(DominatorTree* domtree){
 }
 
 bool MachineDominatorTree::IsDominate(int id1, int id2){
-    MachineBlock* a = C->GetNodeByBlockId(id1)->Mblock;
-    MachineBlock* b = C->GetNodeByBlockId(id1)->Mblock;
+    MachineBlock* a = C->GetNodeByBlockId(id1);
+    MachineBlock* b = C->GetNodeByBlockId(id1);
     if (a == nullptr || b == nullptr) {
 		return false;
 	}
