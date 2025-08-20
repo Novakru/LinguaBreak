@@ -328,6 +328,8 @@ int main(int argc, char** argv) {
         dom.Execute();
 		AA.Execute();
 		SimpleCSEPass(&llvmIR,&dom,&AA).Execute();
+        SimplifyCFGPass(&llvmIR).EOBB();
+		SimplifyCFGPass(&llvmIR).RebuildCFG();								
 		redundency_elimination(inv_dom);
 		SimplifyCFGPass(&llvmIR).BasicBlockLayoutOptimize();
 
